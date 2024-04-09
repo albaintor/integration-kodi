@@ -1,33 +1,36 @@
-# LG TV integration for Remote Two
+# Kodi integration for Remote Two
 
 Using [pykodi](https://github.com/OnFreund/PyKodi)
 and [uc-integration-api](https://github.com/aitatoi/integration-python-library)
 
-The driver discovers KODI's instances on the network. A media player entity is exposed to the core.
+The driver lets configure your Kodi instances (discovery not supported yet). A media player entity is exposed to the core.
 
 Supported attributes:
 - State (on, off, playing, paused, unknown)
 - Title
+- Album
+- Artist
 - Artwork
-- Source
+- Media position / duration
+- Volume (level and up/down) and mute
 
 
 Supported commands:
-- Turn on
-- Turn off
+- Turn off (turn on is not supported)
 - Direction pad and enter
+- Numeric pad
 - Back
 - Next
 - Previous
 - Volume up
 - Volume down
 - Pause / Play
-- Input select
 - Channels Up/Down
-- Menus (home, context, settings)
+- Menus (home, context)
 - Colored buttons
-- Digit numbers
 - Subtitle/audio language switching
+- Fast forward / rewind
+- Simple commands (more can be added) : video menu, toggle fullscreen, zoom in/out, increase/decrease aspect ratio, toggle subtitles, subtitles delay minus/plus, audio delay minus/plus
 
 ## Usage
 
