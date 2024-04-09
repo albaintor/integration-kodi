@@ -1,0 +1,47 @@
+{
+  "driver_id": "uc_kodi_driver",
+  "version": "0.0.1",
+  "min_core_api": "0.20.0",
+  "name": {
+    "en": "Kodi"
+  },
+  "icon":"custom:kodi.png",
+  "description": {
+    "en": "Control your Kodi instance with Remote Two.",
+    "de": "Steuere Kodi instance mit Remote Two.",
+    "fr": "Contrôler Kodi instance avec Remote Two."
+  },
+  "port": 8097,
+  "developer": {
+    "name": "Unfolded Circle ApS",
+    "email": "hello@unfoldedcircle.com",
+    "url": "https://www.unfoldedcircle.com"
+  },
+  "home_page": "https://www.unfoldedcircle.com",
+  "setup_data_schema": {
+    "title": {
+      "en": "Integration setup",
+      "de": "Integrations setup",
+      "fr": "Configuration de l'intégration"
+    },
+    "settings": [
+      {
+        "id": "info",
+        "label": {
+          "en": "Setup process",
+          "de": "Setup Fortschritt",
+          "fr": "Avancement de la configuration"
+        },
+        "field": {
+          "label": {
+            "value": {
+              "en": "The integration will let you configure your Kodi instance on your network.",
+              "fr": "Cette intégration permet de configurer vos instances Kodi dans le réseau."
+            }
+          }
+        }
+      }
+    ]
+  },
+  "release_date": "2024-04-08"
+}
