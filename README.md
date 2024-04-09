@@ -38,7 +38,7 @@ Supported commands:
 
 - Requires Python 3.11
 - Under a virtual environment : the driver has to be run in host mode and not bridge mode, otherwise the turn on function won't work (a magic packet has to be sent through network and it won't reach it under bridge mode)
-- Enable always on on your LG TV to be able to power on lan
+- Your Kodi instance has to be started in order to run the setup flow and process commands. When configured, the integration will detect automatically when it will be started and process commands.
 - Install required libraries:  
   (using a [virtual environment](https://docs.python.org/3/library/venv.html) is highly recommended)
 
