@@ -631,7 +631,14 @@ class KodiDevice:
     @cmd_wrapper
     async def power_off(self):
         """Send Power Off command."""
-        await self._kodi.call_method("Application.Quit")
+        try:
+            await self._kodi.call_method("Application.Quit")
+        except TransportError as ex:
+            _LOG.info("Power off : client is already disconnected %s", ex)
+            try:
+                await self.event_loop.create_task(self._update_states())
+            except Exception:
+                pass
 
     @cmd_wrapper
     async def command_button(self, command: str):
