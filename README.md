@@ -34,6 +34,16 @@ Supported commands:
 
 ## Usage
 
+- Kodi must be running for setup, and control enabled from Settings > Services > Control section. Set the username, password and enable HTTP control.
+- Port numbers shouldn't be modified (8080 for HTTP and 9090 for websocket) : websocket port is not configurable from the GUI (in advanced settings file)
+- There is no turn on command : Kodi has to be started in another way
+
+## To do
+
+- Add automatic discovery of Kodi instances on the network
+- Add more simple commands if necessary
+
+
 ### Setup
 
 - Requires Python 3.11
