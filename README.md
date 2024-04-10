@@ -1,33 +1,36 @@
-# LG TV integration for Remote Two
+# Kodi integration for Remote Two
 
 Using [pykodi](https://github.com/OnFreund/PyKodi)
 and [uc-integration-api](https://github.com/aitatoi/integration-python-library)
 
-The driver discovers KODI's instances on the network. A media player entity is exposed to the core.
+The driver lets configure your Kodi instances (discovery not supported yet). A media player entity is exposed to the core.
 
 Supported attributes:
 - State (on, off, playing, paused, unknown)
 - Title
+- Album
+- Artist
 - Artwork
-- Source
+- Media position / duration
+- Volume (level and up/down) and mute
 
 
 Supported commands:
-- Turn on
-- Turn off
+- Turn off (turn on is not supported)
 - Direction pad and enter
+- Numeric pad
 - Back
 - Next
 - Previous
 - Volume up
 - Volume down
 - Pause / Play
-- Input select
 - Channels Up/Down
-- Menus (home, context, settings)
+- Menus (home, context)
 - Colored buttons
-- Digit numbers
 - Subtitle/audio language switching
+- Fast forward / rewind
+- Simple commands (more can be added) : video menu, toggle fullscreen, zoom in/out, increase/decrease aspect ratio, toggle subtitles, subtitles delay minus/plus, audio delay minus/plus
 
 ## Usage
 
@@ -35,7 +38,7 @@ Supported commands:
 
 - Requires Python 3.11
 - Under a virtual environment : the driver has to be run in host mode and not bridge mode, otherwise the turn on function won't work (a magic packet has to be sent through network and it won't reach it under bridge mode)
-- Enable always on on your LG TV to be able to power on lan
+- Your Kodi instance has to be started in order to run the setup flow and process commands. When configured, the integration will detect automatically when it will be started and process commands.
 - Install required libraries:  
   (using a [virtual environment](https://docs.python.org/3/library/venv.html) is highly recommended)
 
@@ -46,7 +49,7 @@ pip3 install -r requirements.txt
 For running a separate integration driver on your network for Remote Two, the configuration in file
 [driver.json](driver.json) needs to be changed:
 
-- Set `driver_id` to a unique value, `uc_sony_driver` is already used for the embedded driver in the firmware.
+- Set `driver_id` to a unique value, `uc_kodi_driver` is already used for the embedded driver in the firmware.
 - Change `name` to easily identify the driver for discovery & setup with Remote Two or the web-configurator.
 - Optionally add a `"port": 8090` field for the WebSocket server listening port.
     - Default port: `9090`
@@ -55,7 +58,7 @@ For running a separate integration driver on your network for Remote Two, the co
 ### Run
 
 ```shell
-python3 intg-sonyavr/driver.py
+python3 intg-kodi/driver.py
 ```
 
 See
@@ -89,7 +92,7 @@ docker run --rm --name builder \
     docker.io/unfoldedcircle/r2-pyinstaller:3.11.6  \
     bash -c \
       "python -m pip install -r requirements.txt && \
-      pyinstaller --clean --onefile --name intg-sonyavr intg-sonyavr/driver.py"
+      pyinstaller --clean --onefile --name intg-kodi intg-kodi/driver.py"
 ```
 
 ### aarch64 Linux / Mac
@@ -103,18 +106,18 @@ docker run --rm --name builder \
     docker.io/unfoldedcircle/r2-pyinstaller:3.11.6  \
     bash -c \
       "python -m pip install -r requirements.txt && \
-      pyinstaller --clean --onefile --name intg-sonyavr intg-sonyavr/driver.py"
+      pyinstaller --clean --onefile --name intg-kodi intg-kodi/driver.py"
 ```
 
 ## Versioning
 
 We use [SemVer](http://semver.org/) for versioning. For the versions available, see the
-[tags and releases in this repository](https://github.com/unfoldedcircle/integration-sonyavr/releases).
+[tags and releases in this repository](https://github.com/albaintor/integration-kodi/releases).
 
 ## Changelog
 
 The major changes found in each new release are listed in the [changelog](CHANGELOG.md)
-and under the GitHub [releases](https://github.com/unfoldedcircle/integration-sonyavr/releases).
+and under the GitHub [releases](https://github.com/albaintor/integration-kodi/releases).
 
 ## Contributions
 
