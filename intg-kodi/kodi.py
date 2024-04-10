@@ -647,6 +647,18 @@ class KodiDevice:
         await self._kodi.call_method("Input.ExecuteAction",
                                      **{"action": command})
 
+    async def is_fullscreen_video(self) -> bool:
+        """Check if Kodi is in fullscreen (playing video)"""
+        if self.state in (States.OFF, States.IDLE, States.UNKNOWN):
+            return False
+        try:
+            result = await self._kodi.call_method("Gui.GetProperties",
+                                     **{"properties":["fullscreen"]})
+            if result["fullscreen"] and result["fullscreen"] == True:
+                return True
+        except Exception as ex:
+            _LOG.debug("Couldn't retrieve Kodi's window state %s", ex)
+        return False
 
     # TODO seek
 

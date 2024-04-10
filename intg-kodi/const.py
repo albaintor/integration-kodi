@@ -77,8 +77,6 @@ KODI_SIMPLE_COMMANDS = {
 # (expand schema description),
 # more info also on https://forum.kodi.tv/showthread.php?tid=349151 which explains the logic
 KODI_ACTIONS_KEYMAP = {
-    Commands.CHANNEL_UP: "channelup", # or pageup
-    Commands.CHANNEL_DOWN: "channeldown", # or pagedown
     Commands.SUBTITLE: "nextsubtitle",
     Commands.AUDIO_TRACK: "audionextlanguage",
     Commands.FAST_FORWARD: "fastforward",
@@ -92,6 +90,8 @@ KODI_ACTIONS_KEYMAP = {
 
 # Taken from https://kodi.wiki/view/List_of_keynames
 KODI_BUTTONS_KEYMAP = {
+    Commands.CHANNEL_UP: "pageup", # channelup or pageup
+    Commands.CHANNEL_DOWN: "pagedown", # channeldown or pagedown
     Commands.CURSOR_UP: "up",
     Commands.CURSOR_DOWN: "down",
     Commands.CURSOR_LEFT: "left",
