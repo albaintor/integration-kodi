@@ -102,8 +102,6 @@ class KodiMediaPlayer(MediaPlayer):
             return StatusCodes.NOT_IMPLEMENTED # TODO ?
         elif cmd_id == Commands.CONTEXT_MENU:
             res = await self._device.context_menu()
-        elif cmd_id == Commands.INFO:
-            res = await self._device.info()
         elif cmd_id in KODI_BUTTONS_KEYMAP.keys():
             res = await self._device.command_button(KODI_BUTTONS_KEYMAP[cmd_id])
         elif cmd_id in KODI_ACTIONS_KEYMAP.keys():

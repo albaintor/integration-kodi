@@ -86,6 +86,7 @@ KODI_ACTIONS_KEYMAP = {
     Commands.FUNCTION_RED: "red",
     Commands.FUNCTION_YELLOW: "yellow",
     Commands.MENU: "menu",
+    Commands.INFO: "info"
 }
 
 # Taken from https://kodi.wiki/view/List_of_keynames

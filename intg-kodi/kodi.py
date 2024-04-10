@@ -618,17 +618,15 @@ class KodiDevice:
     @cmd_wrapper
     async def context_menu(self):
         """Send display context menu command."""
-        await self._kodi.call_method("Input.ContextMenu")
+        if await self.is_fullscreen_video():
+            await self._kodi.call_method("Input.ShowOSD")
+        else:
+            await self._kodi.call_method("Input.ContextMenu")
 
     @cmd_wrapper
     async def home(self):
         """Send Home command."""
         await self._kodi.call_method("Input.Home")
-
-    @cmd_wrapper
-    async def info(self):
-        """Send display OSD command."""
-        await self._kodi.call_method("Input.ShowOSD")
 
     @cmd_wrapper
     async def power_off(self):
