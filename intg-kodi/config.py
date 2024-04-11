@@ -94,7 +94,11 @@ class Devices:
 
     def add(self, atv: KodiConfigDevice) -> None:
         """Add a new configured Sony device."""
-        # TODO duplicate check
+        existing = self.get_by_id_or_address(atv.id, atv.address)
+        if existing:
+            _LOG.debug("Replacing existing device %s => %s", existing, atv)
+            self._config.remove(existing)
+
         self._config.append(atv)
         if self._add_handler is not None:
             self._add_handler(atv)
@@ -181,6 +185,18 @@ class Devices:
             _LOG.error("Empty or invalid config file")
 
         return False
+
+    def get_by_id_or_address(self, unique_id: str, address: str) -> KodiConfigDevice | None:
+        """
+        Get device configuration for a matching id or address.
+
+        :return: A copy of the device configuration or None if not found.
+        """
+        for item in self._config:
+            if item.id == unique_id or item.address == address:
+                # return a copy
+                return dataclasses.replace(item)
+        return None
 
 
 devices: Devices | None = None

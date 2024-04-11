@@ -148,6 +148,8 @@ class KodiDevice:
         self._connect_task = None
         self._buffered_callbacks = {}
         self._connect_lock = Lock()
+        self._reconnect_delay = WEBSOCKET_WATCHDOG_INTERVAL
+        self._reconnect_retry = 0
 
         _LOG.debug("Kodi instance created: %s", device_config.address)
 
@@ -245,6 +247,8 @@ class KodiDevice:
         self._register_ws_callbacks()
         version = (await self._kodi.get_application_properties(["version"]))["version"]
         sw_version = f"{version['major']}.{version['minor']}"
+        self._reconnect_retry = 0
+        self._reconnect_delay = WEBSOCKET_WATCHDOG_INTERVAL
 
     async def _clear_connection(self, close=True):
         self._reset_state()
@@ -266,7 +270,12 @@ class KodiDevice:
     async def _async_connect_websocket_if_disconnected(self, *_):
         """Reconnect the websocket if it fails."""
         if not self._kodi_connection.connected:
-            _LOG.debug("Kodi websocket not connected, retry")
+            self._reconnect_retry += 1
+            # After 10 retries, reconnection delay will go from 10 to 30s and stop logging
+            if self._reconnect_retry > 10:
+                self._reconnect_delay = min(WEBSOCKET_WATCHDOG_INTERVAL * 3, 30)
+            else:
+                _LOG.debug("Kodi websocket not connected, retry %s", self._reconnect_retry)
             await self.connect()
         else:
             await self._ping()
@@ -276,12 +285,13 @@ class KodiDevice:
 
         async def start_watchdog():
             """Start websocket watchdog."""
+            self._reconnect_delay = WEBSOCKET_WATCHDOG_INTERVAL
             while True:
-                await asyncio.sleep(WEBSOCKET_WATCHDOG_INTERVAL)
+                await asyncio.sleep(self._reconnect_delay)
                 await self._async_connect_websocket_if_disconnected()
 
         if self._connect_lock.locked():
-            _LOG.debug("Connect : already in progress, returns")
+            # _LOG.debug("Connect : already in progress, returns")
             return True
 
         try:
@@ -289,15 +299,14 @@ class KodiDevice:
             await self._connect_lock.acquire()
             if not self._session or self._session.closed:
                 self.init_connection()
-            _LOG.debug("Connecting in cycle")
             if not self._connect_task:
                 self._connect_task = self.event_loop.create_task(start_watchdog())
             await self._kodi_connection.connect()
-            _LOG.debug("Connected")
             await self._on_ws_connected()
+            await self._ping()
             await self._update_states()
             self._connect_error = False
-            _LOG.debug("Connect successful")
+            _LOG.debug("Connection successful")
             return True
         except (TransportError, CannotConnectError):
             if not self._connect_error:
@@ -313,9 +322,9 @@ class KodiDevice:
         """Disconnect from TV."""
         _LOG.debug("Disconnect %s", self.id)
         try:
-            await self._kodi_connection.close()
             if self._connect_task:
                 self._connect_task.cancel()
+            await self._kodi_connection.close()
             self._attr_state = States.OFF
         except CannotConnectError:
             pass

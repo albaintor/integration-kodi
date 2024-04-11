@@ -11,6 +11,7 @@ from enum import IntEnum
 
 from aiohttp import ClientSession
 from pykodi.kodi import KodiWSConnection, KodiConnection, Kodi, CannotConnectError, InvalidAuthError, KodiHTTPConnection
+from discover import KodiDiscover
 
 import config
 from config import KodiConfigDevice
@@ -36,22 +37,23 @@ class SetupSteps(IntEnum):
 
     INIT = 0
     CONFIGURATION_MODE = 1
-    CONFIGURE_DEVICE = 2
+    DISCOVER = 2
+    DEVICE_CHOICE = 3
 
 
 _setup_step = SetupSteps.INIT
 _cfg_add_device: bool = False
+_discovered_kodis: list[dict[str, str]] = []
 _pairing_device: KodiConnection | None = None
 _pairing_device_ws: KodiWSConnection | None = None
-_user_input_discovery = RequestUserInput(
-    {"en": "Setup mode", "de": "Setup Modus", "fr": "Configuration"},
+_user_input_manual = RequestUserInput(
+    {"en": "Setup mode", "de": "Setup Modus", "fr": "Installation"},
     [
         {
             "id": "info",
             "label": {
-                "en": "Configure your Kodi devices",
-                "de": "Verbinde auf Kodi Gerät",
-                "fr": "Connexion à votre instance Kodi",
+                "en": "Discover or connect to Kodi instances. Leave address blank for automatic discovery.",
+                "fr": "Découverte ou connexion à vos instances Kodi. Laisser le champ adresse vide pour la découverte automatique.",
             },
             "field": {
                 "label": {
@@ -95,7 +97,6 @@ _user_input_discovery = RequestUserInput(
     ],
 )
 
-
 async def driver_setup_handler(msg: SetupDriver) -> SetupAction:
     """
     Dispatch driver setup requests to corresponding handlers.
@@ -107,6 +108,8 @@ async def driver_setup_handler(msg: SetupDriver) -> SetupAction:
     """
     global _setup_step
     global _cfg_add_device
+    global _pairing_device
+    global _pairing_device_ws
 
     if isinstance(msg, DriverSetupRequest):
         _setup_step = SetupSteps.INIT
@@ -114,16 +117,34 @@ async def driver_setup_handler(msg: SetupDriver) -> SetupAction:
         return await handle_driver_setup(msg)
     if isinstance(msg, UserDataResponse):
         _LOG.debug(msg)
+        manual_config = False
+        if "address" in msg.input_values and len(msg.input_values["address"]) > 0:
+            manual_config = True
         if _setup_step == SetupSteps.CONFIGURATION_MODE and "action" in msg.input_values:
             return await handle_configuration_mode(msg)
-        if _setup_step == SetupSteps.CONFIGURE_DEVICE and "address" in msg.input_values:
+        # When user types an address at start (manual configuration)
+        if _setup_step == SetupSteps.DISCOVER and manual_config:
+            return await _handle_configuration(msg)
+        # No address typed, discovery mode then
+        if _setup_step == SetupSteps.DISCOVER:
+            return await handle_discovery(msg)
+        if _setup_step == SetupSteps.DEVICE_CHOICE and "choice" in msg.input_values:
             return await _handle_configuration(msg)
         _LOG.error("No or invalid user response was received: %s", msg)
     elif isinstance(msg, AbortDriverSetup):
         _LOG.info("Setup was aborted with code: %s", msg.error)
-        if _pairing_device is not None:
-            await _pairing_device.close()
-            _pairing_android_tv = None
+        if _pairing_device:
+            try:
+                await _pairing_device.close()
+            except Exception:
+                pass
+            _pairing_device = None
+        if _pairing_device_ws:
+            try:
+                await _pairing_device_ws.close()
+            except Exception:
+                pass
+            _pairing_device_ws = None
         _setup_step = SetupSteps.INIT
 
     # user confirmation not used in setup process
@@ -223,8 +244,103 @@ async def handle_driver_setup(msg: DriverSetupRequest) -> RequestUserInput | Set
 
     # Initial setup, make sure we have a clean configuration
     config.devices.clear()  # triggers device instance removal
-    _setup_step = SetupSteps.CONFIGURE_DEVICE
-    return _user_input_discovery
+    _setup_step = SetupSteps.CONFIGURATION_MODE
+    return _user_input_manual
+
+
+async def handle_discovery(msg: UserDataResponse) -> RequestUserInput | SetupError:
+    """
+    Process user data response from the first setup process screen.
+
+    If ``address`` field is set by the user: try connecting to device and retrieve device information.
+    Otherwise, start Apple TV discovery and present the found devices to the user to choose from.
+
+    :param msg: response data from the requested user data
+    :return: the setup action on how to continue
+    """
+    global _discovered_kodis
+    global _setup_step
+
+    dropdown_items = []
+
+    _LOG.debug("Starting driver setup with Kodi discovery")
+    # start discovery
+    discovery = KodiDiscover()
+    _discovered_kodis = await discovery.discover()
+
+    # only add new devices or configured devices requiring new pairing
+    for discovered_kodi in _discovered_kodis:
+        kodi_data = {"id": discovered_kodi["ip"], "label": {"en": f"Kodi {discovered_kodi['ip']}"}}
+        existing = config.devices.get_by_id_or_address(discovered_kodi["id"], discovered_kodi["ip"])
+        if _cfg_add_device and existing:
+            _LOG.info(
+                "Skipping found device '%s': already configured", discovered_kodi["id"]
+            )
+            continue
+        dropdown_items.append(kodi_data)
+
+    if not dropdown_items:
+        _LOG.warning("No Kodi instance found")
+        return SetupError(error_type=IntegrationSetupError.NOT_FOUND)
+
+    _setup_step = SetupSteps.DEVICE_CHOICE
+    # TODO #9 externalize language texts
+    return RequestUserInput(
+        {"en": "Please choose and configure your Kodi instance",
+         "fr": "Sélectionnez et configurez votre instance Kodi"},
+        [
+            {
+                "field": {"dropdown": {"value": dropdown_items[0]["id"], "items": dropdown_items}},
+                "id": "choice",
+                "label": {
+                    "en": "Choose your Kodi instance",
+                    "de": "Wähle deinen Kodi",
+                    "fr": "Choisir votre instance Kodi",
+                },
+            },
+            {
+                "id": "info",
+                "label": {
+                    "en": "Configure your Kodi devices",
+                    "de": "Verbinde auf Kodi Gerät",
+                    "fr": "Connexion à votre instance Kodi",
+                },
+                "field": {
+                    "label": {
+                        "value": {
+                            "en": "Kodi must be running, and control enabled from Settings > Services > Control section. Port numbers shouldn't be modified. Leave blank for automatic discovery.",
+                            "fr": "Kodi doit être lancé et le contrôle activé depuis les Paramètres > Services > Contrôle. Laisser les numéros des ports inchangés.Laisser vide pour la découverte automatique.",
+                        }
+                    }
+                },
+            },
+            {
+                "field": {"text": {"value": ""}},
+                "id": "username",
+                "label": {"en": "Username", "fr": "Utilisateur"},
+            },
+            {
+                "field": {"text": {"value": ""}},
+                "id": "password",
+                "label": {"en": "Password", "fr": "Mot de passe"},
+            },
+            {
+                "field": {"text": {"value": "9090"}},
+                "id": "ws_port",
+                "label": {"en": "Websocket port", "fr": "Port websocket"},
+            },
+            {
+                "field": {"text": {"value": "8080"}},
+                "id": "port",
+                "label": {"en": "HTTP port", "fr": "Port HTTP"},
+            },
+            {
+                "field": {"checkbox": {"value": False}},
+                "id": "ssl",
+                "label": {"en": "Use SSL", "fr": "Utiliser SSL"},
+            },
+        ],
+    )
 
 
 async def handle_configuration_mode(msg: UserDataResponse) -> RequestUserInput | SetupComplete | SetupError:
@@ -232,7 +348,7 @@ async def handle_configuration_mode(msg: UserDataResponse) -> RequestUserInput |
     Process user data response in a setup process.
 
     If ``address`` field is set by the user: try connecting to device and retrieve model information.
-    Otherwise, start Android TV discovery and present the found devices to the user to choose from.
+    Otherwise, start Kodi instances discovery and present the found devices to the user to choose from.
 
     :param msg: response data from the requested user data
     :return: the setup action on how to continue
@@ -261,8 +377,8 @@ async def handle_configuration_mode(msg: UserDataResponse) -> RequestUserInput |
             _LOG.error("Invalid configuration action: %s", action)
             return SetupError(error_type=IntegrationSetupError.OTHER)
 
-    _setup_step = SetupSteps.CONFIGURE_DEVICE
-    return _user_input_discovery
+    _setup_step = SetupSteps.DISCOVER
+    return _user_input_manual
 
 
 async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupError:
@@ -278,6 +394,7 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
     global _pairing_device
     global _pairing_device_ws
     global _setup_step
+    global _discovered_kodis
 
     # clear all configured devices and any previous pairing attempt
     if _pairing_device:
@@ -294,7 +411,8 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
         _pairing_device_ws = None
 
     dropdown_items = []
-    address = msg.input_values["address"]
+    address = msg.input_values.get("address", None)
+    device_choice = msg.input_values.get("choice", None)
     port = msg.input_values["port"]
     ws_port = msg.input_values["ws_port"]
     username = msg.input_values["username"]
@@ -304,6 +422,12 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
         ssl = False
     else:
         ssl = True
+
+    if device_choice:
+        _LOG.debug("Configure device following discovery : %s %s", device_choice, _discovered_kodis)
+        for discovered_kodi in _discovered_kodis:
+            if device_choice == discovered_kodi['ip']:
+                address = discovered_kodi['ip']
 
     _LOG.debug("Starting driver setup for %s, port %s, websocket port %s, username %s, ssl %s", address, port, ws_port,
                username, ssl)
