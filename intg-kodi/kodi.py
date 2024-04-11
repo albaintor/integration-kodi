@@ -653,7 +653,7 @@ class KodiDevice:
     async def command_button(self, command: str):
         """Call a button command."""
         await self._kodi.call_method("Input.ButtonEvent",
-                                     **{"button": command, "keymap": "KB"})
+                                     **{"button": command, "keymap": "R1"})
 
     @cmd_wrapper
     async def command_action(self, command: str):

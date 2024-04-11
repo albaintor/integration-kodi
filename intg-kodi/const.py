@@ -44,14 +44,14 @@ KODI_FEATURES = [
     Features.HOME,
     Features.MENU,
     Features.CONTEXT_MENU,
-    # Features.GUIDE,
+    Features.GUIDE,
     Features.INFO,
     Features.COLOR_BUTTONS,
     Features.CHANNEL_SWITCHER,
     # Features.SELECT_SOURCE,
     Features.AUDIO_TRACK,
     Features.SUBTITLE,
-    # Features.RECORD,
+    Features.RECORD,
     Features.SEEK,
     # Features.SETTINGS
 ]
@@ -86,27 +86,29 @@ KODI_ACTIONS_KEYMAP = {
     Commands.FUNCTION_RED: "red",
     Commands.FUNCTION_YELLOW: "yellow",
     Commands.MENU: "menu",
-    Commands.INFO: "info"
 }
 
-# Taken from https://kodi.wiki/view/List_of_keynames
+# @see: https://github.com/xbmc/xbmc/blob/master/system/keymaps/remote.xml
 KODI_BUTTONS_KEYMAP = {
-    Commands.CHANNEL_UP: "pageup", # channelup or pageup
-    Commands.CHANNEL_DOWN: "pagedown", # channeldown or pagedown
+    Commands.CHANNEL_UP: "pageplus",
+    Commands.CHANNEL_DOWN: "pageminus",
     Commands.CURSOR_UP: "up",
     Commands.CURSOR_DOWN: "down",
     Commands.CURSOR_LEFT: "left",
     Commands.CURSOR_RIGHT: "right",
-    Commands.CURSOR_ENTER: "enter",
-    Commands.BACK: "backspace",
-    Commands.DIGIT_0: "numpadzero",
-    Commands.DIGIT_1: "numpadone",
-    Commands.DIGIT_2: "numpadtwo",
-    Commands.DIGIT_3: "numpadthree",
-    Commands.DIGIT_4: "numpadfour",
-    Commands.DIGIT_5: "numpadfive",
-    Commands.DIGIT_6: "numpadsix",
-    Commands.DIGIT_7: "numpadseven",
-    Commands.DIGIT_8: "numpadeight",
-    Commands.DIGIT_9: "numpadnine",
+    Commands.CURSOR_ENTER: "select",
+    Commands.BACK: "back",
+    Commands.DIGIT_0: "zero",
+    Commands.DIGIT_1: "one",
+    Commands.DIGIT_2: "two",
+    Commands.DIGIT_3: "three",
+    Commands.DIGIT_4: "four",
+    Commands.DIGIT_5: "five",
+    Commands.DIGIT_6: "six",
+    Commands.DIGIT_7: "seven",
+    Commands.DIGIT_8: "eight",
+    Commands.DIGIT_9: "nine",
+    Commands.GUIDE: "guide",
+    Commands.RECORD: "record",
+    Commands.INFO: "info"
 }
