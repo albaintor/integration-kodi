@@ -3,7 +3,7 @@
 Using [pykodi](https://github.com/OnFreund/PyKodi)
 and [uc-integration-api](https://github.com/aitatoi/integration-python-library)
 
-The driver lets configure your Kodi instances (discovery not supported yet). A media player entity is exposed to the core.
+The driver lets discover and configure your Kodi instances (discovery not supported yet). A media player entity is exposed to the core.
 
 Supported attributes:
 - State (on, off, playing, paused, unknown)
@@ -35,12 +35,12 @@ Supported commands:
 ## Usage
 
 - Kodi must be running for setup, and control enabled from Settings > Services > Control section. Set the username, password and enable HTTP control.
-- Port numbers shouldn't be modified (8080 for HTTP and 9090 for websocket) : websocket port is not configurable from the GUI (in advanced settings file)
-- There is no turn on command : Kodi has to be started in another way
+- Port numbers shouldn't be modified normally (8080 for HTTP and 9090 for websocket) : websocket port is not configurable from the GUI (in advanced settings file)
+- There is no turn on command : Kodi has to be started some other way
 
 ## To do
 
-- Add automatic discovery of Kodi instances on the network
+- ~~Add automatic discovery of Kodi instances on the network~~ done
 - Add more simple commands if necessary
 
 
