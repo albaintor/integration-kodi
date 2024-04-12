@@ -136,6 +136,7 @@ class KodiMediaPlayer(MediaPlayer):
             Attributes.MUTED,
             Attributes.SOURCE,
             Attributes.VOLUME,
+            Attributes.MEDIA_TYPE,
         ]:
             if attr in update:
                 attributes = self._key_update_helper(attr, update[attr], attributes)

@@ -12,7 +12,7 @@ from functools import wraps
 from typing import Callable, Concatenate, Awaitable, Any, Coroutine, TypeVar, ParamSpec
 
 import ucapi
-from aiohttp import ClientSession
+from aiohttp import ClientSession, ClientTimeout, ServerTimeoutError
 from pykodi.kodi import KodiWSConnection, InvalidAuthError
 
 from config import KodiConfigDevice
@@ -28,7 +28,7 @@ _P = ParamSpec("_P")
 
 _LOG = logging.getLogger(__name__)
 
-DEFAULT_TIMEOUT = 5
+DEFAULT_TIMEOUT = 8
 WEBSOCKET_WATCHDOG_INTERVAL = 10
 
 
@@ -77,19 +77,24 @@ def cmd_wrapper(
         try:
             await func(obj, *args, **kwargs)
             return ucapi.StatusCodes.OK
-        except (TransportError, ProtocolError) as exc:
+        except (TransportError, ProtocolError, ServerTimeoutError) as exc:
             # If Kodi is off, we expect calls to fail.
             if obj.state == States.OFF:
                 log_function = _LOG.debug
             else:
                 log_function = _LOG.error
             log_function(
-                "Error calling %s on entity %s: %r",
+                "Error calling %s on entity %s: %r trying to reconnect",
                 func.__name__,
                 obj.id,
                 exc,
             )
+            await obj.event_loop.create_task(obj.connect())
             return ucapi.StatusCodes.BAD_REQUEST
+        except Exception as ex:
+            _LOG.error(
+                "Unknown error %s",
+                func.__name__)
 
     return wrapper
 
@@ -111,21 +116,10 @@ class KodiDevice:
         self._name: str = device_config.name
         self.event_loop = loop or asyncio.get_running_loop()
         self.events = AsyncIOEventEmitter(self.event_loop)
-        self._session = ClientSession(raise_for_status=True)
-        # _LOG.debug("Kodi connection %s:%s / %s %s:%s (ssl %s)",
-        #            device_config.address,
-        #            device_config.port,
-        #            device_config.ws_port,
-        #            device_config.username,
-        #            device_config.password,device_config.ssl)
-        self._kodi_connection: KodiWSConnection = get_kodi_connection(host=device_config.address,
-                                                                      port=device_config.port,
-                                                                      ws_port=device_config.ws_port,
-                                                                      username=device_config.username,
-                                                                      password=device_config.password,
-                                                                      ssl=device_config.ssl,
-                                                                      session=self._session)
-        self._kodi = Kodi(self._kodi_connection)
+        self._session: ClientSession = None
+        self._kodi_connection: KodiWSConnection = None
+        self._kodi: Kodi = None
+        self.init_connection()
         self._supported_features = KODI_FEATURES
         self._players = None
         self._properties = {}
@@ -148,7 +142,6 @@ class KodiDevice:
         self._connect_task = None
         self._buffered_callbacks = {}
         self._connect_lock = Lock()
-        self._reconnect_delay = WEBSOCKET_WATCHDOG_INTERVAL
         self._reconnect_retry = 0
 
         _LOG.debug("Kodi instance created: %s", device_config.address)
@@ -157,14 +150,20 @@ class KodiDevice:
         if self._session and not self._session.closed:
             self._session.close()
             self._session = None
-        self._session = ClientSession(raise_for_status=True)
-        self._kodi_connection: KodiWSConnection = get_kodi_connection(host=self._device_config.address,
-                                                                      port=self._device_config.port,
-                                                                      ws_port=self._device_config.ws_port,
-                                                                      username=self._device_config.username,
-                                                                      password=self._device_config.password,
-                                                                      ssl=self._device_config.ssl,
-                                                                      session=self._session)
+        self._session = ClientSession(raise_for_status=True, timeout=ClientTimeout(
+            sock_connect=DEFAULT_TIMEOUT,  # Maximal number of seconds for connecting to a peer for a new connection, not given from a pool. See also connect.
+            sock_read=DEFAULT_TIMEOUT  # Maximal number of seconds for reading a portion of data from a peer=DEFAULT_TIMEOUT
+            ))
+        self._kodi_connection: KodiWSConnection = get_kodi_connection (
+            host=self._device_config.address,
+            port=self._device_config.port,
+            ws_port=self._device_config.ws_port,
+            username=self._device_config.username,
+            password=self._device_config.password,
+            ssl=self._device_config.ssl,
+            session=self._session,
+            timeout=DEFAULT_TIMEOUT
+        )
         self._kodi = Kodi(self._kodi_connection)
 
     def get_state(self) -> States:
@@ -179,11 +178,7 @@ class KodiDevice:
     def on_speed_event(self, sender, data):
         """Handle player changes between playing and paused."""
         _LOG.debug("Kodi playback changed %s", data)
-        current_state = self._attr_state
         self._properties["speed"] = data["player"]["speed"]
-        if current_state != self.get_state():
-            self._attr_state = self.get_state()
-            self.events.emit(Events.UPDATE, self.id, {MediaAttr.STATE: KODI_STATE_MAPPING[self.state]})
         self.event_loop.create_task(self._update_states())
 
     def on_stop(self, sender, data):
@@ -247,8 +242,6 @@ class KodiDevice:
         self._register_ws_callbacks()
         version = (await self._kodi.get_application_properties(["version"]))["version"]
         sw_version = f"{version['major']}.{version['minor']}"
-        self._reconnect_retry = 0
-        self._reconnect_delay = WEBSOCKET_WATCHDOG_INTERVAL
 
     async def _clear_connection(self, close=True):
         self._reset_state()
@@ -259,11 +252,13 @@ class KodiDevice:
     async def _ping(self):
         try:
             await self._kodi.ping()
-        except (TransportError, CannotConnectError):
+        except (TransportError, CannotConnectError, ServerTimeoutError):
             if not self._connect_error:
                 self._connect_error = True
                 _LOG.warning("Unable to ping Kodi via websocket")
             await self._clear_connection()
+        except Exception as ex:
+            _LOG.error("Unknown exception ping", ex)
         else:
             self._connect_error = False
 
@@ -271,13 +266,10 @@ class KodiDevice:
         """Reconnect the websocket if it fails."""
         if not self._kodi_connection.connected:
             self._reconnect_retry += 1
-            # After 10 retries, reconnection delay will go from 10 to 30s and stop logging
-            if self._reconnect_retry > 10:
-                self._reconnect_delay = min(WEBSOCKET_WATCHDOG_INTERVAL * 3, 30)
-            else:
-                _LOG.debug("Kodi websocket not connected, retry %s", self._reconnect_retry)
+            _LOG.debug("Kodi websocket not connected, retry %s", self._reconnect_retry)
             await self.connect()
         else:
+            self._reconnect_retry = 0
             await self._ping()
 
     async def connect(self) -> bool:
@@ -285,22 +277,18 @@ class KodiDevice:
 
         async def start_watchdog():
             """Start websocket watchdog."""
-            self._reconnect_delay = WEBSOCKET_WATCHDOG_INTERVAL
             while True:
-                await asyncio.sleep(self._reconnect_delay)
+                await asyncio.sleep(WEBSOCKET_WATCHDOG_INTERVAL)
                 await self._async_connect_websocket_if_disconnected()
 
-        if self._connect_lock.locked():
-            # _LOG.debug("Connect : already in progress, returns")
-            return True
-
         try:
+            if self._connect_lock.locked():
+                _LOG.debug("Connect : already in progress, returns")
+                return True
             _LOG.debug("Connecting")
             await self._connect_lock.acquire()
             if not self._session or self._session.closed:
                 self.init_connection()
-            if not self._connect_task:
-                self._connect_task = self.event_loop.create_task(start_watchdog())
             await self._kodi_connection.connect()
             await self._on_ws_connected()
             await self._ping()
@@ -308,12 +296,23 @@ class KodiDevice:
             self._connect_error = False
             _LOG.debug("Connection successful")
             return True
-        except (TransportError, CannotConnectError):
+        except (TransportError, CannotConnectError, ServerTimeoutError) as ex:
             if not self._connect_error:
                 self._connect_error = True
-                _LOG.warning("Unable to connect to Kodi via websocket")
+                _LOG.warning("Unable to connect to Kodi via websocket")#, ex, stack_info=True, exc_info=True)
             await self._clear_connection(False)
+        except Exception as ex:
+            _LOG.error("Unknown exception connect", ex)
         finally:
+            # After 10 retries, reconnection delay will go from 10 to 30s and stop logging
+            if self._reconnect_retry > 10 and self._connect_error:
+                _LOG.debug("Kodi websocket not connected, abort retries")
+                if self._connect_task:
+                    self._connect_task.cancel()
+                    self._connect_task = None
+            elif not self._connect_task:
+                self._reconnect_retry = 0
+                self._connect_task = self.event_loop.create_task(start_watchdog())
             self._attr_available = True
             self.events.emit(Events.CONNECTED, self.id)
             self._connect_lock.release()
