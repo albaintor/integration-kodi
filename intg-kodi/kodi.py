@@ -11,8 +11,11 @@ from enum import IntEnum
 from functools import wraps
 from typing import Callable, Concatenate, Awaitable, Any, Coroutine, TypeVar, ParamSpec
 
+import aiohttp
+import jsonrpc_base
 import ucapi
-from aiohttp import ClientSession, ClientTimeout, ServerTimeoutError
+from aiohttp import ClientSession, ClientTimeout, ServerTimeoutError, ClientError
+from aiohttp.http_exceptions import HttpProcessingError
 from pykodi.kodi import KodiWSConnection, InvalidAuthError
 
 from config import KodiConfigDevice
@@ -28,8 +31,9 @@ _P = ParamSpec("_P")
 
 _LOG = logging.getLogger(__name__)
 
-DEFAULT_TIMEOUT = 8
+DEFAULT_TIMEOUT = 8.0
 WEBSOCKET_WATCHDOG_INTERVAL = 10
+CONNECTION_RETRIES = 10
 
 
 class Events(IntEnum):
@@ -84,12 +88,38 @@ def cmd_wrapper(
             else:
                 log_function = _LOG.error
             log_function(
-                "Error calling %s on entity %s: %r trying to reconnect",
+                "Error calling %s on entity %s: %r trying to reconnect and send the command next",
                 func.__name__,
                 obj.id,
                 exc,
             )
-            await obj.event_loop.create_task(obj.connect())
+            # Kodi not connected, launch a connect task but
+            # don't wait more than 5 seconds, then process the command if connected
+            # else returns error
+            connect_task = obj.event_loop.create_task(obj.connect())
+            await asyncio.sleep(0)
+            try:
+                async with asyncio.timeout(5):
+                    await connect_task
+            except asyncio.TimeoutError:
+                log_function(
+                    "Timeout for reconnect, command won't be sent"
+                )
+                pass
+            else:
+                if not obj._connect_error:
+                    try:
+                        await func(obj, *args, **kwargs)
+                        return ucapi.StatusCodes.OK
+                    except (TransportError, ProtocolError, ServerTimeoutError) as exc:
+                        log_function(
+                            "Error calling %s on entity %s: %r trying to reconnect",
+                            func.__name__,
+                            obj.id,
+                            exc,
+                        )
+            # If Kodi is off, we expect calls to fail.
+            # await obj.event_loop.create_task(obj.connect())
             return ucapi.StatusCodes.BAD_REQUEST
         except Exception as ex:
             _LOG.error(
@@ -119,7 +149,6 @@ class KodiDevice:
         self._session: ClientSession = None
         self._kodi_connection: KodiWSConnection = None
         self._kodi: Kodi = None
-        self.init_connection()
         self._supported_features = KODI_FEATURES
         self._players = None
         self._properties = {}
@@ -143,26 +172,41 @@ class KodiDevice:
         self._buffered_callbacks = {}
         self._connect_lock = Lock()
         self._reconnect_retry = 0
-
+        self._kodi_ws_task = None
         _LOG.debug("Kodi instance created: %s", device_config.address)
+        self.event_loop.create_task(self.init_connection())
 
-    def init_connection(self):
-        if self._session and not self._session.closed:
-            self._session.close()
+    async def init_connection(self):
+        if self._kodi_connection:
+            try:
+                await self._kodi_connection.close()
+            except Exception:
+                pass
+            finally:
+                self._kodi_connection = None
+        if self._session:# and not self._session.closed:
+            try:
+                await self._session.close()
+            except Exception as ex:
+                _LOG.warning("Error closing session to %s : %s", self._device_config.address, ex)
             self._session = None
-        self._session = ClientSession(raise_for_status=True, timeout=ClientTimeout(
-            sock_connect=DEFAULT_TIMEOUT,  # Maximal number of seconds for connecting to a peer for a new connection, not given from a pool. See also connect.
-            sock_read=DEFAULT_TIMEOUT  # Maximal number of seconds for reading a portion of data from a peer=DEFAULT_TIMEOUT
-            ))
-        self._kodi_connection: KodiWSConnection = get_kodi_connection (
+        self._session = ClientSession(raise_for_status=True,
+            # timeout=ClientTimeout(
+            # sock_connect=DEFAULT_TIMEOUT,
+            # # Maximal number of seconds for connecting to a peer for a new connection, not given from a pool. See also connect.
+            # sock_read=DEFAULT_TIMEOUT)
+            # Maximal number of seconds for reading a portion of data from a peer=DEFAULT_TIMEOUT
+        )
+        self._session.loop.set_exception_handler(self.exception_handler)
+        self._kodi_connection: KodiWSConnection = KodiWSConnection(
             host=self._device_config.address,
             port=self._device_config.port,
             ws_port=self._device_config.ws_port,
             username=self._device_config.username,
             password=self._device_config.password,
             ssl=self._device_config.ssl,
-            session=self._session,
-            timeout=DEFAULT_TIMEOUT
+            timeout=DEFAULT_TIMEOUT,
+            session=self._session
         )
         self._kodi = Kodi(self._kodi_connection)
 
@@ -262,57 +306,84 @@ class KodiDevice:
         else:
             self._connect_error = False
 
-    async def _async_connect_websocket_if_disconnected(self, *_):
+    async def _async_connect_websocket_if_disconnected(self, *_) -> bool:
         """Reconnect the websocket if it fails."""
+        if not self._kodi_connection.connected and self._reconnect_retry >= CONNECTION_RETRIES:
+            return False
         if not self._kodi_connection.connected:
             self._reconnect_retry += 1
-            _LOG.debug("Kodi websocket not connected, retry %s", self._reconnect_retry)
-            await self.connect()
+            _LOG.debug("Kodi websocket %s not connected, retry %s / %s", self._device_config.address,
+                       self._reconnect_retry, CONNECTION_RETRIES)
+            try:
+                await asyncio.wait_for(self.connect(), DEFAULT_TIMEOUT*2)
+            except asyncio.TimeoutError:
+                _LOG.debug("Kodi websocket too slow to reconnect on %s", self._device_config.address)
         else:
-            self._reconnect_retry = 0
             await self._ping()
+        return True
+            # _LOG.debug("Kodi websocket %s ping : %s", self._device_config.address, self._connect_error)
+
+    def exception_handler(self, loop, context):
+        if not context or context.get('exception', None) is None:
+            return
+        exception = context.get('exception', None)
+        message = context.get('message', None)
+        if message is None:
+            message = ""
+        # log exception
+        _LOG.error(f'Websocket task failed to %s, msg={message}, exception={exception}', self._device_config.address)
+
+    async def start_watchdog(self):
+        """Start websocket watchdog."""
+        while True:
+            await asyncio.sleep(WEBSOCKET_WATCHDOG_INTERVAL)
+            if not await self._async_connect_websocket_if_disconnected():
+                _LOG.debug("Stop watchdog for %s", self._device_config.address)
+                self._connect_task = None
+                break
 
     async def connect(self) -> bool:
         """Connect to Kodi via websocket protocol."""
-
-        async def start_watchdog():
-            """Start websocket watchdog."""
-            while True:
-                await asyncio.sleep(WEBSOCKET_WATCHDOG_INTERVAL)
-                await self._async_connect_websocket_if_disconnected()
-
         try:
             if self._connect_lock.locked():
-                _LOG.debug("Connect : already in progress, returns")
+                _LOG.debug("Connect to %s : already in progress, returns", self._device_config.address)
                 return True
-            _LOG.debug("Connecting")
+            _LOG.debug("Connecting to %s", self._device_config.address)
             await self._connect_lock.acquire()
-            if not self._session or self._session.closed:
-                self.init_connection()
+            if self._kodi_connection and self._kodi_connection.connected:
+                _LOG.debug("Already connected to %s", self._device_config.address)
+                return True
+            await self.init_connection()
+
+            # This method was buggy, this is the reason why pykodi library has been integrated into the driver
+            # TODO report the fix
             await self._kodi_connection.connect()
             await self._on_ws_connected()
             await self._ping()
             await self._update_states()
             self._connect_error = False
-            _LOG.debug("Connection successful")
+            _LOG.debug("Connection successful to %s", self._device_config.address)
+            self._reconnect_retry = 0
+            if self._connect_task is None:
+                self._connect_task = self.event_loop.create_task(self.start_watchdog())
             return True
         except (TransportError, CannotConnectError, ServerTimeoutError) as ex:
             if not self._connect_error:
                 self._connect_error = True
-                _LOG.warning("Unable to connect to Kodi via websocket")#, ex, stack_info=True, exc_info=True)
+                _LOG.warning("Unable to connect to Kodi via websocket to %s", self._device_config.address)
+                # , ex, stack_info=True, exc_info=True)
             await self._clear_connection(False)
         except Exception as ex:
-            _LOG.error("Unknown exception connect", ex)
+            _LOG.error("Unknown exception connect to %s : %s", self._device_config.address, ex)
         finally:
             # After 10 retries, reconnection delay will go from 10 to 30s and stop logging
-            if self._reconnect_retry > 10 and self._connect_error:
-                _LOG.debug("Kodi websocket not connected, abort retries")
+            if self._reconnect_retry >= CONNECTION_RETRIES and self._connect_error:
+                _LOG.debug("Kodi websocket not connected, abort retries to %s", self._device_config.address)
                 if self._connect_task:
                     self._connect_task.cancel()
                     self._connect_task = None
-            elif not self._connect_task:
-                self._reconnect_retry = 0
-                self._connect_task = self.event_loop.create_task(start_watchdog())
+            elif self._connect_task is None:
+                self._connect_task = self.event_loop.create_task(self.start_watchdog())
             self._attr_available = True
             self.events.emit(Events.CONNECTED, self.id)
             self._connect_lock.release()
@@ -359,7 +430,7 @@ class KodiDevice:
                 self.events.emit(Events.UPDATE, self.id, {MediaAttr.STATE: KODI_STATE_MAPPING[self.state]})
             return
 
-        if self._players:
+        if self._players and len(self._players) > 0:
             self._app_properties = await self._kodi.get_application_properties(
                 ["volume", "muted"]
             )
@@ -666,7 +737,7 @@ class KodiDevice:
             return False
         try:
             result = await self._kodi.call_method("Gui.GetProperties",
-                                     **{"properties":["fullscreen"]})
+                                                  **{"properties": ["fullscreen"]})
             if result["fullscreen"] and result["fullscreen"] == True:
                 return True
         except Exception as ex:
@@ -674,4 +745,3 @@ class KodiDevice:
         return False
 
     # TODO seek
-

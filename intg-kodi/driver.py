@@ -9,7 +9,6 @@ This module implements a Remote Two integration driver for Kodi receivers.
 import asyncio
 import logging
 import os
-from threading import Lock
 from typing import Any
 
 import kodi
@@ -28,7 +27,6 @@ api = ucapi.IntegrationAPI(_LOOP)
 # Map of id -> LG instance
 _configured_kodis: dict[str, kodi.KodiDevice] = {}
 _R2_IN_STANDBY = False
-_device_lock = Lock()
 
 @api.listens_to(ucapi.Events.CONNECT)
 async def on_r2_connect_cmd() -> None:
@@ -42,7 +40,7 @@ async def on_r2_connect_cmd() -> None:
         try:
             await _LOOP.create_task(device.connect())
         except Exception as ex:
-            _LOG.debug("Could not connect to device %s", ex)
+            _LOG.debug("Could not connect to device %s : %s",device._device_config.address, ex)
     await api.set_device_state(ucapi.DeviceStates.CONNECTED)
 
 
@@ -281,7 +279,6 @@ def _configure_new_device(device_config: config.KodiConfigDevice, connect: bool 
     :param connect: True: start connection to receiver.
     """
     # the device should not yet be configured, but better be safe
-    _device_lock.acquire()
     if device_config.id in _configured_kodis:
         device = _configured_kodis[device_config.id]
         device.disconnect()
@@ -306,7 +303,6 @@ def _configure_new_device(device_config: config.KodiConfigDevice, connect: bool 
             _LOOP.create_task(device.connect())
         except Exception as ex:
             _LOG.debug("Could not connect to device, probably because it is starting with magic packet %s", ex)
-    _device_lock.release()
 
 def _register_available_entities(device_config: config.KodiConfigDevice, device: kodi.KodiDevice) -> None:
     """
@@ -366,6 +362,7 @@ async def main():
     logging.getLogger("kodi").setLevel(level)
     logging.getLogger("setup_flow").setLevel(level)
     logging.getLogger("config").setLevel(level)
+    logging.getLogger("pykodi.kodi").setLevel(level)
 
     # Load driver config
     config.devices = config.Devices(api.config_dir_path, on_device_added, on_device_removed)
