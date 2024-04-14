@@ -1,5 +1,6 @@
 """Constants used for Kodi integration."""
 from ucapi.media_player import Features, MediaType, Commands
+from typing import TypedDict
 
 KODI_MEDIA_TYPES = {
     "music": MediaType.MUSIC,
@@ -18,7 +19,6 @@ KODI_MEDIA_TYPES = {
     # Type 'audio' is used for audio media, that Kodi couldn't scroblle
     "audio": MediaType.MUSIC,
 }
-
 
 KODI_FEATURES = [
     Features.ON_OFF,
@@ -58,20 +58,19 @@ KODI_FEATURES = [
 
 # Taken from https://kodi.wiki/view/JSON-RPC_API/v10#Input.Action
 KODI_SIMPLE_COMMANDS = {
-    "MENU_VIDEO" : "showvideomenu",
+    "MENU_VIDEO": "showvideomenu",
     "MODE_FULLSCREEN": "togglefullscreen",
-    "MODE_ZOOM_IN" : "zoomin",
-    "MODE_ZOOM_OUT" : "zoomout",
-    "MODE_INCREASE_PAR" : "increasepar",
-    "MODE_DECREASE_PAR" : "decreasepar",
-    "MODE_SHOW_SUBTITLES" : "showsubtitles",
+    "MODE_ZOOM_IN": "zoomin",
+    "MODE_ZOOM_OUT": "zoomout",
+    "MODE_INCREASE_PAR": "increasepar",
+    "MODE_DECREASE_PAR": "decreasepar",
+    "MODE_SHOW_SUBTITLES": "showsubtitles",
     "MODE_SUBTITLES_DELAY_MINUS": "subtitledelayminus",
     "MODE_SUBTITLES_DELAY_PLUS": "subtitledelayplus",
     "MODE_AUDIO_DELAY_MINUS": "audiodelayminus",
     "MODE_AUDIO_DELAY_PLUS": "audiodelayplus",
     "MODE_DELETE": "delete",
 }
-
 
 # Taken from https://kodi.wiki/view/JSON-RPC_API/v10#Input.Action
 # (expand schema description),
@@ -89,24 +88,30 @@ KODI_ACTIONS_KEYMAP = {
     Commands.INFO: "info"
 }
 
+
+class BUTTON_KEYMAP(TypedDict):
+    button: str
+    keymap: str | None
+
+
 # Taken from https://kodi.wiki/view/List_of_keynames
-KODI_BUTTONS_KEYMAP = {
-    Commands.CHANNEL_UP: "pageup", # channelup or pageup
-    Commands.CHANNEL_DOWN: "pagedown", # channeldown or pagedown
-    Commands.CURSOR_UP: "up",
-    Commands.CURSOR_DOWN: "down",
-    Commands.CURSOR_LEFT: "left",
-    Commands.CURSOR_RIGHT: "right",
-    Commands.CURSOR_ENTER: "enter",
-    Commands.BACK: "backspace",
-    Commands.DIGIT_0: "numpadzero",
-    Commands.DIGIT_1: "numpadone",
-    Commands.DIGIT_2: "numpadtwo",
-    Commands.DIGIT_3: "numpadthree",
-    Commands.DIGIT_4: "numpadfour",
-    Commands.DIGIT_5: "numpadfive",
-    Commands.DIGIT_6: "numpadsix",
-    Commands.DIGIT_7: "numpadseven",
-    Commands.DIGIT_8: "numpadeight",
-    Commands.DIGIT_9: "numpadnine",
+KODI_BUTTONS_KEYMAP: dict[str, BUTTON_KEYMAP] = {
+    Commands.CHANNEL_UP: {"button": "pageplus", "keymap": "R1"},  # channelup or pageup
+    Commands.CHANNEL_DOWN: {"button": "pageminus", "keymap": "R1"},  # channeldown or pagedown
+    Commands.CURSOR_UP: {"button": "up", "keymap": "R1"},
+    Commands.CURSOR_DOWN: {"button": "down", "keymap": "R1"},
+    Commands.CURSOR_LEFT: {"button": "left", "keymap": "R1"},
+    Commands.CURSOR_RIGHT: {"button": "right", "keymap": "R1"},
+    Commands.CURSOR_ENTER: {"button": "enter"},
+    Commands.BACK: {"button": "backspace"},
+    Commands.DIGIT_0: {"button": "numpadzero"},
+    Commands.DIGIT_1: {"button": "numpadone"},
+    Commands.DIGIT_2: {"button": "numpadtwo"},
+    Commands.DIGIT_3: {"button": "numpadthree"},
+    Commands.DIGIT_4: {"button": "numpadfour"},
+    Commands.DIGIT_5: {"button": "numpadfive"},
+    Commands.DIGIT_6: {"button": "numpadsix"},
+    Commands.DIGIT_7: {"button": "numpadseven"},
+    Commands.DIGIT_8: {"button": "numpadeight"},
+    Commands.DIGIT_9: {"button": "numpadnine"},
 }

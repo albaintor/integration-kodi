@@ -122,6 +122,8 @@ async def driver_setup_handler(msg: SetupDriver) -> SetupAction:
             manual_config = True
         if _setup_step == SetupSteps.CONFIGURATION_MODE and "action" in msg.input_values:
             return await handle_configuration_mode(msg)
+        elif _setup_step == SetupSteps.CONFIGURATION_MODE:
+            return await _handle_configuration(msg)
         # When user types an address at start (manual configuration)
         if _setup_step == SetupSteps.DISCOVER and manual_config:
             return await _handle_configuration(msg)
@@ -130,7 +132,7 @@ async def driver_setup_handler(msg: SetupDriver) -> SetupAction:
             return await handle_discovery(msg)
         if _setup_step == SetupSteps.DEVICE_CHOICE and "choice" in msg.input_values:
             return await _handle_configuration(msg)
-        _LOG.error("No or invalid user response was received: %s", msg)
+        _LOG.error("No or invalid user response was received: %s (step %s)", msg, _setup_step)
     elif isinstance(msg, AbortDriverSetup):
         _LOG.info("Setup was aborted with code: %s", msg.error)
         if _pairing_device:
