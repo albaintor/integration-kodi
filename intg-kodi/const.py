@@ -44,14 +44,14 @@ KODI_FEATURES = [
     Features.HOME,
     Features.MENU,
     Features.CONTEXT_MENU,
-    # Features.GUIDE,
+    Features.GUIDE,
     Features.INFO,
     Features.COLOR_BUTTONS,
     Features.CHANNEL_SWITCHER,
     # Features.SELECT_SOURCE,
     Features.AUDIO_TRACK,
     Features.SUBTITLE,
-    # Features.RECORD,
+    Features.RECORD,
     Features.SEEK,
     # Features.SETTINGS
 ]
@@ -94,7 +94,8 @@ class BUTTON_KEYMAP(TypedDict):
     keymap: str | None
 
 
-# Taken from https://kodi.wiki/view/List_of_keynames
+# Taken from https://kodi.wiki/view/List_of_keynames,
+# For remote buttons see https://github.com/xbmc/xbmc/blob/master/system/keymaps/remote.xml
 KODI_BUTTONS_KEYMAP: dict[str, BUTTON_KEYMAP] = {
     Commands.CHANNEL_UP: {"button": "pageplus", "keymap": "R1"},  # channelup or pageup
     Commands.CHANNEL_DOWN: {"button": "pageminus", "keymap": "R1"},  # channeldown or pagedown
@@ -114,4 +115,6 @@ KODI_BUTTONS_KEYMAP: dict[str, BUTTON_KEYMAP] = {
     Commands.DIGIT_7: {"button": "numpadseven"},
     Commands.DIGIT_8: {"button": "numpadeight"},
     Commands.DIGIT_9: {"button": "numpadnine"},
+    Commands.RECORD: {"button": "record", "keymap": "R1"},
+    Commands.GUIDE: {"button": "guide", "keymap": "R1"},
 }
