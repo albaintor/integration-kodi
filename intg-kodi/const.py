@@ -60,7 +60,7 @@ KODI_FEATURES = [
 
 # Taken from https://kodi.wiki/view/JSON-RPC_API/v10#Input.Action
 KODI_SIMPLE_COMMANDS = {
-    "MENU_VIDEO": "showvideomenu",
+    "MENU_VIDEO": "showvideomenu",  # TODO : showvideomenu not working ?
     "MODE_FULLSCREEN": "togglefullscreen",
     "MODE_ZOOM_IN": "zoomin",
     "MODE_ZOOM_OUT": "zoomout",
@@ -126,28 +126,38 @@ KODI_BUTTONS_KEYMAP: dict[str, BUTTON_KEYMAP] = {
 }
 
 KODI_REMOTE_BUTTONS_MAPPING: [DeviceButtonMapping] = [
-    {"button": Buttons.BACK, "short_press":  {"cmd_id": Commands.BACK}},
-    {"button": Buttons.HOME, "short_press":  {"cmd_id": Commands.HOME}},
-    {"button": Buttons.CHANNEL_DOWN, "short_press":  {"cmd_id": Commands.CHANNEL_DOWN}},
-    {"button": Buttons.CHANNEL_UP, "short_press":  {"cmd_id": Commands.CHANNEL_UP}},
-    {"button": Buttons.DPAD_UP, "short_press":  {"cmd_id": Commands.CURSOR_UP}},
-    {"button": Buttons.DPAD_DOWN, "short_press":  {"cmd_id": Commands.CURSOR_DOWN}},
-    {"button": Buttons.DPAD_LEFT, "short_press":  {"cmd_id": Commands.CURSOR_LEFT}},
-    {"button": Buttons.DPAD_RIGHT, "short_press":  {"cmd_id": Commands.CURSOR_RIGHT}},
-    {"button": Buttons.DPAD_MIDDLE, "short_press":  {"cmd_id": Commands.CURSOR_ENTER}},
-    {"button": Buttons.PLAY, "short_press":  {"cmd_id": Commands.PLAY_PAUSE}},
-    {"button": Buttons.PREV, "short_press":  {"cmd_id": Commands.PREVIOUS}},
-    {"button": Buttons.NEXT, "short_press":  {"cmd_id": Commands.NEXT}},
-    {"button": Buttons.VOLUME_UP, "short_press":  {"cmd_id": Commands.VOLUME_UP}},
-    {"button": Buttons.VOLUME_DOWN, "short_press":  {"cmd_id": Commands.VOLUME_DOWN}},
-    {"button": Buttons.MUTE, "short_press":  {"cmd_id": Commands.MUTE_TOGGLE}},
+    {"button": Buttons.BACK, "short_press": {"cmd_id": Commands.BACK}},
+    {"button": Buttons.HOME, "short_press": {"cmd_id": Commands.HOME}},
+    {"button": Buttons.CHANNEL_DOWN, "short_press": {"cmd_id": Commands.CHANNEL_DOWN}},
+    {"button": Buttons.CHANNEL_UP, "short_press": {"cmd_id": Commands.CHANNEL_UP}},
+    {"button": Buttons.DPAD_UP, "short_press": {"cmd_id": Commands.CURSOR_UP}},
+    {"button": Buttons.DPAD_DOWN, "short_press": {"cmd_id": Commands.CURSOR_DOWN}},
+    {"button": Buttons.DPAD_LEFT, "short_press": {"cmd_id": Commands.CURSOR_LEFT}},
+    {"button": Buttons.DPAD_RIGHT, "short_press": {"cmd_id": Commands.CURSOR_RIGHT}},
+    {"button": Buttons.DPAD_MIDDLE, "short_press": {"cmd_id": Commands.CURSOR_ENTER}},
+    {"button": Buttons.PLAY, "short_press": {"cmd_id": Commands.PLAY_PAUSE}},
+    {"button": Buttons.PREV, "short_press": {"cmd_id": Commands.PREVIOUS}},
+    {"button": Buttons.NEXT, "short_press": {"cmd_id": Commands.NEXT}},
+    {"button": Buttons.VOLUME_UP, "short_press": {"cmd_id": Commands.VOLUME_UP}},
+    {"button": Buttons.VOLUME_DOWN, "short_press": {"cmd_id": Commands.VOLUME_DOWN}},
+    {"button": Buttons.MUTE, "short_press": {"cmd_id": Commands.MUTE_TOGGLE}},
 ]
 
 # All defined commands for remote entity
+#TODO rename simple commands to be compliant to expected names in R2
 KODI_REMOTE_SIMPLE_COMMANDS = [
     *list(KODI_SIMPLE_COMMANDS.keys()),
     *list(KODI_ACTIONS_KEYMAP.keys()),
-    *list(KODI_BUTTONS_KEYMAP.keys())
+    *list(KODI_BUTTONS_KEYMAP.keys()),
+    Commands.CONTEXT_MENU,
+    Commands.VOLUME_UP,
+    Commands.VOLUME_DOWN,
+    Commands.MUTE_TOGGLE,
+    Commands.MUTE,
+    Commands.UNMUTE,
+    Commands.PLAY_PAUSE,
+    Commands.STOP,
+    Commands.HOME
 ]
 
 KODI_REMOTE_UI_PAGES: [UiPage] = [
@@ -156,6 +166,22 @@ KODI_REMOTE_UI_PAGES: [UiPage] = [
         "name": "Kodi commands",
         "grid": {"width": 4, "height": 6},
         "items": [
+            {
+                "command": {
+                    "cmd_id": "remote.send",
+                    "params": {"command": Commands.INFO, "repeat": 1}
+                },
+                "icon": "uc:info",
+                "location": {
+                    "x": 0,
+                    "y": 0
+                },
+                "size": {
+                    "height": 1,
+                    "width": 1
+                },
+                "type": "icon"
+            },
             {
                 "command": {
                     "cmd_id": "remote.send",
@@ -173,7 +199,7 @@ KODI_REMOTE_UI_PAGES: [UiPage] = [
                 "type": "icon"
             },
             {
-                 "command": {
+                "command": {
                     "cmd_id": "remote.send",
                     "params": {"command": Commands.SUBTITLE, "repeat": 1}
                 },
@@ -190,8 +216,67 @@ KODI_REMOTE_UI_PAGES: [UiPage] = [
             },
             {
                 "command": {
-                    "cmd_id": "remote.send",
-                    "params": {"command": Commands.CONTEXT_MENU, "repeat": 1}
+                    "cmd_id": "MODE_SHOW_SUBTITLES"
+                },
+                "text": "Toggle subtitles",
+                "location": {
+                    "x": 3,
+                    "y": 0
+                },
+                "size": {
+                    "height": 1,
+                    "width": 1
+                },
+                "type": "text"
+            },
+            {
+                "command": {
+                    "cmd_id": "MODE_FULLSCREEN"
+                },
+                "text": "Full screen",
+                "location": {
+                    "x": 0,
+                    "y": 1
+                },
+                "size": {
+                    "height": 1,
+                    "width": 1
+                },
+                "type": "text"
+            },
+            {
+                "command": {
+                    "cmd_id": "MODE_ZOOM_IN"
+                },
+                "text": "Zoom in",
+                "location": {
+                    "x": 1,
+                    "y": 1
+                },
+                "size": {
+                    "height": 1,
+                    "width": 1
+                },
+                "type": "text"
+            },
+            {
+                "command": {
+                    "cmd_id": "MODE_ZOOM_OUT"
+                },
+                "text": "Zoom out",
+                "location": {
+                    "x": 2,
+                    "y": 1
+                },
+                "size": {
+                    "height": 1,
+                    "width": 1
+                },
+                "type": "text"
+            },
+            {
+                "command": {
+                    "cmd_id": Commands.CONTEXT_MENU
                 },
                 "icon": "uc:menu",
                 "location": {
@@ -204,6 +289,163 @@ KODI_REMOTE_UI_PAGES: [UiPage] = [
                 },
                 "type": "icon"
             },
+        ]
+    },
+    {
+        "page_id": "Kodi numbers",
+        "name": "Kodi numbers",
+        "grid": { "height": 4, "width": 3 },
+        "items": [{
+            "command": {
+                "cmd_id": "remote.send",
+                "params": {"command": Commands.DIGIT_1, "repeat": 1}
+            },
+            "location": {
+                "x": 0,
+                "y": 0
+            },
+            "size": {
+                "height": 1,
+                "width": 1
+            },
+            "text": "1",
+            "type": "text"
+        }, {
+            "command": {
+                "cmd_id": "remote.send",
+                "params": {"command": Commands.DIGIT_2, "repeat": 1}
+            },
+            "location": {
+                "x": 1,
+                "y": 0
+            },
+            "size": {
+                "height": 1,
+                "width": 1
+            },
+            "text": "2",
+            "type": "text"
+        }, {
+            "command": {
+                "cmd_id": "remote.send",
+                "params": {"command": Commands.DIGIT_3, "repeat": 1}
+            },
+            "location": {
+                "x": 2,
+                "y": 0
+            },
+            "size": {
+                "height": 1,
+                "width": 1
+            },
+            "text": "3",
+            "type": "text"
+        }, {
+            "command": {
+                "cmd_id": "remote.send",
+                "params": {"command": Commands.DIGIT_4, "repeat": 1}
+            },
+            "location": {
+                "x": 0,
+                "y": 1
+            },
+            "size": {
+                "height": 1,
+                "width": 1
+            },
+            "text": "4",
+            "type": "text"
+        }, {
+            "command": {
+                "cmd_id": "remote.send",
+                "params": {"command": Commands.DIGIT_5, "repeat": 1}
+            },
+            "location": {
+                "x": 1,
+                "y": 1
+            },
+            "size": {
+                "height": 1,
+                "width": 1
+            },
+            "text": "5",
+            "type": "text"
+        }, {
+            "command": {
+                "cmd_id": "remote.send",
+                "params": {"command": Commands.DIGIT_6, "repeat": 1}
+            },
+            "location": {
+                "x": 2,
+                "y": 1
+            },
+            "size": {
+                "height": 1,
+                "width": 1
+            },
+            "text": "6",
+            "type": "text"
+        }, {
+            "command": {
+                "cmd_id": "remote.send",
+                "params": {"command": Commands.DIGIT_7, "repeat": 1}
+            },
+            "location": {
+                "x": 0,
+                "y": 2
+            },
+            "size": {
+                "height": 1,
+                "width": 1
+            },
+            "text": "7",
+            "type": "text"
+        }, {
+            "command": {
+                "cmd_id": "remote.send",
+                "params": {"command": Commands.DIGIT_8, "repeat": 1}
+            },
+            "location": {
+                "x": 1,
+                "y": 2
+            },
+            "size": {
+                "height": 1,
+                "width": 1
+            },
+            "text": "8",
+            "type": "text"
+        }, {
+            "command": {
+                "cmd_id": "remote.send",
+                "params": {"command": Commands.DIGIT_9, "repeat": 1}
+            },
+            "location": {
+                "x": 2,
+                "y": 2
+            },
+            "size": {
+                "height": 1,
+                "width": 1
+            },
+            "text": "9",
+            "type": "text"
+        }, {
+            "command": {
+                "cmd_id": "remote.send",
+                "params": {"command": Commands.DIGIT_0, "repeat": 1}
+            },
+            "location": {
+                "x": 1,
+                "y": 3
+            },
+            "size": {
+                "height": 1,
+                "width": 1
+            },
+            "text": "0",
+            "type": "text"
+        }
         ]
     }
 ]

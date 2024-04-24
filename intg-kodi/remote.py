@@ -64,42 +64,44 @@ class KodiRemote(Remote):
             _LOG.warning("No Kodi instance for entity: %s", self.id)
             return StatusCodes.SERVICE_UNAVAILABLE
 
-        if cmd_id == MediaPlayerCommands.VOLUME:
+        command = params.get("command", "")
+
+        if command == MediaPlayerCommands.VOLUME:
             res = await self._device.set_volume_level(params.get("volume"))
-        elif cmd_id == MediaPlayerCommands.VOLUME_UP:
+        elif command == MediaPlayerCommands.VOLUME_UP:
             res = await self._device.volume_up()
-        elif cmd_id == MediaPlayerCommands.VOLUME_DOWN:
+        elif command == MediaPlayerCommands.VOLUME_DOWN:
             res = await self._device.volume_down()
-        elif cmd_id == MediaPlayerCommands.MUTE_TOGGLE:
+        elif command == MediaPlayerCommands.MUTE_TOGGLE:
             res = await self._device.mute(not self._device.is_volume_muted)
-        elif cmd_id == MediaPlayerCommands.MUTE:
+        elif command == MediaPlayerCommands.MUTE:
             res = await self._device.mute(True)
-        elif cmd_id == MediaPlayerCommands.UNMUTE:
+        elif command == MediaPlayerCommands.UNMUTE:
             res = await self._device.mute(False)
-        elif cmd_id == MediaPlayerCommands.ON:
+        elif command == MediaPlayerCommands.ON:
             return StatusCodes.NOT_IMPLEMENTED
-        elif cmd_id == MediaPlayerCommands.OFF:
+        elif command == MediaPlayerCommands.OFF:
             res = await self._device.power_off()
-        elif cmd_id == MediaPlayerCommands.NEXT:
+        elif command == MediaPlayerCommands.NEXT:
             res = await self._device.next()
-        elif cmd_id == MediaPlayerCommands.PREVIOUS:
+        elif command == MediaPlayerCommands.PREVIOUS:
             res = await self._device.previous()
-        elif cmd_id == MediaPlayerCommands.PLAY_PAUSE:
+        elif command == MediaPlayerCommands.PLAY_PAUSE:
             res = await self._device.play_pause()
-        elif cmd_id == MediaPlayerCommands.STOP:
+        elif command == MediaPlayerCommands.STOP:
             res = await self._device.stop()
-        elif cmd_id == MediaPlayerCommands.HOME:
+        elif command == MediaPlayerCommands.HOME:
             res = await self._device.home()
-        elif cmd_id == MediaPlayerCommands.SETTINGS:
+        elif command == MediaPlayerCommands.SETTINGS:
             return StatusCodes.NOT_IMPLEMENTED # TODO ?
-        elif cmd_id == MediaPlayerCommands.CONTEXT_MENU:
+        elif command == MediaPlayerCommands.CONTEXT_MENU:
             res = await self._device.context_menu()
-        elif cmd_id in KODI_BUTTONS_KEYMAP.keys():
-            res = await self._device.command_button(KODI_BUTTONS_KEYMAP[cmd_id])
-        elif cmd_id in KODI_ACTIONS_KEYMAP.keys():
-            res = await self._device.command_action(KODI_ACTIONS_KEYMAP[cmd_id])
-        elif cmd_id in self.options[Options.SIMPLE_COMMANDS]:
-            res = await self._device.command_action(KODI_SIMPLE_COMMANDS[cmd_id])
+        elif command in KODI_BUTTONS_KEYMAP.keys():
+            res = await self._device.command_button(KODI_BUTTONS_KEYMAP[command])
+        elif command in KODI_ACTIONS_KEYMAP.keys():
+            res = await self._device.command_action(KODI_ACTIONS_KEYMAP[command])
+        elif command in self.options[Options.SIMPLE_COMMANDS]:
+            res = await self._device.command_action(KODI_SIMPLE_COMMANDS[command])
         elif cmd_id == Commands.SEND_CMD:
             command = params.get("command", "")
             holdtime = params.get("hold", "")
