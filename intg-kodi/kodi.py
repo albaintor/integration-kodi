@@ -11,11 +11,8 @@ from enum import IntEnum
 from functools import wraps
 from typing import Callable, Concatenate, Awaitable, Any, Coroutine, TypeVar, ParamSpec
 
-import aiohttp
-import jsonrpc_base
 import ucapi
-from aiohttp import ClientSession, ClientTimeout, ServerTimeoutError, ClientError
-from aiohttp.http_exceptions import HttpProcessingError
+from aiohttp import ClientSession, ServerTimeoutError
 from pykodi.kodi import KodiWSConnection, InvalidAuthError
 
 from config import KodiConfigDevice
@@ -23,7 +20,7 @@ from pyee import AsyncIOEventEmitter
 from ucapi.media_player import Attributes as MediaAttr, States as MediaStates
 from const import *
 from jsonrpc_base.jsonrpc import ProtocolError, TransportError
-from pykodi import CannotConnectError, Kodi, get_kodi_connection
+from pykodi import CannotConnectError, Kodi
 import urllib.parse
 
 _KodiDeviceT = TypeVar("_KodiDeviceT", bound="KodiDevice")
@@ -68,7 +65,6 @@ KODI_STATE_MAPPING = {
     States.PAUSED: MediaStates.PAUSED,
     States.IDLE: MediaStates.ON
 }
-
 
 def cmd_wrapper(
         func: Callable[Concatenate[_KodiDeviceT, _P], Awaitable[ucapi.StatusCodes | None]],
@@ -724,7 +720,8 @@ class KodiDevice:
         """Call a button command."""
         await self._kodi.call_method("Input.ButtonEvent",
                                      **{"button": button["button"],
-                                        "keymap": button.get("keymap", "KB")})
+                                        "keymap": button.get("keymap", "KB"),
+                                        "holdtime": button.get("holdtime", 0)})
 
     @cmd_wrapper
     async def command_action(self, command: str):

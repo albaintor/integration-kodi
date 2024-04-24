@@ -1,5 +1,5 @@
 pyee>=9.0
-ucapi==0.1.7
+ucapi -e git+https://github.com/unfoldedcircle/integration-python-library@main#egg=ucapi
 httpx~=0.27.0
 defusedxml~=0.7.1
 zeroconf~=0.132.0
