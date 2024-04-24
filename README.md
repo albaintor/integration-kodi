@@ -3,7 +3,9 @@
 Using [pykodi](https://github.com/OnFreund/PyKodi)
 and [uc-integration-api](https://github.com/aitatoi/integration-python-library)
 
-The driver lets discover and configure your Kodi instances (discovery not supported yet). A media player entity is exposed to the core.
+The driver lets discover and configure your Kodi instances (discovery not supported yet). A media player and a remote entity is exposed to the core.
+
+Note : this release requires remote firmware >= 1.7.10
 
 Supported attributes:
 - State (on, off, playing, paused, unknown)
@@ -13,9 +15,10 @@ Supported attributes:
 - Artwork
 - Media position / duration
 - Volume (level and up/down) and mute
+- Remote entity : predefined buttons mapping and interface buttons (to be completed)
 
 
-Supported commands:
+Supported commands for Media Player entity :
 - Turn off (turn on is not supported)
 - Direction pad and enter
 - Numeric pad
@@ -31,6 +34,13 @@ Supported commands:
 - Subtitle/audio language switching
 - Fast forward / rewind
 - Simple commands (more can be added) : video menu, toggle fullscreen, zoom in/out, increase/decrease aspect ratio, toggle subtitles, subtitles delay minus/plus, audio delay minus/plus
+
+
+Supported commands for Remote entity :
+- Send command : commands are sent as R1 commands in JSON RPC (see https://kodi.wiki/view/List_of_keynames for the list of available commands)
+- Send command sequence (same commands as above)
+- Simple commands (same as media player + media player commands)
+
 
 ## Usage
 
