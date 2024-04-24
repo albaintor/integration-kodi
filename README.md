@@ -37,7 +37,7 @@ Supported commands for Media Player entity :
 
 
 Supported commands for Remote entity :
-- Send command : commands are sent as R1 commands in JSON RPC (see https://kodi.wiki/view/List_of_keynames for the list of available commands)
+- Send command : commands are sent as KB keymap commands in JSON RPC (see [Kodi keyboard map](https://github.com/xbmc/xbmc/blob/master/system/keymaps/keyboard.xml) for the list of available commands)
 - Send command sequence (same commands as above)
 - Simple commands (same as media player + media player commands)
 

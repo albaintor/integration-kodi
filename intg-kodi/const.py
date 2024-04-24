@@ -98,7 +98,9 @@ class BUTTON_KEYMAP(TypedDict):
 
 
 # Taken from https://kodi.wiki/view/List_of_keynames,
-# For remote buttons see https://github.com/xbmc/xbmc/blob/master/system/keymaps/remote.xml
+# For remote buttons :
+# see https://github.com/xbmc/xbmc/blob/master/system/keymaps/remote.xml for R1 keymap or
+# see https://github.com/xbmc/xbmc/blob/master/system/keymaps/keyboard.xml for KB keymap
 KODI_BUTTONS_KEYMAP: dict[str, BUTTON_KEYMAP] = {
     Commands.CHANNEL_UP: {"button": "pageplus", "keymap": "R1"},  # channelup or pageup
     Commands.CHANNEL_DOWN: {"button": "pageminus", "keymap": "R1"},  # channeldown or pagedown

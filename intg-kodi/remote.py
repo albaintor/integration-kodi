@@ -102,8 +102,12 @@ class KodiRemote(Remote):
             res = await self._device.command_action(KODI_SIMPLE_COMMANDS[cmd_id])
         elif cmd_id == Commands.SEND_CMD:
             command = params.get("command", "")
-            holdtime = params.get("hold", 0)
-            res = await self._device.command_button({"button": command, "keymap": "R1", "holdtime": holdtime})
+            holdtime = params.get("hold", "")
+            if len(holdtime) > 0:
+                holdtime = int(float(params.get("hold")))
+            else:
+                holdtime = 0
+            res = await self._device.command_button({"button": command, "keymap": "KB", "holdtime": holdtime})
         elif cmd_id == Commands.SEND_CMD_SEQUENCE:
             delay = params.get("delay", 0)
             commands = params.get("sequence", "").split(",")
