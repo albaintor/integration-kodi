@@ -729,6 +729,18 @@ class KodiDevice:
         await self._kodi.call_method("Input.ExecuteAction",
                                      **{"action": command})
 
+    @cmd_wrapper
+    async def seek(self, media_position: int):
+        """Seek to given position in seconds."""
+        if self._no_active_players or media_position is None:
+            return
+        player_id = self._players[0]["playerid"]
+        m, s = divmod(media_position, 60)
+        h, m = divmod(m, 60)
+        await self._kodi.call_method("Player.Seek",
+             **{"playerid": player_id,
+                "value": {"time": {"hours": h, "minutes": m, "seconds": s, "milliseconds": 0}}})
+
     async def is_fullscreen_video(self) -> bool:
         """Check if Kodi is in fullscreen (playing video)"""
         if self.state in (States.OFF, States.IDLE, States.UNKNOWN):

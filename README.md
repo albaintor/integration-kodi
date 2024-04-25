@@ -1,13 +1,13 @@
 # Kodi integration for Remote Two
 
-Using [pykodi](https://github.com/OnFreund/PyKodi)
+Using (modified) [pykodi](https://github.com/OnFreund/PyKodi)
 and [uc-integration-api](https://github.com/aitatoi/integration-python-library)
 
 The driver lets discover and configure your Kodi instances (discovery not supported yet). A media player and a remote entity is exposed to the core.
 
-Note : this release requires remote firmware >= 1.7.10
+Note : this release requires remote firmware `>= 1.7.10`
 
-Supported attributes:
+### Supported attributes
 - State (on, off, playing, paused, unknown)
 - Title
 - Album
@@ -18,7 +18,7 @@ Supported attributes:
 - Remote entity : predefined buttons mapping and interface buttons (to be completed)
 
 
-Supported commands for Media Player entity :
+### Supported commands for Media Player entity
 - Turn off (turn on is not supported)
 - Direction pad and enter
 - Numeric pad
@@ -36,10 +36,11 @@ Supported commands for Media Player entity :
 - Simple commands (more can be added) : video menu, toggle fullscreen, zoom in/out, increase/decrease aspect ratio, toggle subtitles, subtitles delay minus/plus, audio delay minus/plus
 
 
-Supported commands for Remote entity :
+### Supported commands for Remote entity
 - Send command : commands are sent as KB keymap commands in JSON RPC (see [Kodi keyboard map](https://github.com/xbmc/xbmc/blob/master/system/keymaps/keyboard.xml) for the list of available commands)
 - Send command sequence (same commands as above)
-- Simple commands (same as media player + media player commands)
+- Support for the repeat, hold, delay parameters
+- Simple commands : the same as media player simple commands, with the addition of the other media player commands
 
 
 ## Usage
@@ -47,6 +48,9 @@ Supported commands for Remote entity :
 - Kodi must be running for setup, and control enabled from Settings > Services > Control section. Set the username, password and enable HTTP control.
 - Port numbers shouldn't be modified normally (8080 for HTTP and 9090 for websocket) : websocket port is not configurable from the GUI (in advanced settings file)
 - There is no turn on command : Kodi has to be started some other way
+
+### Tips
+- The (simple) commands, interface or buttons mapping can be updated while a previous version of the integration has already been configured. In that case the new functionalities may not be visible. In that case, just remove the configured entity from the integration page and add it again. It won't affect your existing setup, but only trigger a refresh of the integration.
 
 ## To do
 

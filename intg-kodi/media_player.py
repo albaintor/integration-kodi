@@ -84,8 +84,8 @@ class KodiMediaPlayer(MediaPlayer):
             res = await self._device.mute(True)
         elif cmd_id == Commands.UNMUTE:
             res = await self._device.mute(False)
-        elif cmd_id == Commands.ON:
-            return StatusCodes.NOT_IMPLEMENTED
+        elif cmd_id == Commands.ON: #TODO the entity remains active otherwise
+            res = StatusCodes.OK
         elif cmd_id == Commands.OFF:
             res = await self._device.power_off()
         elif cmd_id == Commands.NEXT:
@@ -102,6 +102,9 @@ class KodiMediaPlayer(MediaPlayer):
             return StatusCodes.NOT_IMPLEMENTED # TODO ?
         elif cmd_id == Commands.CONTEXT_MENU:
             res = await self._device.context_menu()
+        elif cmd_id == Commands.SEEK:
+            media_position = params.get("media_position", 0)
+            res = await self._device.seek(media_position)
         elif cmd_id in KODI_BUTTONS_KEYMAP.keys():
             res = await self._device.command_button(KODI_BUTTONS_KEYMAP[cmd_id])
         elif cmd_id in KODI_ACTIONS_KEYMAP.keys():

@@ -18,6 +18,8 @@ from const import KODI_SIMPLE_COMMANDS, KODI_ACTIONS_KEYMAP, KODI_BUTTONS_KEYMAP
 
 _LOG = logging.getLogger(__name__)
 
+#TODO to improve : the media states are calculated for media player entity, then they have to be converted to remote states
+# A device state map should be defined and then mapped to both entity types
 KODI_REMOTE_STATE_MAPPING = {
     MediaStates.OFF: RemoteStates.OFF,
     MediaStates.ON: RemoteStates.ON,
@@ -34,7 +36,7 @@ class KodiRemote(Remote):
         self._device: kodi.KodiDevice = device
         _LOG.debug("KodiRemote init")
         entity_id = create_entity_id(config_device.id, EntityTypes.REMOTE)
-        features = [Features.SEND_CMD]
+        features = [Features.SEND_CMD, Features.ON_OFF]
         attributes = {
             Attributes.STATE: KODI_REMOTE_STATE_MAPPING.get(kodi.KODI_STATE_MAPPING.get(device.state)),
         }
@@ -96,8 +98,8 @@ class KodiRemote(Remote):
             res = await self._device.mute(True)
         elif command == MediaPlayerCommands.UNMUTE:
             res = await self._device.mute(False)
-        elif command == MediaPlayerCommands.ON:
-            return StatusCodes.NOT_IMPLEMENTED
+        elif command == MediaPlayerCommands.ON: #TODO the entity remains active otherwise
+            res = StatusCodes.OK
         elif command == MediaPlayerCommands.OFF:
             res = await self._device.power_off()
         elif command == MediaPlayerCommands.NEXT:
