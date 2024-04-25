@@ -48,6 +48,15 @@ class KodiRemote(Remote):
             ui_pages=KODI_REMOTE_UI_PAGES
         )
 
+    def getIntParam(self, param: str, params: dict[str, Any], default:int):
+        # TODO bug to be fixed on UC Core : some params are sent as (empty) strings by remote (hold == "")
+        value = params.get(param, default)
+        if isinstance(value, str) and len(value) > 0:
+            return int(float(value))
+        else:
+            return default
+
+
     async def command(self, cmd_id: str, params: dict[str, Any] | None = None) -> StatusCodes:
         """
         Media-player entity command handler.
@@ -64,6 +73,15 @@ class KodiRemote(Remote):
             _LOG.warning("No Kodi instance for entity: %s", self.id)
             return StatusCodes.SERVICE_UNAVAILABLE
 
+        repeat = self.getIntParam("repeat", params, 1)
+        res = StatusCodes.OK
+        for i in range (0, repeat):
+            res = await self.handle_command(cmd_id, params)
+        return res
+
+    async def handle_command(self, cmd_id: str, params: dict[str, Any] | None = None) -> StatusCodes:
+        hold = self.getIntParam("hold", params, 0)
+        delay = self.getIntParam("delay", params, 0)
         command = params.get("command", "")
 
         if command == MediaPlayerCommands.VOLUME:
@@ -103,24 +121,18 @@ class KodiRemote(Remote):
         elif command in self.options[Options.SIMPLE_COMMANDS]:
             res = await self._device.command_action(KODI_SIMPLE_COMMANDS[command])
         elif cmd_id == Commands.SEND_CMD:
-            command = params.get("command", "")
-            holdtime = params.get("hold", "")
-            if len(holdtime) > 0:
-                holdtime = int(float(params.get("hold")))
-            else:
-                holdtime = 0
-            res = await self._device.command_button({"button": command, "keymap": "KB", "holdtime": holdtime})
+            res = await self._device.command_button({"button": command, "keymap": "KB", "holdtime": hold})
         elif cmd_id == Commands.SEND_CMD_SEQUENCE:
-            delay = params.get("delay", 0)
             commands = params.get("sequence", "").split(",")
             res = StatusCodes.OK
             for command in commands:
-                res = await self.command(Commands.SEND_CMD, {"command": command, "params": params})
+                res = await self.handle_command(Commands.SEND_CMD, {"command": command, "params": params})
                 if delay > 0:
                     await asyncio.sleep(delay)
-            return res
         else:
             return StatusCodes.NOT_IMPLEMENTED
+        if delay > 0 and cmd_id != Commands.SEND_CMD_SEQUENCE:
+            await asyncio.sleep(delay)
         return res
 
     def filter_changed_attributes(self, update: dict[str, Any]) -> dict[str, Any]:
