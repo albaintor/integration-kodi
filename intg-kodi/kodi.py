@@ -748,7 +748,7 @@ class KodiDevice:
         try:
             result = await self._kodi.call_method("Gui.GetProperties",
                                                   **{"properties": ["fullscreen"]})
-            if result["fullscreen"] and result["fullscreen"] == True:
+            if result["fullscreen"] and result["fullscreen"] is True:
                 return True
         except Exception as ex:
             _LOG.debug("Couldn't retrieve Kodi's window state %s", ex)
