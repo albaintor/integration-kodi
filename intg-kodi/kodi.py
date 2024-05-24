@@ -503,8 +503,16 @@ class KodiDevice:
                 self._media_title = media_title
                 updated_data[MediaAttr.MEDIA_TITLE] = self._media_title
             artists = self._item.get("artist")
+            season: int|None= self._item.get("season")
+            episode: int|None = self._item.get("episode")
             if artists and len(artists) > 0:
                 media_artist = artists[0]
+            elif (season and season > 0) or (episode and episode > 0):
+                media_artist = ""
+                if season and season > 0:
+                    media_artist = "S"+str(season)
+                if episode and episode > 0:
+                    media_artist += "E"+str(episode)
             else:
                 media_artist = ""
             if media_artist != self._media_artist:

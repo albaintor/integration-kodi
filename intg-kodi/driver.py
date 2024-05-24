@@ -202,7 +202,7 @@ async def on_device_disconnected(device_id: str):
             )
         elif configured_entity.entity_type == ucapi.EntityTypes.REMOTE:
             api.configured_entities.update_attributes(
-                entity_id, {ucapi.media_player.Attributes.STATE: ucapi.remote.States.UNAVAILABLE}
+                entity_id, {ucapi.remote.Attributes.STATE: ucapi.remote.States.UNAVAILABLE}
             )
 
     # TODO #20 when multiple devices are supported, the device state logic isn't that simple anymore!
