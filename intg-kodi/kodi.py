@@ -673,10 +673,15 @@ class KodiDevice:
     @cmd_wrapper
     async def play_pause(self):
         """Send toggle-play-pause command to Kodi"""
-        if self._paused:
-            await self.async_media_play()
-        else:
-            await self.async_media_pause()
+        try:
+            players = await self._kodi.get_players()
+            player_id = players[0]["playerid"]
+            await self._kodi.call_method("Player.PlayPause", **{"playerid": player_id})
+        except Exception:
+            if self._paused:
+                await self.async_media_play()
+            else:
+                await self.async_media_pause()
 
     @cmd_wrapper
     async def stop(self):
