@@ -125,7 +125,7 @@ class KodiRemote(Remote):
         elif cmd_id == Commands.SEND_CMD:
             res = await self._device.command_button({"button": command, "keymap": "KB", "holdtime": hold})
         elif cmd_id == Commands.SEND_CMD_SEQUENCE:
-            commands = params.get("sequence", "").split(",")
+            commands = params.get("sequence", [])#.split(",")
             res = StatusCodes.OK
             for command in commands:
                 res = await self.handle_command(Commands.SEND_CMD, {"command": command, "params": params})
