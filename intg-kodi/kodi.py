@@ -156,7 +156,6 @@ class KodiDevice:
         self._is_volume_muted = False
         self._media_position = 0
         self._media_duration = 0
-        self._paused = False
         self._media_type = MediaType.VIDEO
         self._media_title = ""
         self._media_image_url = ""
@@ -211,7 +210,7 @@ class KodiDevice:
             return States.OFF
         if self._no_active_players:
             return States.IDLE
-        if self._properties["speed"] == 0 or self._paused:
+        if self._properties["speed"] == 0:
             return States.PAUSED
         return States.PLAYING
 
@@ -661,13 +660,11 @@ class KodiDevice:
     @cmd_wrapper
     async def async_media_play(self):
         """Send play command."""
-        self._paused = False
         await self._kodi.play()
 
     @cmd_wrapper
     async def async_media_pause(self):
         """Send media pause command to media player."""
-        self._paused = True
         await self._kodi.pause()
 
     @cmd_wrapper
@@ -678,7 +675,7 @@ class KodiDevice:
             player_id = players[0]["playerid"]
             await self._kodi.call_method("Player.PlayPause", **{"playerid": player_id})
         except Exception:
-            if self._paused:
+            if self._properties["speed"] == 0:
                 await self.async_media_play()
             else:
                 await self.async_media_pause()
