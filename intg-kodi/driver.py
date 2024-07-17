@@ -11,8 +11,8 @@ import logging
 import os
 from typing import Any
 
-import kodi
 import config
+import kodi
 import media_player
 import remote
 import setup_flow
@@ -29,6 +29,7 @@ api = ucapi.IntegrationAPI(_LOOP)
 _configured_kodis: dict[str, kodi.KodiDevice] = {}
 _R2_IN_STANDBY = False
 
+
 @api.listens_to(ucapi.Events.CONNECT)
 async def on_r2_connect_cmd() -> None:
     """Connect all configured TVs when the Remote Two sends the connect command."""
@@ -40,14 +41,15 @@ async def on_r2_connect_cmd() -> None:
         # await _LOOP.create_task(device.power_on())
         try:
             await _LOOP.create_task(device.connect())
-        except Exception as ex:
-            _LOG.debug("Could not connect to device %s : %s",device._device_config.address, ex)
+        except RuntimeError as ex:
+            _LOG.debug("Could not connect to device %s : %s", device.device_config.address, ex)
     await api.set_device_state(ucapi.DeviceStates.CONNECTED)
 
 
 @api.listens_to(ucapi.Events.DISCONNECT)
 async def on_r2_disconnect_cmd():
     """Disconnect all configured TVs when the Remote Two sends the disconnect command."""
+    # pylint: disable = W0212
     if len(api._clients) == 0:
         _LOG.debug("Disconnect requested")
         for device in _configured_kodis.values():
@@ -67,6 +69,7 @@ async def on_r2_enter_standby() -> None:
     global _R2_IN_STANDBY
 
     _R2_IN_STANDBY = True
+    # pylint: disable = W0212
     if len(api._clients) == 0:
         _LOG.debug("Enter standby event: disconnecting device(s)")
         for configured in _configured_kodis.values():
@@ -91,7 +94,7 @@ async def on_r2_exit_standby() -> None:
         # start background task
         try:
             await _LOOP.create_task(configured.connect())
-        except Exception as ex:
+        except RuntimeError as ex:
             _LOG.error("Error while reconnecting to Kodi %s", ex)
         # _LOOP.create_task(configured.connect())
 
@@ -116,8 +119,9 @@ async def on_subscribe_entities(entity_ids: list[str]) -> None:
             if isinstance(entity, media_player.KodiMediaPlayer):
                 api.configured_entities.update_attributes(entity_id, {ucapi.media_player.Attributes.STATE: state})
             if isinstance(entity, remote.KodiRemote):
-                api.configured_entities.update_attributes(entity_id,
-          {ucapi.remote.Attributes.STATE: remote.KODI_REMOTE_STATE_MAPPING.get(state)})
+                api.configured_entities.update_attributes(
+                    entity_id, {ucapi.remote.Attributes.STATE: remote.KODI_REMOTE_STATE_MAPPING.get(state)}
+                )
             continue
 
         device = config.devices.get(device_id)
@@ -141,7 +145,7 @@ async def on_unsubscribe_entities(entity_ids: list[str]) -> None:
 
     # Keep devices that are used by other configured entities not in this list
     for entity in api.configured_entities.get_all():
-        entity_id = entity.get('entity_id')
+        entity_id = entity.get("entity_id", "")
         if entity_id in entity_ids:
             continue
         device_id = device_from_entity_id(entity_id)
@@ -173,15 +177,16 @@ async def on_device_connected(device_id: str):
             continue
 
         if configured_entity.entity_type == ucapi.EntityTypes.MEDIA_PLAYER:
-            if (configured_entity.attributes[ucapi.media_player.Attributes.STATE]
-                    == ucapi.media_player.States.UNAVAILABLE):
+            if (
+                configured_entity.attributes[ucapi.media_player.Attributes.STATE]
+                == ucapi.media_player.States.UNAVAILABLE
+            ):
                 # TODO why STANDBY?
                 api.configured_entities.update_attributes(
                     entity_id, {ucapi.media_player.Attributes.STATE: ucapi.media_player.States.STANDBY}
                 )
         elif configured_entity.entity_type == ucapi.EntityTypes.REMOTE:
-            if (configured_entity.attributes[ucapi.remote.Attributes.STATE]
-                    == ucapi.remote.States.UNAVAILABLE):
+            if configured_entity.attributes[ucapi.remote.Attributes.STATE] == ucapi.remote.States.UNAVAILABLE:
                 api.configured_entities.update_attributes(
                     entity_id, {ucapi.remote.Attributes.STATE: ucapi.remote.States.OFF}
                 )
@@ -330,8 +335,9 @@ def _configure_new_device(device_config: config.KodiConfigDevice, connect: bool 
         # start background connection task
         try:
             _LOOP.create_task(device.connect())
-        except Exception as ex:
+        except RuntimeError as ex:
             _LOG.debug("Could not connect to device, probably because it is starting with magic packet %s", ex)
+
 
 def _register_available_entities(device_config: config.KodiConfigDevice, device: kodi.KodiDevice) -> None:
     """
@@ -341,8 +347,7 @@ def _register_available_entities(device_config: config.KodiConfigDevice, device:
     """
     # plain and simple for now: only one media_player per device
     # entity = media_player.create_entity(device)
-    entities = [media_player.KodiMediaPlayer(device_config, device),
-                remote.KodiRemote(device_config, device)]
+    entities = [media_player.KodiMediaPlayer(device_config, device), remote.KodiRemote(device_config, device)]
     for entity in entities:
         if api.available_entities.contains(entity.id):
             api.available_entities.remove(entity.id)

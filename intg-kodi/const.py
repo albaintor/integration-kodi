@@ -1,8 +1,9 @@
 """Constants used for Kodi integration."""
-from ucapi.media_player import Features, MediaType, Commands
+
 from typing import TypedDict
 
-from ucapi.ui import DeviceButtonMapping, Buttons, UiPage
+from ucapi.media_player import Commands, Features, MediaType
+from ucapi.ui import Buttons, DeviceButtonMapping, UiPage
 
 KODI_MEDIA_TYPES = {
     "music": MediaType.MUSIC,
@@ -87,11 +88,13 @@ KODI_ACTIONS_KEYMAP = {
     Commands.FUNCTION_RED: "red",
     Commands.FUNCTION_YELLOW: "yellow",
     Commands.MENU: "menu",
-    Commands.INFO: "info"
+    Commands.INFO: "info",
 }
 
 
-class BUTTON_KEYMAP(TypedDict):
+class ButtonKeymap(TypedDict):
+    """Kodi keymap."""
+
     button: str
     keymap: str | None
     holdtime: int | None
@@ -101,7 +104,7 @@ class BUTTON_KEYMAP(TypedDict):
 # For remote buttons :
 # see https://github.com/xbmc/xbmc/blob/master/system/keymaps/remote.xml for R1 keymap or
 # see https://github.com/xbmc/xbmc/blob/master/system/keymaps/keyboard.xml for KB keymap
-KODI_BUTTONS_KEYMAP: dict[str, BUTTON_KEYMAP] = {
+KODI_BUTTONS_KEYMAP: dict[str, ButtonKeymap] = {
     Commands.CHANNEL_UP: {"button": "pageplus", "keymap": "R1"},  # channelup or pageup
     Commands.CHANNEL_DOWN: {"button": "pageminus", "keymap": "R1"},  # channeldown or pagedown
     Commands.CURSOR_UP: {"button": "up", "keymap": "R1"},
@@ -144,7 +147,7 @@ KODI_REMOTE_BUTTONS_MAPPING: [DeviceButtonMapping] = [
 ]
 
 # All defined commands for remote entity
-#TODO rename simple commands to be compliant to expected names in R2
+# TODO rename simple commands to be compliant to expected names in R2
 KODI_REMOTE_SIMPLE_COMMANDS = [
     *list(KODI_SIMPLE_COMMANDS.keys()),
     *list(KODI_ACTIONS_KEYMAP.keys()),
@@ -157,7 +160,7 @@ KODI_REMOTE_SIMPLE_COMMANDS = [
     Commands.UNMUTE,
     Commands.PLAY_PAUSE,
     Commands.STOP,
-    Commands.HOME
+    Commands.HOME,
 ]
 
 KODI_REMOTE_UI_PAGES: [UiPage] = [
@@ -167,285 +170,152 @@ KODI_REMOTE_UI_PAGES: [UiPage] = [
         "grid": {"width": 4, "height": 6},
         "items": [
             {
-                "command": {
-                    "cmd_id": "remote.send",
-                    "params": {"command": Commands.INFO, "repeat": 1}
-                },
+                "command": {"cmd_id": "remote.send", "params": {"command": Commands.INFO, "repeat": 1}},
                 "icon": "uc:info",
-                "location": {
-                    "x": 0,
-                    "y": 0
-                },
-                "size": {
-                    "height": 1,
-                    "width": 1
-                },
-                "type": "icon"
+                "location": {"x": 0, "y": 0},
+                "size": {"height": 1, "width": 1},
+                "type": "icon",
             },
             {
-                "command": {
-                    "cmd_id": "remote.send",
-                    "params": {"command": Commands.AUDIO_TRACK, "repeat": 1}
-                },
+                "command": {"cmd_id": "remote.send", "params": {"command": Commands.AUDIO_TRACK, "repeat": 1}},
                 "icon": "uc:language",
-                "location": {
-                    "x": 1,
-                    "y": 0
-                },
-                "size": {
-                    "height": 1,
-                    "width": 1
-                },
-                "type": "icon"
+                "location": {"x": 1, "y": 0},
+                "size": {"height": 1, "width": 1},
+                "type": "icon",
             },
             {
-                "command": {
-                    "cmd_id": "remote.send",
-                    "params": {"command": Commands.SUBTITLE, "repeat": 1}
-                },
+                "command": {"cmd_id": "remote.send", "params": {"command": Commands.SUBTITLE, "repeat": 1}},
                 "icon": "uc:cc",
-                "location": {
-                    "x": 2,
-                    "y": 0
-                },
-                "size": {
-                    "height": 1,
-                    "width": 1
-                },
-                "type": "icon"
+                "location": {"x": 2, "y": 0},
+                "size": {"height": 1, "width": 1},
+                "type": "icon",
             },
             {
-                "command": {
-                    "cmd_id": "MODE_SHOW_SUBTITLES"
-                },
+                "command": {"cmd_id": "MODE_SHOW_SUBTITLES"},
                 "text": "Toggle subtitles",
-                "location": {
-                    "x": 3,
-                    "y": 0
-                },
-                "size": {
-                    "height": 1,
-                    "width": 1
-                },
-                "type": "text"
+                "location": {"x": 3, "y": 0},
+                "size": {"height": 1, "width": 1},
+                "type": "text",
             },
             {
-                "command": {
-                    "cmd_id": "MODE_FULLSCREEN"
-                },
+                "command": {"cmd_id": "MODE_FULLSCREEN"},
                 "text": "Full screen",
-                "location": {
-                    "x": 0,
-                    "y": 1
-                },
-                "size": {
-                    "height": 1,
-                    "width": 1
-                },
-                "type": "text"
+                "location": {"x": 0, "y": 1},
+                "size": {"height": 1, "width": 1},
+                "type": "text",
             },
             {
-                "command": {
-                    "cmd_id": "MODE_ZOOM_IN"
-                },
+                "command": {"cmd_id": "MODE_ZOOM_IN"},
                 "text": "Zoom in",
-                "location": {
-                    "x": 1,
-                    "y": 1
-                },
-                "size": {
-                    "height": 1,
-                    "width": 1
-                },
-                "type": "text"
+                "location": {"x": 1, "y": 1},
+                "size": {"height": 1, "width": 1},
+                "type": "text",
             },
             {
-                "command": {
-                    "cmd_id": "MODE_ZOOM_OUT"
-                },
+                "command": {"cmd_id": "MODE_ZOOM_OUT"},
                 "text": "Zoom out",
-                "location": {
-                    "x": 2,
-                    "y": 1
-                },
-                "size": {
-                    "height": 1,
-                    "width": 1
-                },
-                "type": "text"
+                "location": {"x": 2, "y": 1},
+                "size": {"height": 1, "width": 1},
+                "type": "text",
             },
             {
-                "command": {
-                    "cmd_id": Commands.CONTEXT_MENU
-                },
+                "command": {"cmd_id": Commands.CONTEXT_MENU},
                 "icon": "uc:menu",
-                "location": {
-                    "x": 3,
-                    "y": 5
-                },
-                "size": {
-                    "height": 1,
-                    "width": 1
-                },
-                "type": "icon"
+                "location": {"x": 3, "y": 5},
+                "size": {"height": 1, "width": 1},
+                "type": "icon",
             },
-        ]
+        ],
     },
     {
         "page_id": "Kodi numbers",
         "name": "Kodi numbers",
-        "grid": { "height": 4, "width": 3 },
-        "items": [{
-            "command": {
-                "cmd_id": "remote.send",
-                "params": {"command": Commands.DIGIT_1, "repeat": 1}
+        "grid": {"height": 4, "width": 3},
+        "items": [
+            {
+                "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_1, "repeat": 1}},
+                "location": {"x": 0, "y": 0},
+                "size": {"height": 1, "width": 1},
+                "text": "1",
+                "type": "text",
             },
-            "location": {
-                "x": 0,
-                "y": 0
+            {
+                "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_2, "repeat": 1}},
+                "location": {"x": 1, "y": 0},
+                "size": {"height": 1, "width": 1},
+                "text": "2",
+                "type": "text",
             },
-            "size": {
-                "height": 1,
-                "width": 1
+            {
+                "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_3, "repeat": 1}},
+                "location": {"x": 2, "y": 0},
+                "size": {"height": 1, "width": 1},
+                "text": "3",
+                "type": "text",
             },
-            "text": "1",
-            "type": "text"
-        }, {
-            "command": {
-                "cmd_id": "remote.send",
-                "params": {"command": Commands.DIGIT_2, "repeat": 1}
+            {
+                "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_4, "repeat": 1}},
+                "location": {"x": 0, "y": 1},
+                "size": {"height": 1, "width": 1},
+                "text": "4",
+                "type": "text",
             },
-            "location": {
-                "x": 1,
-                "y": 0
+            {
+                "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_5, "repeat": 1}},
+                "location": {"x": 1, "y": 1},
+                "size": {"height": 1, "width": 1},
+                "text": "5",
+                "type": "text",
             },
-            "size": {
-                "height": 1,
-                "width": 1
+            {
+                "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_6, "repeat": 1}},
+                "location": {"x": 2, "y": 1},
+                "size": {"height": 1, "width": 1},
+                "text": "6",
+                "type": "text",
             },
-            "text": "2",
-            "type": "text"
-        }, {
-            "command": {
-                "cmd_id": "remote.send",
-                "params": {"command": Commands.DIGIT_3, "repeat": 1}
+            {
+                "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_7, "repeat": 1}},
+                "location": {"x": 0, "y": 2},
+                "size": {"height": 1, "width": 1},
+                "text": "7",
+                "type": "text",
             },
-            "location": {
-                "x": 2,
-                "y": 0
+            {
+                "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_8, "repeat": 1}},
+                "location": {"x": 1, "y": 2},
+                "size": {"height": 1, "width": 1},
+                "text": "8",
+                "type": "text",
             },
-            "size": {
-                "height": 1,
-                "width": 1
+            {
+                "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_9, "repeat": 1}},
+                "location": {"x": 2, "y": 2},
+                "size": {"height": 1, "width": 1},
+                "text": "9",
+                "type": "text",
             },
-            "text": "3",
-            "type": "text"
-        }, {
-            "command": {
-                "cmd_id": "remote.send",
-                "params": {"command": Commands.DIGIT_4, "repeat": 1}
+            {
+                "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_0, "repeat": 1}},
+                "location": {"x": 1, "y": 3},
+                "size": {"height": 1, "width": 1},
+                "text": "0",
+                "type": "text",
             },
-            "location": {
-                "x": 0,
-                "y": 1
-            },
-            "size": {
-                "height": 1,
-                "width": 1
-            },
-            "text": "4",
-            "type": "text"
-        }, {
-            "command": {
-                "cmd_id": "remote.send",
-                "params": {"command": Commands.DIGIT_5, "repeat": 1}
-            },
-            "location": {
-                "x": 1,
-                "y": 1
-            },
-            "size": {
-                "height": 1,
-                "width": 1
-            },
-            "text": "5",
-            "type": "text"
-        }, {
-            "command": {
-                "cmd_id": "remote.send",
-                "params": {"command": Commands.DIGIT_6, "repeat": 1}
-            },
-            "location": {
-                "x": 2,
-                "y": 1
-            },
-            "size": {
-                "height": 1,
-                "width": 1
-            },
-            "text": "6",
-            "type": "text"
-        }, {
-            "command": {
-                "cmd_id": "remote.send",
-                "params": {"command": Commands.DIGIT_7, "repeat": 1}
-            },
-            "location": {
-                "x": 0,
-                "y": 2
-            },
-            "size": {
-                "height": 1,
-                "width": 1
-            },
-            "text": "7",
-            "type": "text"
-        }, {
-            "command": {
-                "cmd_id": "remote.send",
-                "params": {"command": Commands.DIGIT_8, "repeat": 1}
-            },
-            "location": {
-                "x": 1,
-                "y": 2
-            },
-            "size": {
-                "height": 1,
-                "width": 1
-            },
-            "text": "8",
-            "type": "text"
-        }, {
-            "command": {
-                "cmd_id": "remote.send",
-                "params": {"command": Commands.DIGIT_9, "repeat": 1}
-            },
-            "location": {
-                "x": 2,
-                "y": 2
-            },
-            "size": {
-                "height": 1,
-                "width": 1
-            },
-            "text": "9",
-            "type": "text"
-        }, {
-            "command": {
-                "cmd_id": "remote.send",
-                "params": {"command": Commands.DIGIT_0, "repeat": 1}
-            },
-            "location": {
-                "x": 1,
-                "y": 3
-            },
-            "size": {
-                "height": 1,
-                "width": 1
-            },
-            "text": "0",
-            "type": "text"
-        }
-        ]
-    }
+        ],
+    },
 ]
+
+
+def key_update_helper(input_attributes, key: str, value: str | None, attributes):
+    """Return modified attributes only."""
+    if value is None:
+        return attributes
+
+    if key in input_attributes:
+        if input_attributes[key] != value:
+            attributes[key] = value
+    else:
+        attributes[key] = value
+
+    return attributes

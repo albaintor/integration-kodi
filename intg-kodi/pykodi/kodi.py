@@ -1,27 +1,23 @@
 """Implementation of a Kodi inteface."""
-import logging
-
-import aiohttp
-import urllib
 
 import asyncio
-import jsonrpc_base
-import jsonrpc_async
-import jsonrpc_websocket
+import logging
+import urllib
+
+import aiohttp
+import jsonrpc_async  # pylint: disable = E0401
+import jsonrpc_base  # pylint: disable = E0401
+import jsonrpc_websocket  # pylint: disable = E0401
 from aiohttp import ServerTimeoutError
 
 _LOG = logging.getLogger(__name__)
 
-def get_kodi_connection(
-    host, port, ws_port, username, password, ssl=False, timeout=5, session=None
-):
+
+def get_kodi_connection(host, port, ws_port, username, password, ssl=False, timeout=5, session=None):
     """Returns a Kodi connection."""
     if ws_port is None:
         return KodiHTTPConnection(host, port, username, password, ssl, timeout, session)
-    else:
-        return KodiWSConnection(
-            host, port, ws_port, username, password, ssl, timeout, session
-        )
+    return KodiWSConnection(host, port, ws_port, username, password, ssl, timeout, session)
 
 
 class KodiConnection:
@@ -49,7 +45,6 @@ class KodiConnection:
 
     async def connect(self):
         """Connect to kodi."""
-        pass
 
     async def close(self):
         """Close the connection."""
@@ -60,6 +55,7 @@ class KodiConnection:
 
     @property
     def server(self):
+        """Return server"""
         raise NotImplementedError
 
     @property
@@ -69,6 +65,7 @@ class KodiConnection:
 
     @property
     def can_subscribe(self):
+        """Can subscribe."""
         return False
 
     def thumbnail_url(self, thumbnail):
@@ -79,6 +76,7 @@ class KodiConnection:
         url_components = urllib.parse.urlparse(thumbnail)
         if url_components.scheme == "image":
             return f"{self._image_url}/{urllib.parse.quote_plus(thumbnail)}"
+        return None
 
 
 class KodiHTTPConnection(KodiConnection):
@@ -112,6 +110,7 @@ class KodiHTTPConnection(KodiConnection):
 
 class KodiWSConnection(KodiConnection):
     """A WS connection to Kodi."""
+
     _connect_task = None
 
     def __init__(self, host, port, ws_port, username, password, ssl, timeout, session):
@@ -142,11 +141,7 @@ class KodiWSConnection(KodiConnection):
                 self._connect_task = None
                 await self.close()
             self._connect_task = await self._ws_server.ws_connect()
-        except (
-            jsonrpc_base.jsonrpc.TransportError,
-            asyncio.exceptions.CancelledError,
-            ServerTimeoutError
-        ) as error:
+        except (jsonrpc_base.jsonrpc.TransportError, asyncio.exceptions.CancelledError, ServerTimeoutError) as error:
             raise CannotConnectError from error
 
     async def close(self):
@@ -177,8 +172,7 @@ class Kodi:
         except jsonrpc_base.jsonrpc.TransportError as error:
             if "401" in str(error):
                 raise InvalidAuthError from error
-            else:
-                raise CannotConnectError from error
+            raise CannotConnectError from error
 
     async def get_application_properties(self, properties):
         """Get value of given properties."""
@@ -190,9 +184,7 @@ class Kodi:
 
     async def get_playing_item_properties(self, player, properties):
         """Get value of given properties."""
-        return (await self._server.Player.GetItem(player["playerid"], properties))[
-            "item"
-        ]
+        return (await self._server.Player.GetItem(player["playerid"], properties))["item"]
 
     async def volume_up(self):
         """Send volume up command."""
@@ -242,9 +234,7 @@ class Kodi:
             if direction == "previous":
                 # First seek to position 0. Kodi goes to the beginning of the
                 # current track if the current track is not at the beginning.
-                await self._server.Player.Seek(
-                    players[0]["playerid"], {"percentage": 0}
-                )
+                await self._server.Player.Seek(players[0]["playerid"], {"percentage": 0})
 
             await self._server.Player.GoTo(players[0]["playerid"], direction)
 
@@ -276,6 +266,7 @@ class Kodi:
             await self._server.Player.Seek(players[0]["playerid"], {"time": time})
 
     async def play_item(self, item):
+        """Play given item."""
         await self._server.Player.Open(**{"item": item})
 
     async def play_channel(self, channel_id):
@@ -298,9 +289,7 @@ class Kodi:
         """Set shuffle mode, for the first player."""
         players = await self.get_players()
         if players:
-            await self._server.Player.SetShuffle(
-                **{"playerid": players[0]["playerid"], "shuffle": shuffle}
-            )
+            await self._server.Player.SetShuffle(**{"playerid": players[0]["playerid"], "shuffle": shuffle})
 
     async def call_method(self, method, **kwargs):
         """Run Kodi JSONRPC API method with params."""
@@ -329,9 +318,7 @@ class Kodi:
 
     async def get_artists(self, properties=None):
         """Get artists list."""
-        return await self._server.AudioLibrary.GetArtists(
-            **_build_query(properties=properties)
-        )
+        return await self._server.AudioLibrary.GetArtists(**_build_query(properties=properties))
 
     async def get_artist_details(self, artist_id=None, properties=None):
         """Get artist details."""
@@ -341,51 +328,39 @@ class Kodi:
 
     async def get_albums(self, artist_id=None, album_id=None, properties=None):
         """Get albums list."""
-        filter = {}
+        _filter = {}
         if artist_id:
-            filter["artistid"] = artist_id
+            _filter["artistid"] = artist_id
         if album_id:
-            filter["albumid"] = album_id
+            _filter["albumid"] = album_id
 
-        return await self._server.AudioLibrary.GetAlbums(
-            **_build_query(filter=filter, properties=properties)
-        )
+        return await self._server.AudioLibrary.GetAlbums(**_build_query(filter=_filter, properties=properties))
 
     async def get_album_details(self, album_id, properties=None):
         """Get album details."""
-        return await self._server.AudioLibrary.GetAlbumDetails(
-            **_build_query(albumid=album_id, properties=properties)
-        )
+        return await self._server.AudioLibrary.GetAlbumDetails(**_build_query(albumid=album_id, properties=properties))
 
     async def get_songs(self, artist_id=None, album_id=None, properties=None):
         """Get songs list."""
-        filter = {}
+        _filter = {}
         if artist_id:
-            filter["artistid"] = artist_id
+            _filter["artistid"] = artist_id
         if album_id:
-            filter["albumid"] = album_id
+            _filter["albumid"] = album_id
 
-        return await self._server.AudioLibrary.GetSongs(
-            **_build_query(filter=filter, properties=properties)
-        )
+        return await self._server.AudioLibrary.GetSongs(**_build_query(filter=_filter, properties=properties))
 
     async def get_movies(self, properties=None):
         """Get movies list."""
-        return await self._server.VideoLibrary.GetMovies(
-            **_build_query(properties=properties)
-        )
+        return await self._server.VideoLibrary.GetMovies(**_build_query(properties=properties))
 
     async def get_movie_details(self, movie_id, properties=None):
         """Get movie details."""
-        return await self._server.VideoLibrary.GetMovieDetails(
-            **_build_query(movieid=movie_id, properties=properties)
-        )
+        return await self._server.VideoLibrary.GetMovieDetails(**_build_query(movieid=movie_id, properties=properties))
 
     async def get_seasons(self, tv_show_id, properties=None):
         """Get seasons list."""
-        return await self._server.VideoLibrary.GetSeasons(
-            **_build_query(tvshowid=tv_show_id, properties=properties)
-        )
+        return await self._server.VideoLibrary.GetSeasons(**_build_query(tvshowid=tv_show_id, properties=properties))
 
     async def get_season_details(self, season_id, properties=None):
         """Get songs list."""
@@ -402,9 +377,7 @@ class Kodi:
 
     async def get_tv_shows(self, properties=None):
         """Get tv shows list."""
-        return await self._server.VideoLibrary.GetTVShows(
-            **_build_query(properties=properties)
-        )
+        return await self._server.VideoLibrary.GetTVShows(**_build_query(properties=properties))
 
     async def get_tv_show_details(self, tv_show_id=None, properties=None):
         """Get songs list."""

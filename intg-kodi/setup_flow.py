@@ -9,12 +9,18 @@ import asyncio
 import logging
 from enum import IntEnum
 
-from aiohttp import ClientSession
-from pykodi.kodi import KodiWSConnection, KodiConnection, Kodi, CannotConnectError, InvalidAuthError, KodiHTTPConnection
-from discover import KodiDiscover
-
 import config
+from aiohttp import ClientSession
 from config import KodiConfigDevice
+from discover import KodiDiscover
+from pykodi.kodi import (
+    CannotConnectError,
+    InvalidAuthError,
+    Kodi,
+    KodiConnection,
+    KodiHTTPConnection,
+    KodiWSConnection,
+)
 from ucapi import (
     AbortDriverSetup,
     DriverSetupRequest,
@@ -28,6 +34,10 @@ from ucapi import (
 )
 
 _LOG = logging.getLogger(__name__)
+
+
+# pylint: disable = C0301,W1405
+# flake8: noqa
 
 
 # TODO to be confirmed : Home assistant configured zeroconf url "_xbmc-jsonrpc-h._tcp.local."
@@ -46,6 +56,7 @@ _cfg_add_device: bool = False
 _discovered_kodis: list[dict[str, str]] = []
 _pairing_device: KodiConnection | None = None
 _pairing_device_ws: KodiWSConnection | None = None
+# pylint: disable = R0911
 _user_input_manual = RequestUserInput(
     {"en": "Setup mode", "de": "Setup Modus", "fr": "Installation"},
     [
@@ -54,12 +65,15 @@ _user_input_manual = RequestUserInput(
             "label": {
                 "en": "Discover or connect to Kodi instances. Leave address blank for automatic discovery.",
                 "fr": "Découverte ou connexion à vos instances Kodi. Laisser le champ adresse vide pour la découverte automatique.",
+                # noqa: E501
             },
             "field": {
                 "label": {
                     "value": {
                         "en": "Kodi must be running, and control enabled from Settings > Services > Control section. Port numbers shouldn't be modified.",
+                        # noqa: E501
                         "fr": "Kodi doit être lancé et le contrôle activé depuis les Paramètres > Services > Contrôle. Laisser les numéros des ports inchangés.",
+                        # noqa: E501
                     }
                 }
             },
@@ -97,6 +111,7 @@ _user_input_manual = RequestUserInput(
     ],
 )
 
+
 async def driver_setup_handler(msg: SetupDriver) -> SetupAction:
     """
     Dispatch driver setup requests to corresponding handlers.
@@ -122,7 +137,7 @@ async def driver_setup_handler(msg: SetupDriver) -> SetupAction:
             manual_config = True
         if _setup_step == SetupSteps.CONFIGURATION_MODE and "action" in msg.input_values:
             return await handle_configuration_mode(msg)
-        elif _setup_step == SetupSteps.CONFIGURATION_MODE:
+        if _setup_step == SetupSteps.CONFIGURATION_MODE:
             return await _handle_configuration(msg)
         # When user types an address at start (manual configuration)
         if _setup_step == SetupSteps.DISCOVER and manual_config:
@@ -135,6 +150,7 @@ async def driver_setup_handler(msg: SetupDriver) -> SetupAction:
         _LOG.error("No or invalid user response was received: %s (step %s)", msg, _setup_step)
     elif isinstance(msg, AbortDriverSetup):
         _LOG.info("Setup was aborted with code: %s", msg.error)
+        # pylint: disable = W0718
         if _pairing_device:
             try:
                 await _pairing_device.close()
@@ -250,7 +266,7 @@ async def handle_driver_setup(msg: DriverSetupRequest) -> RequestUserInput | Set
     return _user_input_manual
 
 
-async def handle_discovery(msg: UserDataResponse) -> RequestUserInput | SetupError:
+async def handle_discovery(_msg: UserDataResponse) -> RequestUserInput | SetupError:
     """
     Process user data response from the first setup process screen.
 
@@ -275,9 +291,7 @@ async def handle_discovery(msg: UserDataResponse) -> RequestUserInput | SetupErr
         kodi_data = {"id": discovered_kodi["ip"], "label": {"en": f"Kodi {discovered_kodi['ip']}"}}
         existing = config.devices.get_by_id_or_address(discovered_kodi["id"], discovered_kodi["ip"])
         if _cfg_add_device and existing:
-            _LOG.info(
-                "Skipping found device '%s': already configured", discovered_kodi["id"]
-            )
+            _LOG.info("Skipping found device '%s': already configured", discovered_kodi["id"])
             continue
         dropdown_items.append(kodi_data)
 
@@ -288,8 +302,10 @@ async def handle_discovery(msg: UserDataResponse) -> RequestUserInput | SetupErr
     _setup_step = SetupSteps.DEVICE_CHOICE
     # TODO #9 externalize language texts
     return RequestUserInput(
-        {"en": "Please choose and configure your Kodi instance",
-         "fr": "Sélectionnez et configurez votre instance Kodi"},
+        {
+            "en": "Please choose and configure your Kodi instance",
+            "fr": "Sélectionnez et configurez votre instance Kodi",
+        },
         [
             {
                 "field": {"dropdown": {"value": dropdown_items[0]["id"], "items": dropdown_items}},
@@ -310,8 +326,12 @@ async def handle_discovery(msg: UserDataResponse) -> RequestUserInput | SetupErr
                 "field": {
                     "label": {
                         "value": {
-                            "en": "Kodi must be running, and control enabled from Settings > Services > Control section. Port numbers shouldn't be modified. Leave blank for automatic discovery.",
-                            "fr": "Kodi doit être lancé et le contrôle activé depuis les Paramètres > Services > Contrôle. Laisser les numéros des ports inchangés.Laisser vide pour la découverte automatique.",
+                            "en": "Kodi must be running, and control enabled from Settings > "
+                            "Services > Control section. Port numbers shouldn't be modified."
+                            " Leave blank for automatic discovery.",
+                            "fr": "Kodi doit être lancé et le contrôle activé depuis les "
+                            "Paramètres > Services > Contrôle. Laisser les numéros des ports "
+                            "inchangés.Laisser vide pour la découverte automatique.",
                         }
                     }
                 },
@@ -393,6 +413,7 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
     :param msg: response data from the requested user data
     :return: the setup action on how to continue
     """
+    # pylint: disable = W0602,W0718,R0915
     global _pairing_device
     global _pairing_device_ws
     global _setup_step
@@ -420,7 +441,7 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
     username = msg.input_values["username"]
     password = msg.input_values["password"]
     ssl = msg.input_values["ssl"]
-    if ssl == 'false':
+    if ssl == "false":
         ssl = False
     else:
         ssl = True
@@ -428,28 +449,43 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
     if device_choice:
         _LOG.debug("Configure device following discovery : %s %s", device_choice, _discovered_kodis)
         for discovered_kodi in _discovered_kodis:
-            if device_choice == discovered_kodi['ip']:
-                address = discovered_kodi['ip']
+            if device_choice == discovered_kodi["ip"]:
+                address = discovered_kodi["ip"]
 
-    _LOG.debug("Starting driver setup for %s, port %s, websocket port %s, username %s, ssl %s", address, port, ws_port,
-               username, ssl)
+    _LOG.debug(
+        "Starting driver setup for %s, port %s, websocket port %s, username %s, ssl %s",
+        address,
+        port,
+        ws_port,
+        username,
+        ssl,
+    )
     try:
         # simple connection check
         async with ClientSession(raise_for_status=True) as session:
-            device = KodiHTTPConnection(host=address, port=port, username=username, password=password,
-                                        timeout=5, session=session, ssl=ssl)
+            device = KodiHTTPConnection(
+                host=address, port=port, username=username, password=password, timeout=5, session=session, ssl=ssl
+            )
             kodi = Kodi(device)
             try:
                 await kodi.ping()
                 _LOG.debug("Connection %s:%s succeeded over HTTP", address, port)
-            except CannotConnectError:
-                _LOG.warning("Cannot connect to %s:%s over HTTP [%s]", address, port)
+            except CannotConnectError as ex:
+                _LOG.warning("Cannot connect to %s:%s over HTTP [%s]", address, port, ex)
                 return SetupError(error_type=IntegrationSetupError.CONNECTION_REFUSED)
             except InvalidAuthError:
                 _LOG.warning("Authentication refused to %s:%s over HTTP", address, port)
                 return SetupError(error_type=IntegrationSetupError.AUTHORIZATION_ERROR)
-            device = KodiWSConnection(host=address, port=port, ws_port=ws_port,
-                                      username=username, password=password, ssl=ssl, timeout=5, session=session)
+            device = KodiWSConnection(
+                host=address,
+                port=port,
+                ws_port=ws_port,
+                username=username,
+                password=password,
+                ssl=ssl,
+                timeout=5,
+                session=session,
+            )
             try:
                 await device.connect()
                 if not device.connected:
@@ -459,7 +495,7 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
                 await kodi.ping()
                 await device.close()
                 _LOG.debug("Connection %s:%s succeeded over websocket", address, port)
-            except CannotConnectError as error:
+            except CannotConnectError:
                 _LOG.warning("Cannot connect to %s:%s over WebSocket", address, ws_port)
                 return SetupError(error_type=IntegrationSetupError.CONNECTION_REFUSED)
 
@@ -470,8 +506,16 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
 
     # TODO improve device ID (IP actually)
     config.devices.add(
-        KodiConfigDevice(id=address, name="Kodi", address=address, username=username,
-                         password=password, port=port, ws_port=ws_port, ssl=ssl)
+        KodiConfigDevice(
+            id=address,
+            name="Kodi",
+            address=address,
+            username=username,
+            password=password,
+            port=port,
+            ws_port=ws_port,
+            ssl=ssl,
+        )
     )  # triggers SonyLG TV instance creation
     config.devices.store()
 

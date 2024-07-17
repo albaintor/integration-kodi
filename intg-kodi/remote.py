@@ -4,35 +4,48 @@ Media-player entity functions.
 :copyright: (c) 2023 by Unfolded Circle ApS.
 :license: Mozilla Public License Version 2.0, see LICENSE for more details.
 """
+
 import asyncio
 import logging
 from typing import Any
 
 import kodi
 from config import KodiConfigDevice, create_entity_id
+from const import (
+    KODI_ACTIONS_KEYMAP,
+    KODI_BUTTONS_KEYMAP,
+    KODI_REMOTE_BUTTONS_MAPPING,
+    KODI_REMOTE_SIMPLE_COMMANDS,
+    KODI_REMOTE_UI_PAGES,
+    KODI_SIMPLE_COMMANDS,
+    key_update_helper,
+)
 from ucapi import EntityTypes, Remote, StatusCodes
-from ucapi.media_player import Commands as MediaPlayerCommands, States as MediaStates
-from ucapi.remote import Attributes, Commands, States as RemoteStates, Options, Features
-from const import KODI_SIMPLE_COMMANDS, KODI_ACTIONS_KEYMAP, KODI_BUTTONS_KEYMAP, KODI_REMOTE_BUTTONS_MAPPING, \
-    KODI_REMOTE_UI_PAGES, KODI_REMOTE_SIMPLE_COMMANDS
+from ucapi.media_player import Commands as MediaPlayerCommands
+from ucapi.media_player import States as MediaStates
+from ucapi.remote import Attributes, Commands, Features, Options
+from ucapi.remote import States as RemoteStates
 
 _LOG = logging.getLogger(__name__)
 
-#TODO to improve : the media states are calculated for media player entity, then they have to be converted to remote states
+# TODO to improve : the media states are calculated for media player entity,
+#  then they have to be converted to remote states
 # A device state map should be defined and then mapped to both entity types
 KODI_REMOTE_STATE_MAPPING = {
     MediaStates.OFF: RemoteStates.OFF,
     MediaStates.ON: RemoteStates.ON,
     MediaStates.STANDBY: RemoteStates.ON,
     MediaStates.PLAYING: RemoteStates.ON,
-    MediaStates.PAUSED: RemoteStates.ON
+    MediaStates.PAUSED: RemoteStates.ON,
 }
+
 
 class KodiRemote(Remote):
     """Representation of a Kodi Media Player entity."""
 
     def __init__(self, config_device: KodiConfigDevice, device: kodi.KodiDevice):
         """Initialize the class."""
+        # pylint: disable = R0801
         self._device: kodi.KodiDevice = device
         _LOG.debug("KodiRemote init")
         entity_id = create_entity_id(config_device.id, EntityTypes.REMOTE)
@@ -47,17 +60,16 @@ class KodiRemote(Remote):
             attributes,
             simple_commands=KODI_REMOTE_SIMPLE_COMMANDS,
             button_mapping=KODI_REMOTE_BUTTONS_MAPPING,
-            ui_pages=KODI_REMOTE_UI_PAGES
+            ui_pages=KODI_REMOTE_UI_PAGES,
         )
 
-    def getIntParam(self, param: str, params: dict[str, Any], default:int):
+    def get_int_param(self, param: str, params: dict[str, Any], default: int):
+        """Get parameter in integer format."""
         # TODO bug to be fixed on UC Core : some params are sent as (empty) strings by remote (hold == "")
         value = params.get(param, default)
         if isinstance(value, str) and len(value) > 0:
             return int(float(value))
-        else:
-            return default
-
+        return default
 
     async def command(self, cmd_id: str, params: dict[str, Any] | None = None) -> StatusCodes:
         """
@@ -75,15 +87,16 @@ class KodiRemote(Remote):
             _LOG.warning("No Kodi instance for entity: %s", self.id)
             return StatusCodes.SERVICE_UNAVAILABLE
 
-        repeat = self.getIntParam("repeat", params, 1)
+        repeat = self.get_int_param("repeat", params, 1)
         res = StatusCodes.OK
-        for i in range (0, repeat):
+        for _i in range(0, repeat):
             res = await self.handle_command(cmd_id, params)
         return res
 
     async def handle_command(self, cmd_id: str, params: dict[str, Any] | None = None) -> StatusCodes:
-        hold = self.getIntParam("hold", params, 0)
-        delay = self.getIntParam("delay", params, 0)
+        """Handle command."""
+        hold = self.get_int_param("hold", params, 0)
+        delay = self.get_int_param("delay", params, 0)
         command = params.get("command", "")
 
         if command == MediaPlayerCommands.VOLUME:
@@ -98,7 +111,7 @@ class KodiRemote(Remote):
             res = await self._device.mute(True)
         elif command == MediaPlayerCommands.UNMUTE:
             res = await self._device.mute(False)
-        elif command == MediaPlayerCommands.ON: #TODO the entity remains active otherwise
+        elif command == MediaPlayerCommands.ON:  # TODO the entity remains active otherwise
             res = StatusCodes.OK
         elif command == MediaPlayerCommands.OFF:
             res = await self._device.power_off()
@@ -113,19 +126,19 @@ class KodiRemote(Remote):
         elif command == MediaPlayerCommands.HOME:
             res = await self._device.home()
         elif command == MediaPlayerCommands.SETTINGS:
-            return StatusCodes.NOT_IMPLEMENTED # TODO ?
+            return StatusCodes.NOT_IMPLEMENTED  # TODO ?
         elif command == MediaPlayerCommands.CONTEXT_MENU:
             res = await self._device.context_menu()
-        elif command in KODI_BUTTONS_KEYMAP.keys():
+        elif command in KODI_BUTTONS_KEYMAP:
             res = await self._device.command_button(KODI_BUTTONS_KEYMAP[command])
-        elif command in KODI_ACTIONS_KEYMAP.keys():
+        elif command in KODI_ACTIONS_KEYMAP:
             res = await self._device.command_action(KODI_ACTIONS_KEYMAP[command])
         elif command in self.options[Options.SIMPLE_COMMANDS]:
             res = await self._device.command_action(KODI_SIMPLE_COMMANDS[command])
         elif cmd_id == Commands.SEND_CMD:
             res = await self._device.command_button({"button": command, "keymap": "KB", "holdtime": hold})
         elif cmd_id == Commands.SEND_CMD_SEQUENCE:
-            commands = params.get("sequence", [])#.split(",")
+            commands = params.get("sequence", [])  # .split(",")
             res = StatusCodes.OK
             for command in commands:
                 res = await self.handle_command(Commands.SEND_CMD, {"command": command, "params": params})
@@ -148,22 +161,7 @@ class KodiRemote(Remote):
 
         if Attributes.STATE in update:
             state = KODI_REMOTE_STATE_MAPPING.get(update[Attributes.STATE])
-            attributes = self._key_update_helper(Attributes.STATE, state, attributes)
+            attributes = key_update_helper(self.attributes, Attributes.STATE, state, attributes)
 
         _LOG.debug("KodiRemote update attributes %s -> %s", update, attributes)
         return attributes
-
-    def _key_update_helper(self, key: str, value: str | None, attributes):
-        if value is None:
-            return attributes
-
-        if key in self.attributes:
-            if self.attributes[key] != value:
-                attributes[key] = value
-        else:
-            attributes[key] = value
-
-        return attributes
-
-
-

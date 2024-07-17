@@ -10,9 +10,21 @@ from typing import Any
 
 import kodi
 from config import KodiConfigDevice, create_entity_id
+from const import (
+    KODI_ACTIONS_KEYMAP,
+    KODI_BUTTONS_KEYMAP,
+    KODI_SIMPLE_COMMANDS,
+    key_update_helper,
+)
 from ucapi import EntityTypes, MediaPlayer, StatusCodes
-from ucapi.media_player import Attributes, Commands, DeviceClasses, States, MediaType, Options
-from const import KODI_SIMPLE_COMMANDS, KODI_ACTIONS_KEYMAP, KODI_BUTTONS_KEYMAP
+from ucapi.media_player import (
+    Attributes,
+    Commands,
+    DeviceClasses,
+    MediaType,
+    Options,
+    States,
+)
 
 _LOG = logging.getLogger(__name__)
 
@@ -22,6 +34,7 @@ class KodiMediaPlayer(MediaPlayer):
 
     def __init__(self, config_device: KodiConfigDevice, device: kodi.KodiDevice):
         """Initialize the class."""
+        # pylint: disable = R0801
         self._device: kodi.KodiDevice = device
         _LOG.debug("KodiMediaPlayer init")
         entity_id = create_entity_id(config_device.id, EntityTypes.MEDIA_PLAYER)
@@ -44,16 +57,9 @@ class KodiMediaPlayer(MediaPlayer):
         #     features.append(Features.SELECT_SOUND_MODE)
         #     attributes[Attributes.SOUND_MODE] = ""
         #     attributes[Attributes.SOUND_MODE_LIST] = []
-        options = {
-            Options.SIMPLE_COMMANDS: list(KODI_SIMPLE_COMMANDS.keys())
-        }
+        options = {Options.SIMPLE_COMMANDS: list(KODI_SIMPLE_COMMANDS.keys())}
         super().__init__(
-            entity_id,
-            config_device.name,
-            features,
-            attributes,
-            device_class=DeviceClasses.RECEIVER,
-            options=options
+            entity_id, config_device.name, features, attributes, device_class=DeviceClasses.RECEIVER, options=options
         )
 
     async def command(self, cmd_id: str, params: dict[str, Any] | None = None) -> StatusCodes:
@@ -84,7 +90,7 @@ class KodiMediaPlayer(MediaPlayer):
             res = await self._device.mute(True)
         elif cmd_id == Commands.UNMUTE:
             res = await self._device.mute(False)
-        elif cmd_id == Commands.ON: #TODO the entity remains active otherwise
+        elif cmd_id == Commands.ON:  # TODO the entity remains active otherwise
             res = StatusCodes.OK
         elif cmd_id == Commands.OFF:
             res = await self._device.power_off()
@@ -99,15 +105,15 @@ class KodiMediaPlayer(MediaPlayer):
         elif cmd_id == Commands.HOME:
             res = await self._device.home()
         elif cmd_id == Commands.SETTINGS:
-            return StatusCodes.NOT_IMPLEMENTED # TODO ?
+            return StatusCodes.NOT_IMPLEMENTED  # TODO ?
         elif cmd_id == Commands.CONTEXT_MENU:
             res = await self._device.context_menu()
         elif cmd_id == Commands.SEEK:
             media_position = params.get("media_position", 0)
             res = await self._device.seek(media_position)
-        elif cmd_id in KODI_BUTTONS_KEYMAP.keys():
+        elif cmd_id in KODI_BUTTONS_KEYMAP:
             res = await self._device.command_button(KODI_BUTTONS_KEYMAP[cmd_id])
-        elif cmd_id in KODI_ACTIONS_KEYMAP.keys():
+        elif cmd_id in KODI_ACTIONS_KEYMAP:
             res = await self._device.command_action(KODI_ACTIONS_KEYMAP[cmd_id])
         elif cmd_id in self.options[Options.SIMPLE_COMMANDS]:
             res = await self._device.command_action(KODI_SIMPLE_COMMANDS[cmd_id])
@@ -126,7 +132,7 @@ class KodiMediaPlayer(MediaPlayer):
 
         if Attributes.STATE in update:
             state = update[Attributes.STATE]
-            attributes = self._key_update_helper(Attributes.STATE, state, attributes)
+            attributes = key_update_helper(self.attributes, Attributes.STATE, state, attributes)
 
         for attr in [
             Attributes.MEDIA_ARTIST,
@@ -142,7 +148,7 @@ class KodiMediaPlayer(MediaPlayer):
             Attributes.MEDIA_TYPE,
         ]:
             if attr in update:
-                attributes = self._key_update_helper(attr, update[attr], attributes)
+                attributes = key_update_helper(self.attributes, attr, update[attr], attributes)
 
         if Attributes.SOURCE_LIST in update:
             if Attributes.SOURCE_LIST in self.attributes:
@@ -171,6 +177,3 @@ class KodiMediaPlayer(MediaPlayer):
             attributes[key] = value
 
         return attributes
-
-
-

@@ -4,24 +4,28 @@ This module implements Kodi communication of the Remote Two integration driver.
 :copyright: (c) 2023 by Unfolded Circle ApS.
 :license: Mozilla Public License Version 2.0, see LICENSE for more details.
 """
+
 import asyncio
 import logging
+import urllib.parse
 from asyncio import AbstractEventLoop, Lock
 from enum import IntEnum
 from functools import wraps
-from typing import Callable, Concatenate, Awaitable, Any, Coroutine, TypeVar, ParamSpec
+from typing import Any, Awaitable, Callable, Concatenate, Coroutine, ParamSpec, TypeVar
 
 import ucapi
 from aiohttp import ClientSession, ServerTimeoutError
-from pykodi.kodi import KodiWSConnection, InvalidAuthError
-
 from config import KodiConfigDevice
+from const import KODI_FEATURES, KODI_MEDIA_TYPES, ButtonKeymap
+from jsonrpc_base.jsonrpc import (  # pylint: disable = E0401
+    ProtocolError,
+    TransportError,
+)
 from pyee import AsyncIOEventEmitter
-from ucapi.media_player import Attributes as MediaAttr, States as MediaStates
-from const import *
-from jsonrpc_base.jsonrpc import ProtocolError, TransportError
-from pykodi import CannotConnectError, Kodi
-import urllib.parse
+from pykodi.kodi import CannotConnectError, InvalidAuthError, Kodi, KodiWSConnection
+from ucapi.media_player import Attributes as MediaAttr
+from ucapi.media_player import Features, MediaType
+from ucapi.media_player import States as MediaStates
 
 _KodiDeviceT = TypeVar("_KodiDeviceT", bound="KodiDevice")
 _P = ParamSpec("_P")
@@ -63,17 +67,19 @@ KODI_STATE_MAPPING = {
     States.STOPPED: MediaStates.STANDBY,
     States.PLAYING: MediaStates.PLAYING,
     States.PAUSED: MediaStates.PAUSED,
-    States.IDLE: MediaStates.ON
+    States.IDLE: MediaStates.ON,
 }
 
+
 def cmd_wrapper(
-        func: Callable[Concatenate[_KodiDeviceT, _P], Awaitable[ucapi.StatusCodes | None]],
+    func: Callable[Concatenate[_KodiDeviceT, _P], Awaitable[ucapi.StatusCodes | None]],
 ) -> Callable[Concatenate[_KodiDeviceT, _P], Coroutine[Any, Any, ucapi.StatusCodes | None]]:
     """Catch command exceptions."""
 
     @wraps(func)
     async def wrapper(obj: _KodiDeviceT, *args: _P.args, **kwargs: _P.kwargs) -> ucapi.StatusCodes:
         """Wrap all command methods."""
+        # pylint: disable = W0212
         try:
             await func(obj, *args, **kwargs)
             return ucapi.StatusCodes.OK
@@ -98,29 +104,25 @@ def cmd_wrapper(
                 async with asyncio.timeout(5):
                     await connect_task
             except asyncio.TimeoutError:
-                log_function(
-                    "Timeout for reconnect, command won't be sent"
-                )
-                pass
+                log_function("Timeout for reconnect, command won't be sent")
             else:
                 if not obj._connect_error:
                     try:
                         await func(obj, *args, **kwargs)
                         return ucapi.StatusCodes.OK
-                    except (TransportError, ProtocolError, ServerTimeoutError) as exc:
+                    except (TransportError, ProtocolError, ServerTimeoutError) as ex:
                         log_function(
                             "Error calling %s on entity %s: %r trying to reconnect",
                             func.__name__,
                             obj.id,
-                            exc,
+                            ex,
                         )
             # If Kodi is off, we expect calls to fail.
             # await obj.event_loop.create_task(obj.connect())
             return ucapi.StatusCodes.BAD_REQUEST
+        # pylint: disable = W0718
         except Exception as ex:
-            _LOG.error(
-                "Unknown error %s",
-                func.__name__)
+            _LOG.error("Unknown error %s %s", func.__name__, ex)
 
     return wrapper
 
@@ -129,9 +131,9 @@ class KodiDevice:
     """Representing a LG TV Device."""
 
     def __init__(
-            self,
-            device_config: KodiConfigDevice,
-            loop: AbstractEventLoop | None = None,
+        self,
+        device_config: KodiConfigDevice,
+        loop: AbstractEventLoop | None = None,
     ):
         """Create instance with given IP or hostname of AVR."""
         # TODO find a better ID than the IP address
@@ -172,6 +174,8 @@ class KodiDevice:
         self.event_loop.create_task(self.init_connection())
 
     async def init_connection(self):
+        """Initialize connection to device."""
+        # pylint: disable = W0718
         if self._kodi_connection:
             try:
                 await self._kodi_connection.close()
@@ -179,19 +183,19 @@ class KodiDevice:
                 pass
             finally:
                 self._kodi_connection = None
-        if self._session:# and not self._session.closed:
+        if self._session:  # and not self._session.closed:
             try:
                 await self._session.close()
             except Exception as ex:
                 _LOG.warning("Error closing session to %s : %s", self._device_config.address, ex)
             self._session = None
-        self._session = ClientSession(raise_for_status=True,
-            # timeout=ClientTimeout(
-            # sock_connect=DEFAULT_TIMEOUT,
-            # # Maximal number of seconds for connecting to a peer for a new connection, not given from a pool. See also connect.
-            # sock_read=DEFAULT_TIMEOUT)
-            # Maximal number of seconds for reading a portion of data from a peer=DEFAULT_TIMEOUT
-        )
+        # timeout=ClientTimeout(
+        # sock_connect=DEFAULT_TIMEOUT,
+        # Maximal number of seconds for connecting to a peer for a new connection,
+        # not given from a pool. See also connect.
+        # sock_read=DEFAULT_TIMEOUT)
+        # Maximal number of seconds for reading a portion of data from a peer=DEFAULT_TIMEOUT
+        self._session = ClientSession(raise_for_status=True)
         self._session.loop.set_exception_handler(self.exception_handler)
         self._kodi_connection: KodiWSConnection = KodiWSConnection(
             host=self._device_config.address,
@@ -201,11 +205,12 @@ class KodiDevice:
             password=self._device_config.password,
             ssl=self._device_config.ssl,
             timeout=DEFAULT_TIMEOUT,
-            session=self._session
+            session=self._session,
         )
         self._kodi = Kodi(self._kodi_connection)
 
     def get_state(self) -> States:
+        """Get state of device."""
         if self._kodi_is_off:
             return States.OFF
         if self._no_active_players:
@@ -214,12 +219,14 @@ class KodiDevice:
             return States.PAUSED
         return States.PLAYING
 
+    # pylint: disable = W0613
     def on_speed_event(self, sender, data):
         """Handle player changes between playing and paused."""
         _LOG.debug("Kodi playback changed %s", data)
         self._properties["speed"] = data["player"]["speed"]
         self.event_loop.create_task(self._update_states())
 
+    # pylint: disable = W0613
     def on_stop(self, sender, data):
         """Handle the stop of the player playback."""
         # Prevent stop notifications which are sent after quit notification
@@ -232,6 +239,7 @@ class KodiDevice:
             self._attr_state = self.get_state()
             self.events.emit(Events.UPDATE, self.id, {MediaAttr.STATE: KODI_STATE_MAPPING[self.state]})
 
+    # pylint: disable = W0613
     def on_volume_changed(self, sender, data):
         """Handle the volume changes."""
         _LOG.debug("Kodi volume changed %s", data)
@@ -249,10 +257,12 @@ class KodiDevice:
         if updated_data:
             self.events.emit(Events.UPDATE, self.id, updated_data)
 
+    # pylint: disable = W0613
     def on_key_press(self, sender, data):
         """Handle a incoming key press notification."""
         _LOG.debug("Keypress %s %s", sender, data)
 
+    # pylint: disable = W0613
     async def on_quit(self, sender, data):
         """Reset the player state on quit action."""
         await self._clear_connection()
@@ -267,9 +277,7 @@ class KodiDevice:
         self._kodi_connection.server.Player.OnSpeedChanged = self.on_speed_event
         self._kodi_connection.server.Player.OnSeek = self.on_speed_event
         self._kodi_connection.server.Player.OnStop = self.on_stop
-        self._kodi_connection.server.Application.OnVolumeChanged = (
-            self.on_volume_changed
-        )
+        self._kodi_connection.server.Application.OnVolumeChanged = self.on_volume_changed
         # self._kodi_connection.server.Other.OnKeyPress = self.on_key_press
         self._kodi_connection.server.System.OnQuit = self.on_quit
         self._kodi_connection.server.System.OnRestart = self.on_quit
@@ -279,8 +287,8 @@ class KodiDevice:
         """Call after ws is connected."""
         self._connect_error = False
         self._register_ws_callbacks()
-        version = (await self._kodi.get_application_properties(["version"]))["version"]
-        sw_version = f"{version['major']}.{version['minor']}"
+        # version = (await self._kodi.get_application_properties(["version"]))["version"]
+        # f"{version['major']}.{version['minor']}"
 
     async def _clear_connection(self, close=True):
         self._reset_state()
@@ -296,8 +304,9 @@ class KodiDevice:
                 self._connect_error = True
                 _LOG.warning("Unable to ping Kodi via websocket")
             await self._clear_connection()
+        # pylint: disable = W0718
         except Exception as ex:
-            _LOG.error("Unknown exception ping", ex)
+            _LOG.error("Unknown exception ping %s", ex)
         else:
             self._connect_error = False
 
@@ -307,26 +316,31 @@ class KodiDevice:
             return False
         if not self._kodi_connection.connected:
             self._reconnect_retry += 1
-            _LOG.debug("Kodi websocket %s not connected, retry %s / %s", self._device_config.address,
-                       self._reconnect_retry, CONNECTION_RETRIES)
+            _LOG.debug(
+                "Kodi websocket %s not connected, retry %s / %s",
+                self._device_config.address,
+                self._reconnect_retry,
+                CONNECTION_RETRIES,
+            )
             try:
-                await asyncio.wait_for(self.connect(), DEFAULT_TIMEOUT*2)
+                await asyncio.wait_for(self.connect(), DEFAULT_TIMEOUT * 2)
             except asyncio.TimeoutError:
                 _LOG.debug("Kodi websocket too slow to reconnect on %s", self._device_config.address)
         else:
             await self._ping()
         return True
-            # _LOG.debug("Kodi websocket %s ping : %s", self._device_config.address, self._connect_error)
+        # _LOG.debug("Kodi websocket %s ping : %s", self._device_config.address, self._connect_error)
 
     def exception_handler(self, loop, context):
-        if not context or context.get('exception', None) is None:
+        """Handle exception for running loop."""
+        if not context or context.get("exception", None) is None:
             return
-        exception = context.get('exception', None)
-        message = context.get('message', None)
+        exception = context.get("exception", None)
+        message = context.get("message", None)
         if message is None:
             message = ""
         # log exception
-        _LOG.error(f'Websocket task failed to %s, msg={message}, exception={exception}', self._device_config.address)
+        _LOG.error(f"Websocket task failed to %s, msg={message}, exception={exception}", self._device_config.address)
 
     async def start_watchdog(self):
         """Start websocket watchdog."""
@@ -362,12 +376,13 @@ class KodiDevice:
             if self._connect_task is None:
                 self._connect_task = self.event_loop.create_task(self.start_watchdog())
             return True
-        except (TransportError, CannotConnectError, ServerTimeoutError) as ex:
+        except (TransportError, CannotConnectError, ServerTimeoutError):
             if not self._connect_error:
                 self._connect_error = True
                 _LOG.warning("Unable to connect to Kodi via websocket to %s", self._device_config.address)
                 # , ex, stack_info=True, exc_info=True)
             await self._clear_connection(False)
+        # pylint: disable = W0718
         except Exception as ex:
             _LOG.error("Unknown exception connect to %s : %s", self._device_config.address, ex)
         finally:
@@ -395,7 +410,8 @@ class KodiDevice:
             pass
         except InvalidAuthError as error:
             _LOG.error(
-                "Logout to %s failed: [%s]", self._device_config.address,
+                "Logout to %s failed: [%s]",
+                self._device_config.address,
                 error,
             )
             self._attr_available = False
@@ -403,15 +419,16 @@ class KodiDevice:
             self._connect_task = None
 
     def _reset_state(self, players=None):
+        # pylint: disable = R0915
         self._players = players
         self._properties = {}
         self._item = {}
         self._app_properties = {}
-        self._media_position_updated_at = None
         self._media_position = None
 
     async def _update_states(self) -> None:
         """Update entity state attributes."""
+        # pylint: disable = R0914,R0915
         if not self._kodi_connection.connected:
             self._reset_state()
             return
@@ -426,9 +443,7 @@ class KodiDevice:
             return
 
         if self._players and len(self._players) > 0:
-            self._app_properties = await self._kodi.get_application_properties(
-                ["volume", "muted"]
-            )
+            self._app_properties = await self._kodi.get_application_properties(["volume", "muted"])
             volume = int(self._app_properties["volume"])
             if self._volume != volume:
                 self._volume = volume
@@ -473,7 +488,7 @@ class KodiDevice:
                     "album",
                     "season",
                     "episode",
-                ]
+                ],
             )
             thumbnail = self._item.get("thumbnail")
             if thumbnail != self._thumbnail:
@@ -481,15 +496,17 @@ class KodiDevice:
                 self._media_image_url = self._kodi.thumbnail_url(thumbnail)
                 # Not working with smb links.
                 # TODO extend this approach for other media types
-                if self._item['type'] == "movie" and "@smb" in thumbnail:
+                if self._item["type"] == "movie" and "@smb" in thumbnail:
                     try:
-                        result = await self._kodi.call_method("VideoLibrary.GetAvailableArt",
-                                                              **{"item": {"movieid": self._item['id']},
-                                                                 "arttype": "poster"})
-                        if result and len(result['availableart']) > 0:
-                            self._media_image_url = result['availableart'][0]['url']
+                        result = await self._kodi.call_method(
+                            "VideoLibrary.GetAvailableArt",
+                            **{"item": {"movieid": self._item["id"]}, "arttype": "poster"},
+                        )
+                        if result and len(result["availableart"]) > 0:
+                            self._media_image_url = result["availableart"][0]["url"]
                             self._media_image_url = self._media_image_url.removeprefix("image://").removesuffix("/")
                             self._media_image_url = urllib.parse.unquote(self._media_image_url)
+                    # pylint: disable = W0718
                     except Exception:
                         pass
 
@@ -502,16 +519,16 @@ class KodiDevice:
                 self._media_title = media_title
                 updated_data[MediaAttr.MEDIA_TITLE] = self._media_title
             artists = self._item.get("artist")
-            season: int|None= self._item.get("season")
-            episode: int|None = self._item.get("episode")
+            season: int | None = self._item.get("season")
+            episode: int | None = self._item.get("episode")
             if artists and len(artists) > 0:
                 media_artist = artists[0]
             elif (season and season > 0) or (episode and episode > 0):
                 media_artist = ""
                 if season and season > 0:
-                    media_artist = "S"+str(season)
+                    media_artist = "S" + str(season)
                 if episode and episode > 0:
-                    media_artist += "E"+str(episode)
+                    media_artist += "E" + str(episode)
             else:
                 media_artist = ""
             if media_artist != self._media_artist:
@@ -560,6 +577,11 @@ class KodiDevice:
             # self.events.emit(Events.CONNECTED if value else Events.DISCONNECTED, self.id)
 
     @property
+    def device_config(self) -> KodiConfigDevice:
+        """Return device configuration."""
+        return self._device_config
+
+    @property
     def host(self) -> str:
         """Return the host of the device as string."""
         return self._device_config.address
@@ -579,14 +601,17 @@ class KodiDevice:
 
     @property
     def supported_features(self) -> list[Features]:
+        """Return supported features."""
         return self._supported_features
 
     @property
     def media_position(self):
+        """Return current media position."""
         return self._media_position
 
     @property
     def media_duration(self):
+        """Return current media duration."""
         return self._media_duration
 
     # @property
@@ -631,6 +656,7 @@ class KodiDevice:
 
     @property
     def media_type(self) -> MediaType:
+        """Return current media type."""
         return self._media_type
 
     @cmd_wrapper
@@ -672,6 +698,7 @@ class KodiDevice:
             players = await self._kodi.get_players()
             player_id = players[0]["playerid"]
             await self._kodi.call_method("Player.PlayPause", **{"playerid": player_id})
+        # pylint: disable = W0718
         except Exception:
             if self._properties.get("speed", 0) == 0:
                 await self.async_media_play()
@@ -720,22 +747,22 @@ class KodiDevice:
             _LOG.info("Power off : client is already disconnected %s", ex)
             try:
                 await self.event_loop.create_task(self._update_states())
+            # pylint: disable = W0718
             except Exception:
                 pass
 
     @cmd_wrapper
-    async def command_button(self, button: BUTTON_KEYMAP):
+    async def command_button(self, button: ButtonKeymap):
         """Call a button command."""
-        await self._kodi.call_method("Input.ButtonEvent",
-                                     **{"button": button["button"],
-                                        "keymap": button.get("keymap", "KB"),
-                                        "holdtime": button.get("holdtime", 0)})
+        await self._kodi.call_method(
+            "Input.ButtonEvent",
+            **{"button": button["button"], "keymap": button.get("keymap", "KB"), "holdtime": button.get("holdtime", 0)},
+        )
 
     @cmd_wrapper
     async def command_action(self, command: str):
         """Send custom command see https://kodi.wiki/view/Keymap."""
-        await self._kodi.call_method("Input.ExecuteAction",
-                                     **{"action": command})
+        await self._kodi.call_method("Input.ExecuteAction", **{"action": command})
 
     @cmd_wrapper
     async def seek(self, media_position: int):
@@ -745,19 +772,20 @@ class KodiDevice:
         player_id = self._players[0]["playerid"]
         m, s = divmod(media_position, 60)
         h, m = divmod(m, 60)
-        await self._kodi.call_method("Player.Seek",
-             **{"playerid": player_id,
-                "value": {"time": {"hours": h, "minutes": m, "seconds": s, "milliseconds": 0}}})
+        await self._kodi.call_method(
+            "Player.Seek",
+            **{"playerid": player_id, "value": {"time": {"hours": h, "minutes": m, "seconds": s, "milliseconds": 0}}},
+        )
 
     async def is_fullscreen_video(self) -> bool:
         """Check if Kodi is in fullscreen (playing video)"""
         if self.state in (States.OFF, States.IDLE, States.UNKNOWN):
             return False
         try:
-            result = await self._kodi.call_method("Gui.GetProperties",
-                                                  **{"properties": ["fullscreen"]})
+            result = await self._kodi.call_method("Gui.GetProperties", **{"properties": ["fullscreen"]})
             if result["fullscreen"] and result["fullscreen"] is True:
                 return True
+        # pylint: disable = W0718
         except Exception as ex:
             _LOG.debug("Couldn't retrieve Kodi's window state %s", ex)
         return False
