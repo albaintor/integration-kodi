@@ -657,12 +657,10 @@ class KodiDevice:
         _LOG.debug("Sending mute: %s", muted)
         await self._kodi.mute(muted)
 
-    @cmd_wrapper
     async def async_media_play(self):
         """Send play command."""
         await self._kodi.play()
 
-    @cmd_wrapper
     async def async_media_pause(self):
         """Send media pause command to media player."""
         await self._kodi.pause()
@@ -675,7 +673,7 @@ class KodiDevice:
             player_id = players[0]["playerid"]
             await self._kodi.call_method("Player.PlayPause", **{"playerid": player_id})
         except Exception:
-            if self._properties["speed"] == 0:
+            if self._properties.get("speed", 0) == 0:
                 await self.async_media_play()
             else:
                 await self.async_media_pause()
