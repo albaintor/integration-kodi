@@ -14,7 +14,7 @@ _LOG = logging.getLogger(__name__)
 
 
 def get_kodi_connection(host, port, ws_port, username, password, ssl=False, timeout=5, session=None):
-    """Returns a Kodi connection."""
+    """Return a Kodi connection."""
     if ws_port is None:
         return KodiHTTPConnection(host, port, username, password, ssl, timeout, session)
     return KodiWSConnection(host, port, ws_port, username, password, ssl, timeout, session)
@@ -55,7 +55,7 @@ class KodiConnection:
 
     @property
     def server(self):
-        """Return server"""
+        """Return server."""
         raise NotImplementedError
 
     @property
@@ -129,6 +129,7 @@ class KodiWSConnection(KodiConnection):
 
     @property
     def can_subscribe(self):
+        """Can subscribe to vents."""
         return True
 
     async def connect(self):
@@ -146,7 +147,6 @@ class KodiWSConnection(KodiConnection):
 
     async def close(self):
         """Close the connection."""
-
         await self._ws_server.close()
         await super().close()
 
@@ -370,7 +370,6 @@ class Kodi:
 
     async def get_episodes(self, tv_show_id, season_id, properties=None):
         """Get episodes list."""
-
         return await self._server.VideoLibrary.GetEpisodes(
             **_build_query(tvshowid=tv_show_id, season=season_id, properties=properties)
         )

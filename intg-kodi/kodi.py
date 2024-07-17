@@ -669,12 +669,12 @@ class KodiDevice:
 
     @cmd_wrapper
     async def volume_up(self):
-        """Send volume-up command to Kodi"""
+        """Send volume-up command to Kodi."""
         await self._kodi.volume_up()
 
     @cmd_wrapper
     async def volume_down(self):
-        """Send volume-down command to Kodi"""
+        """Send volume-down command to Kodi."""
         await self._kodi.volume_down()
 
     @cmd_wrapper
@@ -693,7 +693,7 @@ class KodiDevice:
 
     @cmd_wrapper
     async def play_pause(self):
-        """Send toggle-play-pause command to Kodi"""
+        """Send toggle-play-pause command to Kodi."""
         try:
             players = await self._kodi.get_players()
             player_id = players[0]["playerid"]
@@ -707,17 +707,17 @@ class KodiDevice:
 
     @cmd_wrapper
     async def stop(self):
-        """Send stop command to Kodi"""
+        """Send stop command to Kodi."""
         await self._kodi.stop()
 
     @cmd_wrapper
     async def next(self):
-        """Send next-track command to Kodi"""
+        """Send next-track command to Kodi."""
         await self._kodi.next_track()
 
     @cmd_wrapper
     async def previous(self):
-        """Send previous-track command to Kodi"""
+        """Send previous-track command to Kodi."""
         await self._kodi.previous_track()
 
     @cmd_wrapper
@@ -778,7 +778,7 @@ class KodiDevice:
         )
 
     async def is_fullscreen_video(self) -> bool:
-        """Check if Kodi is in fullscreen (playing video)"""
+        """Check if Kodi is in fullscreen (playing video)."""
         if self.state in (States.OFF, States.IDLE, States.UNKNOWN):
             return False
         try:
