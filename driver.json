@@ -7,10 +7,12 @@
   },
   "icon":"custom:kodi.png",
   "description": {
-    "en": "Control your Kodi instance with Remote Two.",
-    "de": "Steuere Kodi instance mit Remote Two.",
-    "fr": "Contrôler Kodi instance avec Remote Two."
+    "en": "Control your Kodi instances with Remote Two and Three.",
+    "de": "Steuere Kodi instances mit Remote Two und Three.",
+    "fr": "Contrôler vos instances Kodi avec Remote Two et Three."
   },
+  "port": 9090,
+  "device_discovery": true,
   "developer": {
     "name": "Unfolded Circle ApS",
     "email": "hello@unfoldedcircle.com",
@@ -34,7 +36,7 @@
         "field": {
           "label": {
             "value": {
-              "en": "The integration will let you configure your Kodi instance on your network.",
+              "en": "The integration will let you configure your Kodi instances on your network.",
               "fr": "Cette intégration permet de configurer vos instances Kodi dans le réseau."
             }
           }
@@ -42,5 +44,5 @@
       }
     ]
   },
-  "release_date": "2024-04-08"
+  "release_date": "2024-07-22"
 }
