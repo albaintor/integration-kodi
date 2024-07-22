@@ -11,7 +11,6 @@
     "de": "Steuere Kodi instance mit Remote Two.",
     "fr": "Contrôler Kodi instance avec Remote Two."
   },
-  "port": 9090,
   "developer": {
     "name": "Unfolded Circle ApS",
     "email": "hello@unfoldedcircle.com",
