@@ -11,8 +11,6 @@
     "de": "Steuere Kodi instances mit Remote Two und Three.",
     "fr": "Contrôler vos instances Kodi avec Remote Two et Three."
   },
-  "port": 9090,
-  "device_discovery": true,
   "developer": {
     "name": "Unfolded Circle ApS",
     "email": "hello@unfoldedcircle.com",
