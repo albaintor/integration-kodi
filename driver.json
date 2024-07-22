@@ -1,6 +1,6 @@
 {
   "driver_id": "uc_kodi_driver",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "min_core_api": "0.20.0",
   "name": {
     "en": "Kodi"
