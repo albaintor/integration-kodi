@@ -679,7 +679,7 @@ class KodiDevice:
 
     @cmd_wrapper
     async def mute(self, muted: bool):
-        """Send mute command to Kodi"""
+        """Send mute command to Kodi."""
         _LOG.debug("Sending mute: %s", muted)
         await self._kodi.mute(muted)
 
