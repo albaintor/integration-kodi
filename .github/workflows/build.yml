@@ -1,4 +1,4 @@
-# GitHub Action to build a self-contained binary of the Android TV Python driver
+# GitHub Action to build a self-contained binary of the Kodi Python driver
 ---
 name: "Build & Release"
 
@@ -58,14 +58,14 @@ jobs:
 
       - name: Add version
         run: |
-          mkdir -p artifacts
+          mkdir -p artifacts/bin
           cd artifacts
           echo ${{ env.VERSION }} > version.txt
           
       - name: Prepare artifacts
         shell: bash
         run: |
-          cp dist/intg-kodi artifacts/
+          cp dist/intg-kodi artifacts/bin
           cp driver.json artifacts/
           cp kodi.png artifacts/
           echo "ARTIFACT_NAME=uc-intg-${{ env.INTG_NAME }}-${{ env.VERSION }}-aarch64" >> $GITHUB_ENV
