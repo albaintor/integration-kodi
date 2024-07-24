@@ -54,7 +54,7 @@ jobs:
             bash -c \
             "cd /workspace && \
               python -m pip install -r requirements.txt && \
-              pyinstaller --clean --onefile --name driver intg-kodi/driver.py"
+              pyinstaller --clean --onedir --name driver intg-kodi/driver.py"
 
       - name: Add version
         run: |
@@ -65,7 +65,7 @@ jobs:
       - name: Prepare artifacts
         shell: bash
         run: |
-          cp dist/driver artifacts/bin
+          cp -r dist/driver/* artifacts/bin
           cp driver.json artifacts/
           cp kodi.png artifacts/
           echo "ARTIFACT_NAME=uc-intg-${{ env.INTG_NAME }}-${{ env.VERSION }}-aarch64" >> $GITHUB_ENV
