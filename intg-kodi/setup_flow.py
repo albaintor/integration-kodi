@@ -137,6 +137,9 @@ async def driver_setup_handler(msg: SetupDriver) -> SetupAction:
             manual_config = True
         if _setup_step == SetupSteps.CONFIGURATION_MODE and "action" in msg.input_values:
             return await handle_configuration_mode(msg)
+        if _setup_step == SetupSteps.CONFIGURATION_MODE and not manual_config:
+            _setup_step = SetupSteps.DISCOVER
+            return await handle_discovery(msg)
         if _setup_step == SetupSteps.CONFIGURATION_MODE:
             return await _handle_configuration(msg)
         # When user types an address at start (manual configuration)
@@ -283,8 +286,14 @@ async def handle_discovery(_msg: UserDataResponse) -> RequestUserInput | SetupEr
 
     _LOG.debug("Starting driver setup with Kodi discovery")
     # start discovery
-    discovery = KodiDiscover()
-    _discovered_kodis = await discovery.discover()
+    try:
+        discovery = KodiDiscover()
+        _discovered_kodis = await discovery.discover()
+        _LOG.debug("Discovered Kodi devices : %s", _discovered_kodis)
+    except Exception as ex:
+        _LOG.error("Error during devices discovery %s", ex)
+        return SetupError(error_type=IntegrationSetupError.NOT_FOUND)
+
 
     # only add new devices or configured devices requiring new pairing
     for discovered_kodi in _discovered_kodis:
