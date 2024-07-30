@@ -16,7 +16,7 @@
     "email": "albaintor@github.com",
     "url": "https://github.com/albaintor"
   },
-  "home_page": "https://github.com/albaintor/kodi",
+  "home_page": "https://github.com/albaintor/integration-kodi",
   "setup_data_schema": {
     "title": {
       "en": "Integration setup",
