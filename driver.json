@@ -1,6 +1,6 @@
 {
-  "driver_id": "uc_kodi_driver",
-  "version": "1.0.5",
+  "driver_id": "kodi_driver",
+  "version": "1.0.6",
   "min_core_api": "0.20.0",
   "name": {
     "en": "Kodi"
@@ -12,11 +12,11 @@
     "fr": "Contrôler vos instances Kodi avec Remote Two et Three."
   },
   "developer": {
-    "name": "Unfolded Circle ApS",
-    "email": "hello@unfoldedcircle.com",
-    "url": "https://www.unfoldedcircle.com"
+    "name": "Albaintor",
+    "email": "albaintor@github.com",
+    "url": "https://github.com/albaintor"
   },
-  "home_page": "https://www.unfoldedcircle.com",
+  "home_page": "https://github.com/albaintor/kodi",
   "setup_data_schema": {
     "title": {
       "en": "Integration setup",
