@@ -1,4 +1,4 @@
-pyee>=9.0
+pyee~=12.0.0
 ucapi~=0.2.0
 httpx~=0.27.0
 defusedxml~=0.7.1

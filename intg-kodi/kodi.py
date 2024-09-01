@@ -21,7 +21,7 @@ from jsonrpc_base.jsonrpc import (  # pylint: disable = E0401
     ProtocolError,
     TransportError,
 )
-from pyee import AsyncIOEventEmitter
+from pyee.asyncio import AsyncIOEventEmitter
 from pykodi.kodi import CannotConnectError, InvalidAuthError, Kodi, KodiWSConnection
 from ucapi.media_player import Attributes as MediaAttr
 from ucapi.media_player import Features, MediaType
