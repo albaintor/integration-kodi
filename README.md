@@ -1,9 +1,9 @@
-# Kodi integration for Remote Two
+# Kodi integration for Remote Two and 3
 
 Using (modified) [pykodi](https://github.com/OnFreund/PyKodi)
 and [uc-integration-api](https://github.com/aitatoi/integration-python-library)
 
-The driver lets discover and configure your Kodi instances (discovery not supported yet). A media player and a remote entity is exposed to the core.
+The driver lets discover and configure your Kodi instances. A media player and a remote entity are exposed to the core.
 
 Note : this release requires remote firmware `>= 1.7.10`
 
