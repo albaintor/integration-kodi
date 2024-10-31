@@ -541,7 +541,7 @@ class KodiDevice:
             item_type = KODI_MEDIA_TYPES.get(self._item.get("type"))
             if item_type != self._media_type:
                 self._media_type = item_type
-                updated_data[MediaAttr.MEDIA_TYPE] = self._media_type
+                updated_data[MediaAttr.MEDIA_TYPE] = self.media_type
         else:
             self._reset_state([])
             self._media_position = 0
@@ -563,6 +563,23 @@ class KodiDevice:
 
         if updated_data:
             self.events.emit(Events.UPDATE, self.id, updated_data)
+
+    @property
+    def attributes(self) -> dict[str, any]:
+        """Return the device attributes."""
+        attributes = {
+            MediaAttr.STATE: KODI_STATE_MAPPING[self.get_state()],
+            MediaAttr.MUTED: self.is_volume_muted,
+            MediaAttr.VOLUME: self.volume_level,
+            MediaAttr.MEDIA_TYPE: self.media_type,
+            MediaAttr.MEDIA_IMAGE_URL: self.media_image_url if self.media_image_url else "",
+            MediaAttr.MEDIA_TITLE: self.media_title if self.media_title else "",
+            MediaAttr.MEDIA_ALBUM: self.media_album if self.media_album else "",
+            MediaAttr.MEDIA_ARTIST: self.media_artist if self.media_artist else "",
+            MediaAttr.MEDIA_POSITION: self.media_position,
+            MediaAttr.MEDIA_DURATION: self.media_duration,
+        }
+        return attributes
 
     @property
     def available(self) -> bool:
@@ -737,6 +754,14 @@ class KodiDevice:
     async def home(self):
         """Send Home command."""
         await self._kodi.call_method("Input.Home")
+
+    async def power_on(self):
+        """Handle connection to Kodi device."""
+        if not self.available:
+            connect_task = self.event_loop.create_task(self.connect())
+            await asyncio.sleep(0)
+        return ucapi.StatusCodes.OK
+
 
     @cmd_wrapper
     async def power_off(self):

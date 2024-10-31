@@ -39,18 +39,7 @@ class KodiMediaPlayer(MediaPlayer):
         _LOG.debug("KodiMediaPlayer init")
         entity_id = create_entity_id(config_device.id, EntityTypes.MEDIA_PLAYER)
         features = device.supported_features
-        attributes = {
-            Attributes.STATE: kodi.KODI_STATE_MAPPING.get(device.state),
-            Attributes.VOLUME: device.volume_level,
-            Attributes.MUTED: device.is_volume_muted,
-            Attributes.MEDIA_IMAGE_URL: device.media_image_url if device.media_image_url else "",
-            Attributes.MEDIA_TITLE: device.media_title if device.media_title else "",
-            Attributes.MEDIA_TYPE: device.media_type,
-            Attributes.MEDIA_ALBUM: device.media_album,
-            Attributes.MEDIA_ARTIST: device.media_artist,
-            Attributes.MEDIA_POSITION: device.media_position,
-            Attributes.MEDIA_DURATION: device.media_duration,
-        }
+        attributes = device.attributes
 
         # # use sound mode support & name from configuration: receiver might not yet be connected
         # if device.support_sound_mode:
@@ -90,8 +79,8 @@ class KodiMediaPlayer(MediaPlayer):
             res = await self._device.mute(True)
         elif cmd_id == Commands.UNMUTE:
             res = await self._device.mute(False)
-        elif cmd_id == Commands.ON:  # TODO the entity remains active otherwise
-            res = StatusCodes.OK
+        elif cmd_id == Commands.ON:
+            res = await self._device.power_on()
         elif cmd_id == Commands.OFF:
             res = await self._device.power_off()
         elif cmd_id == Commands.NEXT:
@@ -121,59 +110,3 @@ class KodiMediaPlayer(MediaPlayer):
             return StatusCodes.NOT_IMPLEMENTED
         return res
 
-    def filter_changed_attributes(self, update: dict[str, Any]) -> dict[str, Any]:
-        """
-        Filter the given attributes and return only the changed values.
-
-        :param update: dictionary with attributes.
-        :return: filtered entity attributes containing changed attributes only.
-        """
-        attributes = {}
-
-        if Attributes.STATE in update:
-            state = update[Attributes.STATE]
-            attributes = key_update_helper(self.attributes, Attributes.STATE, state, attributes)
-
-        for attr in [
-            Attributes.MEDIA_ARTIST,
-            Attributes.MEDIA_ALBUM,
-            Attributes.MEDIA_IMAGE_URL,
-            Attributes.MEDIA_TITLE,
-            Attributes.MEDIA_POSITION,
-            Attributes.MEDIA_DURATION,
-            Attributes.MEDIA_IMAGE_URL,
-            Attributes.MUTED,
-            Attributes.SOURCE,
-            Attributes.VOLUME,
-            Attributes.MEDIA_TYPE,
-        ]:
-            if attr in update:
-                attributes = key_update_helper(self.attributes, attr, update[attr], attributes)
-
-        if Attributes.SOURCE_LIST in update:
-            if Attributes.SOURCE_LIST in self.attributes:
-                if update[Attributes.SOURCE_LIST] != self.attributes[Attributes.SOURCE_LIST]:
-                    attributes[Attributes.SOURCE_LIST] = update[Attributes.SOURCE_LIST]
-
-        if Attributes.STATE in attributes:
-            if attributes[Attributes.STATE] == States.OFF:
-                attributes[Attributes.MEDIA_IMAGE_URL] = ""
-                attributes[Attributes.MEDIA_TITLE] = ""
-                attributes[Attributes.MEDIA_ALBUM] = ""
-                attributes[Attributes.MEDIA_ARTIST] = ""
-                attributes[Attributes.MEDIA_TYPE] = MediaType.VIDEO
-                attributes[Attributes.SOURCE] = ""
-        _LOG.debug("KodiMediaPlayer update attributes %s -> %s", update, attributes)
-        return attributes
-
-    def _key_update_helper(self, key: str, value: str | None, attributes):
-        if value is None:
-            return attributes
-
-        if key in self.attributes:
-            if self.attributes[key] != value:
-                attributes[key] = value
-        else:
-            attributes[key] = value
-
-        return attributes

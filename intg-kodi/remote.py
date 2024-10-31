@@ -111,8 +111,8 @@ class KodiRemote(Remote):
             res = await self._device.mute(True)
         elif command == MediaPlayerCommands.UNMUTE:
             res = await self._device.mute(False)
-        elif command == MediaPlayerCommands.ON:  # TODO the entity remains active otherwise
-            res = StatusCodes.OK
+        elif command == MediaPlayerCommands.ON:
+            res = await self._device.power_on()
         elif command == MediaPlayerCommands.OFF:
             res = await self._device.power_off()
         elif command == MediaPlayerCommands.NEXT:

@@ -257,18 +257,7 @@ async def on_device_update(device_id: str, update: dict[str, Any] | None) -> Non
         if device_id not in _configured_kodis:
             return
         device = _configured_kodis[device_id]
-        update = {
-            MediaAttr.STATE: kodi.KODI_STATE_MAPPING.get(device.state),
-            MediaAttr.VOLUME: device.volume_level,
-            MediaAttr.MUTED: device.is_volume_muted,
-            MediaAttr.MEDIA_IMAGE_URL: device.media_image_url if device.media_image_url else "",
-            MediaAttr.MEDIA_TITLE: device.media_title if device.media_title else "",
-            MediaAttr.MEDIA_TYPE: device.media_type,
-            MediaAttr.MEDIA_ALBUM: device.media_album,
-            MediaAttr.MEDIA_ARTIST: device.media_artist,
-            MediaAttr.MEDIA_POSITION: device.media_position,
-            MediaAttr.MEDIA_DURATION: device.media_duration,
-        }
+        update = device.attributes
     else:
         _LOG.info("[%s] Kodi update: %s", device_id, update)
 
@@ -282,7 +271,7 @@ async def on_device_update(device_id: str, update: dict[str, Any] | None) -> Non
             return
 
         if isinstance(configured_entity, media_player.KodiMediaPlayer):
-            attributes = configured_entity.filter_changed_attributes(update)
+            attributes = update
         elif isinstance(configured_entity, remote.KodiRemote):
             attributes = configured_entity.filter_changed_attributes(update)
 
