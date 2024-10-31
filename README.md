@@ -1,9 +1,9 @@
-# Kodi integration for Remote Two
+# Kodi integration for Remote Two and 3
 
 Using (modified) [pykodi](https://github.com/OnFreund/PyKodi)
 and [uc-integration-api](https://github.com/aitatoi/integration-python-library)
 
-The driver lets discover and configure your Kodi instances (discovery not supported yet). A media player and a remote entity is exposed to the core.
+The driver lets discover and configure your Kodi instances. A media player and a remote entity are exposed to the core.
 
 Note : this release requires remote firmware `>= 1.7.10`
 
@@ -46,6 +46,8 @@ Note : this release requires remote firmware `>= 1.7.10`
 ## Usage
 
 - Kodi must be running for setup, and control enabled from Settings > Services > Control section. Set the username, password and enable HTTP control.
+<img width="588" alt="image" src="https://github.com/user-attachments/assets/7809d1c7-0be6-4b44-ab9a-73539b58a3f0">
+
 - Port numbers shouldn't be modified normally (8080 for HTTP and 9090 for websocket) : websocket port is not configurable from the GUI (in advanced settings file)
 - There is no turn on command : Kodi has to be started some other way
 
