@@ -201,6 +201,7 @@ class KodiDevice:
         _LOG.debug("Kodi instance created: %s", device_config.address)
         self.event_loop.create_task(self.init_connection())
         self._connection_status: Future | None = None
+        self._buffered_callbacks = {}
 
     async def init_connection(self):
         """Initialize connection to device."""
