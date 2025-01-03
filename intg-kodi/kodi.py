@@ -202,6 +202,8 @@ class KodiDevice:
         self.event_loop.create_task(self.init_connection())
         self._connection_status: Future | None = None
         self._buffered_callbacks = {}
+        self._previous_state = States.OFF
+        self._update_lock = Lock()
 
     async def init_connection(self):
         """Initialize connection to device."""
@@ -322,7 +324,6 @@ class KodiDevice:
 
     async def _clear_connection(self, close=True):
         self._reset_state()
-        # TODO update state : self.async_write_ha_state()
         if close:
             await self._kodi_connection.close()
 
@@ -388,6 +389,11 @@ class KodiDevice:
             except Exception as ex:
                 _LOG.error("Unknown exception %s", ex)
 
+    async def _deferred_update(self, delay:float=10):
+        await asyncio.sleep(delay)
+        _LOG.debug("Deferred update after connection")
+        await self._update_states()
+
     async def connect(self) -> bool:
         """Connect to Kodi via websocket protocol."""
         try:
@@ -407,6 +413,9 @@ class KodiDevice:
             await self._register_callbacks()
             await self._ping()
             await self._update_states()
+
+            # Schedule another update in 10 seconds
+            asyncio.create_task(self._deferred_update())
 
             self._connect_error = False
             _LOG.debug("Connection successful to %s", self._device_config.address)
@@ -450,6 +459,7 @@ class KodiDevice:
             if self._websocket_task:
                 self._websocket_task.cancel()
             await self._kodi_connection.close()
+            self._previous_state = self._attr_state
             self._attr_state = States.OFF
         except CannotConnectError:
             pass
@@ -477,6 +487,10 @@ class KodiDevice:
         if not self._kodi_connection.connected:
             self._reset_state()
             return
+
+        if self._update_lock.locked():
+            return
+        await self._update_lock.acquire()
         updated_data = {}
 
         self._players = await self._kodi.get_players()
@@ -485,6 +499,7 @@ class KodiDevice:
             self._reset_state()
             if current_state != self.state:
                 self.events.emit(Events.UPDATE, self.id, {MediaAttr.STATE: KODI_STATE_MAPPING[self.state]})
+                self._update_lock.release()
             return
 
         if self._players and len(self._players) > 0:
@@ -608,6 +623,8 @@ class KodiDevice:
 
         if updated_data:
             self.events.emit(Events.UPDATE, self.id, updated_data)
+
+        self._update_lock.release()
 
     @property
     def attributes(self) -> dict[str, any]:

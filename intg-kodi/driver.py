@@ -88,7 +88,7 @@ async def on_r2_exit_standby() -> None:
     global _R2_IN_STANDBY
 
     _R2_IN_STANDBY = False
-    _LOG.debug("Exit standby event: connecting device(s)")
+    _LOG.debug("Exit standby event: connecting Kodi device(s)")
 
     for configured in _configured_kodis.values():
         # start background task

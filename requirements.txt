@@ -5,4 +5,4 @@ defusedxml~=0.7.1
 jsonrpc-async>=2.0.0
 jsonrpc-websocket>=3.0.0
 jsonrpc_base>=2.2.0
-aiohttp~=3.9.5
+aiohttp~=3.11.11
