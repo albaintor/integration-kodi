@@ -69,18 +69,16 @@ async def on_r2_enter_standby() -> None:
     global _R2_IN_STANDBY
 
     _R2_IN_STANDBY = True
-    # pylint: disable = W0212
-    if len(api._clients) == 0:
-        _LOG.debug("Enter standby event: disconnecting device(s)")
-        for configured in _configured_kodis.values():
-            await configured.disconnect()
-    else:
-        _LOG.debug("Enter standby event: keeping alive while as it remains clients %s", api._clients)
+    _LOG.debug("Enter standby event: disconnecting device(s)")
+    for configured in _configured_kodis.values():
+        await configured.disconnect()
 
 async def connect_device(device: kodi.KodiDevice):
     """Connect device and send state"""
     try:
+        _LOG.debug("Connecting device %s...", device.id)
         await device.connect()
+        _LOG.debug("Device %s connected, sending attributes for subscribed entities", device.id)
         state = kodi.KODI_STATE_MAPPING.get(device.state)
         for entity in api.configured_entities.get_all():
             entity_id = entity.get("entity_id", "")
@@ -88,7 +86,8 @@ async def connect_device(device: kodi.KodiDevice):
             if device_id != device.id:
                 continue
             if isinstance(entity, media_player.KodiMediaPlayer):
-                api.configured_entities.update_attributes(entity_id, {ucapi.media_player.Attributes.STATE: state})
+                _LOG.debug("Sending attributes %s : %s", entity_id, device.attributes)
+                api.configured_entities.update_attributes(entity_id, device.attributes)
             if isinstance(entity, remote.KodiRemote):
                 api.configured_entities.update_attributes(
                     entity_id, {ucapi.remote.Attributes.STATE: remote.KODI_REMOTE_STATE_MAPPING.get(state)}
@@ -107,7 +106,7 @@ async def on_r2_exit_standby() -> None:
     global _R2_IN_STANDBY
 
     _R2_IN_STANDBY = False
-    _LOG.debug("Exit standby event: connecting Kodi device(s)")
+    _LOG.debug("Exit standby event: connecting Kodi device(s) %s", _configured_kodis)
 
     for configured in _configured_kodis.values():
         # start background task

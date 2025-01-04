@@ -7,6 +7,7 @@ This module implements Kodi communication of the Remote Two integration driver.
 
 import asyncio
 import logging
+import sys
 import time
 import urllib.parse
 from asyncio import AbstractEventLoop, Lock, shield, Future
