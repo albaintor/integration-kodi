@@ -77,6 +77,25 @@ async def on_r2_enter_standby() -> None:
     else:
         _LOG.debug("Enter standby event: keeping alive while as it remains clients %s", api._clients)
 
+async def connect_device(device: kodi.KodiDevice):
+    """Connect device and send state"""
+    try:
+        await device.connect()
+        state = kodi.KODI_STATE_MAPPING.get(device.state)
+        for entity in api.configured_entities.get_all():
+            entity_id = entity.get("entity_id", "")
+            device_id = device_from_entity_id(entity_id)
+            if device_id != device.id:
+                continue
+            if isinstance(entity, media_player.KodiMediaPlayer):
+                api.configured_entities.update_attributes(entity_id, {ucapi.media_player.Attributes.STATE: state})
+            if isinstance(entity, remote.KodiRemote):
+                api.configured_entities.update_attributes(
+                    entity_id, {ucapi.remote.Attributes.STATE: remote.KODI_REMOTE_STATE_MAPPING.get(state)}
+                )
+    except RuntimeError as ex:
+        _LOG.error("Error while reconnecting to Kodi %s", ex)
+
 
 @api.listens_to(ucapi.Events.EXIT_STANDBY)
 async def on_r2_exit_standby() -> None:
@@ -93,7 +112,7 @@ async def on_r2_exit_standby() -> None:
     for configured in _configured_kodis.values():
         # start background task
         try:
-            await _LOOP.create_task(configured.connect())
+            await _LOOP.create_task(connect_device(configured))
         except RuntimeError as ex:
             _LOG.error("Error while reconnecting to Kodi %s", ex)
         # _LOOP.create_task(configured.connect())

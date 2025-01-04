@@ -389,11 +389,6 @@ class KodiDevice:
             except Exception as ex:
                 _LOG.error("Unknown exception %s", ex)
 
-    async def _deferred_update(self, delay:float=10):
-        await asyncio.sleep(delay)
-        _LOG.debug("Deferred update after connection")
-        await self._update_states()
-
     async def connect(self) -> bool:
         """Connect to Kodi via websocket protocol."""
         try:
@@ -413,9 +408,6 @@ class KodiDevice:
             await self._register_callbacks()
             await self._ping()
             await self._update_states()
-
-            # Schedule another update in 10 seconds
-            asyncio.create_task(self._deferred_update())
 
             self._connect_error = False
             _LOG.debug("Connection successful to %s", self._device_config.address)
