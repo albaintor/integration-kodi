@@ -98,7 +98,7 @@ class KodiMediaPlayer(MediaPlayer):
         elif cmd_id == Commands.CONTEXT_MENU:
             res = await self._device.context_menu()
         elif cmd_id == Commands.SEEK:
-            media_position = params.get("media_position", 0)
+            media_position = params.get("position", 0)
             res = await self._device.seek(media_position)
         elif cmd_id in KODI_BUTTONS_KEYMAP:
             res = await self._device.command_button(KODI_BUTTONS_KEYMAP[cmd_id])
