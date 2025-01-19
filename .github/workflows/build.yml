@@ -19,7 +19,8 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # using ubuntu-24.04: Package 'qemu' has no installation candidate
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
