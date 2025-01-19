@@ -326,7 +326,10 @@ class KodiDevice:
     async def _clear_connection(self, close=True):
         self._reset_state()
         if close:
-            await self._kodi_connection.close()
+            try:
+                await self._kodi_connection.close()
+            except Exception:
+                pass
 
     async def _ping(self):
         """Sends websocket ping."""
@@ -355,7 +358,7 @@ class KodiDevice:
                 self._reconnect_retry,
                 CONNECTION_RETRIES,
             )
-            # Connection status result has to be ressetted if connection fails and future result is still okay
+            # Connection status result has to be reset if connection fails and future result is still okay
             if not self._connection_status or self._connection_status.done():
                 self._connection_status = self.event_loop.create_future()
             try:
@@ -363,6 +366,9 @@ class KodiDevice:
             except asyncio.TimeoutError:
                 _LOG.debug("Kodi websocket too slow to reconnect on %s", self._device_config.address)
         else:
+            if self._reconnect_retry > 0:
+                self._reconnect_retry = 0
+                _LOG.debug("Kodi websocket is connected")
             await self._ping()
         return True
         # _LOG.debug("Kodi websocket %s ping : %s", self._device_config.address, self._connect_error)
@@ -478,10 +484,12 @@ class KodiDevice:
         """Update entity state attributes."""
         # pylint: disable = R0914,R0915
         if not self._kodi_connection.connected:
+            _LOG.debug("Update states requested but not connected")
             self._reset_state()
             return
-
+        _LOG.debug("Update states")
         if self._update_lock.locked():
+            _LOG.debug("Update states already locked")
             return
         await self._update_lock.acquire()
         updated_data = {}
