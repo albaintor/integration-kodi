@@ -543,6 +543,7 @@ class KodiDevice:
                     "file",
                     "uniqueid",
                     "thumbnail",
+                    "fanart",
                     "artist",
                     "albumartist",
                     "showtitle",
@@ -551,7 +552,9 @@ class KodiDevice:
                     "episode",
                 ],
             )
-            thumbnail = self._item.get("thumbnail")
+            thumbnail = self._item.get("fanart")
+            if thumbnail is None:
+                thumbnail = self._item.get("thumbnail")
             if thumbnail != self._thumbnail:
                 self._thumbnail = thumbnail
                 self._media_image_url = self._kodi.thumbnail_url(thumbnail)
