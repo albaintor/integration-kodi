@@ -552,7 +552,9 @@ class KodiDevice:
                     "episode",
                 ],
             )
-            thumbnail = self._item.get("fanart")
+            thumbnail = None
+            if self._device_config.use_fanart:
+                thumbnail = self._item.get("fanart")
             if thumbnail is None:
                 thumbnail = self._item.get("thumbnail")
             if thumbnail != self._thumbnail:

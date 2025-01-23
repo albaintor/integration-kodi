@@ -370,6 +370,11 @@ async def handle_discovery(_msg: UserDataResponse) -> RequestUserInput | SetupEr
                 "id": "ssl",
                 "label": {"en": "Use SSL", "fr": "Utiliser SSL"},
             },
+            {
+                "field": {"checkbox": {"value": False}},
+                "id": "use_fanart",
+                "label": {"en": "Use fanart instead of thumbnails", "fr": "Utiliser les fanarts à la place des posters"},
+            },
         ],
     )
 
@@ -450,10 +455,17 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
     username = msg.input_values["username"]
     password = msg.input_values["password"]
     ssl = msg.input_values["ssl"]
+    use_fanart = msg.input_values["use_fanart"]
+
     if ssl == "false":
         ssl = False
     else:
         ssl = True
+
+    if use_fanart == "false":
+        use_fanart = False
+    else:
+        use_fanart = True
 
     if device_choice:
         _LOG.debug("Configure device following discovery : %s %s", device_choice, _discovered_kodis)
@@ -524,6 +536,7 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
             port=port,
             ws_port=ws_port,
             ssl=ssl,
+            use_fanart=use_fanart,
         )
     )  # triggers SonyLG TV instance creation
     config.devices.store()

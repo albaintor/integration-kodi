@@ -48,6 +48,7 @@ class KodiConfigDevice:
     username: str
     ssl: bool
     password: str
+    use_fanart: bool
 
 
 class _EnhancedJSONEncoder(json.JSONEncoder):
@@ -122,6 +123,7 @@ class Devices:
                 item.username = device.username
                 item.password = device.password
                 item.ssl = device.ssl
+                item.use_fanart = device.use_fanart
                 return self.store()
         return False
 
