@@ -108,6 +108,16 @@ _user_input_manual = RequestUserInput(
             "id": "ssl",
             "label": {"en": "Use SSL", "fr": "Utiliser SSL"},
         },
+        {
+            "field": {"checkbox": {"value": False}},
+            "id": "use_fanart",
+            "label": {"en": "Use fanart instead of thumbnails", "fr": "Utiliser les fanarts à la place des posters"},
+        },
+        {
+            "field": {"checkbox": {"value": True}},
+            "id": "media_update_task",
+            "label": {"en": "Enable media update task", "fr": "Activer la tâche de mise à jour du média"},
+        },
     ],
 )
 
@@ -375,6 +385,11 @@ async def handle_discovery(_msg: UserDataResponse) -> RequestUserInput | SetupEr
                 "id": "use_fanart",
                 "label": {"en": "Use fanart instead of thumbnails", "fr": "Utiliser les fanarts à la place des posters"},
             },
+            {
+                "field": {"checkbox": {"value": True}},
+                "id": "media_update_task",
+                "label": {"en": "Enable media update task", "fr": "Activer la tâche de mise à jour du média"},
+            },
         ],
     )
 
@@ -456,6 +471,7 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
     password = msg.input_values["password"]
     ssl = msg.input_values["ssl"]
     use_fanart = msg.input_values["use_fanart"]
+    media_update_task = msg.input_values["media_update_task"]
 
     if ssl == "false":
         ssl = False
@@ -466,6 +482,11 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
         use_fanart = False
     else:
         use_fanart = True
+
+    if media_update_task == "false":
+        media_update_task = False
+    else:
+        media_update_task = True
 
     if device_choice:
         _LOG.debug("Configure device following discovery : %s %s", device_choice, _discovered_kodis)
@@ -537,6 +558,7 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
             ws_port=ws_port,
             ssl=ssl,
             use_fanart=use_fanart,
+            media_update_task=media_update_task
         )
     )  # triggers SonyLG TV instance creation
     config.devices.store()

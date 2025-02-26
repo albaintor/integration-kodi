@@ -18,7 +18,7 @@ from const import (
     KODI_REMOTE_SIMPLE_COMMANDS,
     KODI_REMOTE_UI_PAGES,
     KODI_SIMPLE_COMMANDS,
-    key_update_helper,
+    key_update_helper, KODI_SIMPLE_COMMANDS_DIRECT,
 )
 from ucapi import EntityTypes, Remote, StatusCodes
 from ucapi.media_player import Commands as MediaPlayerCommands
@@ -134,7 +134,11 @@ class KodiRemote(Remote):
         elif command in KODI_ACTIONS_KEYMAP:
             res = await self._device.command_action(KODI_ACTIONS_KEYMAP[command])
         elif command in self.options[Options.SIMPLE_COMMANDS]:
-            res = await self._device.command_action(KODI_SIMPLE_COMMANDS[command])
+            target_command = KODI_SIMPLE_COMMANDS[cmd_id]
+            if target_command in KODI_SIMPLE_COMMANDS_DIRECT:
+                res = await self._device.call_command(target_command)
+            else:
+                res = await self._device.command_action(target_command)
         elif cmd_id == Commands.SEND_CMD:
             res = await self._device.command_button({"button": command, "keymap": "KB", "holdtime": hold})
         elif cmd_id == Commands.SEND_CMD_SEQUENCE:

@@ -14,7 +14,7 @@ from const import (
     KODI_ACTIONS_KEYMAP,
     KODI_BUTTONS_KEYMAP,
     KODI_SIMPLE_COMMANDS,
-    key_update_helper,
+    key_update_helper, KODI_SIMPLE_COMMANDS_DIRECT,
 )
 from ucapi import EntityTypes, MediaPlayer, StatusCodes
 from ucapi.media_player import (
@@ -105,7 +105,11 @@ class KodiMediaPlayer(MediaPlayer):
         elif cmd_id in KODI_ACTIONS_KEYMAP:
             res = await self._device.command_action(KODI_ACTIONS_KEYMAP[cmd_id])
         elif cmd_id in self.options[Options.SIMPLE_COMMANDS]:
-            res = await self._device.command_action(KODI_SIMPLE_COMMANDS[cmd_id])
+            command = KODI_SIMPLE_COMMANDS[cmd_id]
+            if command in KODI_SIMPLE_COMMANDS_DIRECT:
+                res = await self._device.call_command(command)
+            else:
+                res = await self._device.command_action(command)
         else:
             return StatusCodes.NOT_IMPLEMENTED
         return res

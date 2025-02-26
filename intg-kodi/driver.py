@@ -18,7 +18,6 @@ import remote
 import setup_flow
 import ucapi
 from config import device_from_entity_id
-from ucapi.media_player import Attributes as MediaAttr
 
 _LOG = logging.getLogger("driver")  # avoid having __main__ in log messages
 _LOOP = asyncio.get_event_loop()

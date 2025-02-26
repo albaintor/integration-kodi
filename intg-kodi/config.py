@@ -49,6 +49,7 @@ class KodiConfigDevice:
     ssl: bool
     password: str
     use_fanart: bool
+    media_update_task: bool
 
 
 class _EnhancedJSONEncoder(json.JSONEncoder):
@@ -124,6 +125,7 @@ class Devices:
                 item.password = device.password
                 item.ssl = device.ssl
                 item.use_fanart = device.use_fanart
+                item.media_update_task = device.media_update_task
                 return self.store()
         return False
 

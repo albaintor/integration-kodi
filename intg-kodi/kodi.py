@@ -7,7 +7,6 @@ This module implements Kodi communication of the Remote Two integration driver.
 
 import asyncio
 import logging
-import sys
 import time
 import urllib.parse
 from asyncio import AbstractEventLoop, Lock, shield, Future
@@ -17,6 +16,7 @@ from typing import Any, Awaitable, Callable, Concatenate, Coroutine, ParamSpec, 
 
 import ucapi
 from aiohttp import ClientSession, ServerTimeoutError
+
 from config import KodiConfigDevice
 from const import KODI_FEATURES, KODI_MEDIA_TYPES, ButtonKeymap
 from jsonrpc_base.jsonrpc import (  # pylint: disable = E0401
@@ -37,7 +37,7 @@ _LOG = logging.getLogger(__name__)
 DEFAULT_TIMEOUT = 8.0
 WEBSOCKET_WATCHDOG_INTERVAL = 10
 CONNECTION_RETRIES = 10
-
+UPDATE_POSITION_INTERVAL = 60
 
 class Events(IntEnum):
     """Internal driver events."""
@@ -205,6 +205,8 @@ class KodiDevice:
         self._buffered_callbacks = {}
         self._previous_state = States.OFF
         self._update_lock = Lock()
+        self._position_timestamp: float | None = None
+        self._update_position_task = None
 
     async def init_connection(self):
         """Initialize connection to device."""
@@ -229,6 +231,7 @@ class KodiDevice:
         # sock_read=DEFAULT_TIMEOUT)
         # Maximal number of seconds for reading a portion of data from a peer=DEFAULT_TIMEOUT
         self._session = ClientSession(raise_for_status=True)
+        # self.event_loop.set_exception_handler(self.exception_handler)
         self._session.loop.set_exception_handler(self.exception_handler)
         self._kodi_connection: KodiWSConnection = KodiWSConnection(
             host=self._device_config.address,
@@ -423,6 +426,14 @@ class KodiDevice:
                 self._websocket_task = self.event_loop.create_task(self.start_watchdog())
             if self._connection_status and not self._connection_status.done():
                 self._connection_status.set_result(True)
+            if self._device_config.media_update_task and self._update_position_task is None:
+                self._update_position_task = self.event_loop.create_task(self.start_update_position_task())
+            elif not self._device_config.media_update_task and self._update_position_task is not None:
+                try:
+                    self._update_position_task.cancel()
+                except Exception as ex:
+                    _LOG.error("Failed to cancel update task %s", ex)
+                self._update_position_task = None
             return True
         except (TransportError, CannotConnectError, ServerTimeoutError):
             if not self._connection_status or self._connection_status.done():
@@ -479,6 +490,24 @@ class KodiDevice:
         self._item = {}
         self._app_properties = {}
         self._media_position = None
+
+
+    async def start_update_position_task(self):
+        """Start websocket watchdog."""
+        while True:
+            await asyncio.sleep(UPDATE_POSITION_INTERVAL)
+            try:
+                await self._update_position()
+            except Exception as ex:
+                _LOG.error("Unknown exception %s", ex)
+
+    async def _update_position(self) -> None:
+        if self._position_timestamp is not None and self._position_timestamp + UPDATE_POSITION_INTERVAL > time.time():
+            return
+        if (not self._kodi_connection.connected or self._update_lock.locked() or self._kodi_is_off or
+                self._players is None or len(self._players) == 0):
+            return
+        await self._update_states()
 
     async def _update_states(self) -> None:
         """Update entity state attributes."""
@@ -623,6 +652,7 @@ class KodiDevice:
             updated_data[MediaAttr.MEDIA_ARTIST] = ""
             updated_data[MediaAttr.MEDIA_IMAGE_URL] = ""
 
+        self._position_timestamp = time.time()
         if self._attr_state != self.get_state():
             self._attr_state = self.get_state()
             updated_data[MediaAttr.STATE] = KODI_STATE_MAPPING[self.get_state()]
@@ -856,6 +886,11 @@ class KodiDevice:
     async def command_action(self, command: str):
         """Send custom command see https://kodi.wiki/view/Keymap."""
         await self._kodi.call_method("Input.ExecuteAction", **{"action": command})
+
+    @retry()
+    async def call_command(self, command: str):
+        """Send custom command."""
+        await self._kodi.call_method(command)
 
     @retry()
     async def seek(self, media_position: int):

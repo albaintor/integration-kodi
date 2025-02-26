@@ -73,7 +73,15 @@ KODI_SIMPLE_COMMANDS = {
     "MODE_AUDIO_DELAY_MINUS": "audiodelayminus",
     "MODE_AUDIO_DELAY_PLUS": "audiodelayplus",
     "MODE_DELETE": "delete",
+    "APP_SHUTDOWN": "System.Shutdown",
+    "APP_REBOOT": "System.Reboot",
+    "APP_HIBERNATE": "System.Hibernate",
+    "APP_SUSPEND": "System.Suspend"
 }
+
+KODI_SIMPLE_COMMANDS_DIRECT = [
+    "System.Hibernate", "System.Reboot", "System.Shutdown", "System.Suspend"
+]
 
 # Taken from https://kodi.wiki/view/JSON-RPC_API/v10#Input.Action
 # (expand schema description),
