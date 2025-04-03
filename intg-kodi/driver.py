@@ -9,6 +9,7 @@ This module implements a Remote Two integration driver for Kodi receivers.
 import asyncio
 import logging
 import os
+import sys
 from typing import Any
 
 import config
@@ -20,7 +21,10 @@ import ucapi
 from config import device_from_entity_id
 
 _LOG = logging.getLogger("driver")  # avoid having __main__ in log messages
-_LOOP = asyncio.get_event_loop()
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+_LOOP = asyncio.new_event_loop()
+asyncio.set_event_loop(_LOOP)
 
 # Global variables
 api = ucapi.IntegrationAPI(_LOOP)
@@ -72,13 +76,14 @@ async def on_r2_enter_standby() -> None:
     for configured in _configured_kodis.values():
         await configured.disconnect()
 
+
 async def connect_device(device: kodi.KodiDevice):
     """Connect device and send state"""
     try:
         _LOG.debug("Connecting device %s...", device.id)
         await device.connect()
         _LOG.debug("Device %s connected, sending attributes for subscribed entities", device.id)
-        state = kodi.KODI_STATE_MAPPING.get(device.state)
+        state = device.state
         for entity in api.configured_entities.get_all():
             entity_id = entity.get("entity_id", "")
             device_id = device_from_entity_id(entity_id)
@@ -132,7 +137,7 @@ async def on_subscribe_entities(entity_ids: list[str]) -> None:
         device_id = device_from_entity_id(entity_id)
         if device_id in _configured_kodis:
             device = _configured_kodis[device_id]
-            state = kodi.KODI_STATE_MAPPING.get(device.state)
+            state = device.get_state()
             if isinstance(entity, media_player.KodiMediaPlayer):
                 api.configured_entities.update_attributes(entity_id, {ucapi.media_player.Attributes.STATE: state})
             if isinstance(entity, remote.KodiRemote):
@@ -144,7 +149,7 @@ async def on_subscribe_entities(entity_ids: list[str]) -> None:
         device = config.devices.get(device_id)
         if device:
             _configure_new_device(device, connect=True)
-            _LOOP.create_task(device.connect())
+            _LOOP.create_task(_configured_kodis.get(device_id).connect())
         else:
             _LOG.error("Failed to subscribe entity %s: no Kodi configuration found", entity_id)
 
@@ -314,7 +319,7 @@ def _configure_new_device(device_config: config.KodiConfigDevice, connect: bool 
 
     Supported entities of the device are created and registered in the integration library as available entities.
 
-    :param device: the receiver configuration.
+    :param device_config: the receiver configuration.
     :param connect: True: start connection to receiver.
     """
     # the device should not yet be configured, but better be safe

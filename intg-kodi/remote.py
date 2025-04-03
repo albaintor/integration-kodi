@@ -18,7 +18,8 @@ from const import (
     KODI_REMOTE_SIMPLE_COMMANDS,
     KODI_REMOTE_UI_PAGES,
     KODI_SIMPLE_COMMANDS,
-    key_update_helper, KODI_SIMPLE_COMMANDS_DIRECT,
+    key_update_helper,
+    KODI_SIMPLE_COMMANDS_DIRECT,
 )
 from ucapi import EntityTypes, Remote, StatusCodes
 from ucapi.media_player import Commands as MediaPlayerCommands
@@ -51,7 +52,7 @@ class KodiRemote(Remote):
         entity_id = create_entity_id(config_device.id, EntityTypes.REMOTE)
         features = [Features.SEND_CMD, Features.ON_OFF]
         attributes = {
-            Attributes.STATE: KODI_REMOTE_STATE_MAPPING.get(kodi.KODI_STATE_MAPPING.get(device.state)),
+            Attributes.STATE: KODI_REMOTE_STATE_MAPPING.get(device.get_state()),
         }
         super().__init__(
             entity_id,

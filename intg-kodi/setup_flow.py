@@ -286,7 +286,7 @@ async def handle_discovery(_msg: UserDataResponse) -> RequestUserInput | SetupEr
     If ``address`` field is set by the user: try connecting to device and retrieve device information.
     Otherwise, start Apple TV discovery and present the found devices to the user to choose from.
 
-    :param msg: response data from the requested user data
+    :param _msg: response data from the requested user data
     :return: the setup action on how to continue
     """
     global _discovered_kodis
@@ -303,7 +303,6 @@ async def handle_discovery(_msg: UserDataResponse) -> RequestUserInput | SetupEr
     except Exception as ex:
         _LOG.error("Error during devices discovery %s", ex)
         return SetupError(error_type=IntegrationSetupError.NOT_FOUND)
-
 
     # only add new devices or configured devices requiring new pairing
     for discovered_kodi in _discovered_kodis:
@@ -383,7 +382,10 @@ async def handle_discovery(_msg: UserDataResponse) -> RequestUserInput | SetupEr
             {
                 "field": {"checkbox": {"value": False}},
                 "id": "use_fanart",
-                "label": {"en": "Use fanart instead of thumbnails", "fr": "Utiliser les fanarts à la place des posters"},
+                "label": {
+                    "en": "Use fanart instead of thumbnails",
+                    "fr": "Utiliser les fanarts à la place des posters",
+                },
             },
             {
                 "field": {"checkbox": {"value": True}},
@@ -558,7 +560,7 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
             ws_port=ws_port,
             ssl=ssl,
             use_fanart=use_fanart,
-            media_update_task=media_update_task
+            media_update_task=media_update_task,
         )
     )  # triggers SonyLG TV instance creation
     config.devices.store()

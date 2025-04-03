@@ -14,17 +14,10 @@ from const import (
     KODI_ACTIONS_KEYMAP,
     KODI_BUTTONS_KEYMAP,
     KODI_SIMPLE_COMMANDS,
-    key_update_helper, KODI_SIMPLE_COMMANDS_DIRECT,
+    KODI_SIMPLE_COMMANDS_DIRECT,
 )
 from ucapi import EntityTypes, MediaPlayer, StatusCodes
-from ucapi.media_player import (
-    Attributes,
-    Commands,
-    DeviceClasses,
-    MediaType,
-    Options,
-    States,
-)
+from ucapi.media_player import Attributes, Commands, DeviceClasses, Options
 
 _LOG = logging.getLogger(__name__)
 
@@ -113,4 +106,3 @@ class KodiMediaPlayer(MediaPlayer):
         else:
             return StatusCodes.NOT_IMPLEMENTED
         return res
-

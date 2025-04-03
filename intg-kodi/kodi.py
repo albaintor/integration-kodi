@@ -39,6 +39,7 @@ WEBSOCKET_WATCHDOG_INTERVAL = 10
 CONNECTION_RETRIES = 10
 UPDATE_POSITION_INTERVAL = 60
 
+
 class Events(IntEnum):
     """Internal driver events."""
 
@@ -50,31 +51,14 @@ class Events(IntEnum):
     # IP_ADDRESS_CHANGED = 6
 
 
-class States(IntEnum):
-    """State of a connected AVR."""
-
-    UNKNOWN = 0
-    UNAVAILABLE = 1
-    OFF = 2
-    ON = 3
-    PLAYING = 4
-    PAUSED = 5
-    STOPPED = 6
-    IDLE = 7
-
-
-KODI_STATE_MAPPING = {
-    States.OFF: MediaStates.OFF,
-    States.ON: MediaStates.ON,
-    States.STOPPED: MediaStates.STANDBY,
-    States.PLAYING: MediaStates.PLAYING,
-    States.PAUSED: MediaStates.PAUSED,
-    States.IDLE: MediaStates.ON,
-}
-
-
-async def retry_call_command(timeout: float, bufferize: bool, func: Callable[Concatenate[_KodiDeviceT, _P],
-    Awaitable[ucapi.StatusCodes | None]], obj: _KodiDeviceT, *args: _P.args, **kwargs: _P.kwargs) -> ucapi.StatusCodes:
+async def retry_call_command(
+    timeout: float,
+    bufferize: bool,
+    func: Callable[Concatenate[_KodiDeviceT, _P], Awaitable[ucapi.StatusCodes | None]],
+    obj: _KodiDeviceT,
+    *args: _P.args,
+    **kwargs: _P.kwargs,
+) -> ucapi.StatusCodes:
     """Retry call command when failed"""
     # Launch reconnection task if not active
     if not obj._connection_status:
@@ -86,12 +70,7 @@ async def retry_call_command(timeout: float, bufferize: bool, func: Callable[Con
     # If the command should be bufferized (and retried later) add it to the list and returns OK
     if bufferize:
         _LOG.debug("Bufferize command %s %s", func, args)
-        obj._buffered_callbacks[time.time()] = {
-            "object": obj,
-            "function": func,
-            "args": args,
-            "kwargs": kwargs
-        }
+        obj._buffered_callbacks[time.time()] = {"object": obj, "function": func, "args": args, "kwargs": kwargs}
         return ucapi.StatusCodes.OK
     try:
         # Else (no bufferize) wait (not more than "timeout" seconds) for the connection to complete
@@ -99,7 +78,7 @@ async def retry_call_command(timeout: float, bufferize: bool, func: Callable[Con
             await shield(obj._connection_status)
     except asyncio.TimeoutError:
         # (Re)connection failed at least at given time
-        if obj.state == States.OFF:
+        if obj.state == MediaStates.OFF:
             log_function = _LOG.debug
         else:
             log_function = _LOG.error
@@ -109,12 +88,14 @@ async def retry_call_command(timeout: float, bufferize: bool, func: Callable[Con
     return ucapi.StatusCodes.OK
 
 
-def retry(*, timeout:float=5, bufferize=False
-          ) -> Callable[[Callable[_P, Awaitable[ucapi.StatusCodes]]],
-        Callable[Concatenate[_KodiDeviceT, _P], Coroutine[Any, Any, ucapi.StatusCodes | None]]]:
+def retry(*, timeout: float = 5, bufferize=False) -> Callable[
+    [Callable[_P, Awaitable[ucapi.StatusCodes]]],
+    Callable[Concatenate[_KodiDeviceT, _P], Coroutine[Any, Any, ucapi.StatusCodes | None]],
+]:
 
-    def decorator(func: Callable[Concatenate[_KodiDeviceT, _P], Awaitable[ucapi.StatusCodes | None]]
-        ) -> Callable[Concatenate[_KodiDeviceT, _P], Coroutine[Any, Any, ucapi.StatusCodes | None]]:
+    def decorator(
+        func: Callable[Concatenate[_KodiDeviceT, _P], Awaitable[ucapi.StatusCodes | None]]
+    ) -> Callable[Concatenate[_KodiDeviceT, _P], Coroutine[Any, Any, ucapi.StatusCodes | None]]:
         @wraps(func)
         async def wrapper(obj: _KodiDeviceT, *args: _P.args, **kwargs: _P.kwargs) -> ucapi.StatusCodes:
             """Wrap all command methods."""
@@ -125,7 +106,7 @@ def retry(*, timeout:float=5, bufferize=False
                     return ucapi.StatusCodes.OK
                 return await retry_call_command(timeout, bufferize, func, obj, *args, **kwargs)
             except (TransportError, ProtocolError, ServerTimeoutError) as ex:
-                if obj.state == States.OFF:
+                if obj.state == MediaStates.OFF:
                     log_function = _LOG.debug
                 else:
                     log_function = _LOG.error
@@ -156,6 +137,7 @@ def retry(*, timeout:float=5, bufferize=False
 
     return decorator
 
+
 class KodiDevice:
     """Representing a LG TV Device."""
 
@@ -173,9 +155,9 @@ class KodiDevice:
         self._name: str = device_config.name
         self.event_loop = loop or asyncio.get_running_loop()
         self.events = AsyncIOEventEmitter(self.event_loop)
-        self._session: ClientSession|None = None
-        self._kodi_connection: KodiWSConnection|None = None
-        self._kodi: Kodi|None = None
+        self._session: ClientSession | None = None
+        self._kodi_connection: KodiWSConnection | None = None
+        self._kodi: Kodi | None = None
         self._supported_features = KODI_FEATURES
         self._players = None
         self._properties = {}
@@ -193,7 +175,7 @@ class KodiDevice:
         self._media_artist = ""
         self._media_album = ""
         self._thumbnail = None
-        self._attr_state = States.OFF
+        self._attr_state = MediaStates.OFF
         self._websocket_task = None
         self._buffered_callbacks = {}
         self._connect_lock = Lock()
@@ -203,7 +185,7 @@ class KodiDevice:
         self.event_loop.create_task(self.init_connection())
         self._connection_status: Future | None = None
         self._buffered_callbacks = {}
-        self._previous_state = States.OFF
+        self._previous_state = MediaStates.OFF
         self._update_lock = Lock()
         self._position_timestamp: float | None = None
         self._update_position_task = None
@@ -245,15 +227,15 @@ class KodiDevice:
         )
         self._kodi = Kodi(self._kodi_connection)
 
-    def get_state(self) -> States:
+    def get_state(self) -> MediaStates:
         """Get state of device."""
         if self._kodi_is_off:
-            return States.OFF
+            return MediaStates.OFF
         if self._no_active_players:
-            return States.IDLE
+            return MediaStates.ON
         if self._properties["speed"] == 0:
-            return States.PAUSED
-        return States.PLAYING
+            return MediaStates.PAUSED
+        return MediaStates.PLAYING
 
     # pylint: disable = W0613
     def on_speed_event(self, sender, data):
@@ -273,7 +255,7 @@ class KodiDevice:
         self._reset_state([])
         if current_state != self.get_state():
             self._attr_state = self.get_state()
-            self.events.emit(Events.UPDATE, self.id, {MediaAttr.STATE: KODI_STATE_MAPPING[self.state]})
+            self.events.emit(Events.UPDATE, self.id, {MediaAttr.STATE: self.state})
 
     # pylint: disable = W0613
     def on_volume_changed(self, sender, data):
@@ -461,6 +443,7 @@ class KodiDevice:
             self._available = True
             self.events.emit(Events.CONNECTED, self.id)
             self._connect_lock.release()
+            return False
 
     async def disconnect(self):
         """Disconnect from TV."""
@@ -470,7 +453,7 @@ class KodiDevice:
                 self._websocket_task.cancel()
             await self._kodi_connection.close()
             self._previous_state = self._attr_state
-            self._attr_state = States.OFF
+            self._attr_state = MediaStates.OFF
         except CannotConnectError:
             pass
         except InvalidAuthError as error:
@@ -491,7 +474,6 @@ class KodiDevice:
         self._app_properties = {}
         self._media_position = None
 
-
     async def start_update_position_task(self):
         """Start websocket watchdog."""
         while True:
@@ -504,8 +486,13 @@ class KodiDevice:
     async def _update_position(self) -> None:
         if self._position_timestamp is not None and self._position_timestamp + UPDATE_POSITION_INTERVAL > time.time():
             return
-        if (not self._kodi_connection.connected or self._update_lock.locked() or self._kodi_is_off or
-                self._players is None or len(self._players) == 0):
+        if (
+            not self._kodi_connection.connected
+            or self._update_lock.locked()
+            or self._kodi_is_off
+            or self._players is None
+            or len(self._players) == 0
+        ):
             return
         await self._update_states()
 
@@ -528,7 +515,7 @@ class KodiDevice:
             current_state = self.state
             self._reset_state()
             if current_state != self.state:
-                self.events.emit(Events.UPDATE, self.id, {MediaAttr.STATE: KODI_STATE_MAPPING[self.state]})
+                self.events.emit(Events.UPDATE, self.id, {MediaAttr.STATE: self.state})
                 self._update_lock.release()
             return
 
@@ -655,7 +642,7 @@ class KodiDevice:
         self._position_timestamp = time.time()
         if self._attr_state != self.get_state():
             self._attr_state = self.get_state()
-            updated_data[MediaAttr.STATE] = KODI_STATE_MAPPING[self.get_state()]
+            updated_data[MediaAttr.STATE] = self.get_state()
 
         if updated_data:
             self.events.emit(Events.UPDATE, self.id, updated_data)
@@ -666,7 +653,7 @@ class KodiDevice:
     def attributes(self) -> dict[str, any]:
         """Return the device attributes."""
         attributes = {
-            MediaAttr.STATE: KODI_STATE_MAPPING[self.get_state()],
+            MediaAttr.STATE: self.get_state(),
             MediaAttr.MUTED: self.is_volume_muted,
             MediaAttr.VOLUME: self.volume_level,
             MediaAttr.MEDIA_TYPE: self.media_type,
@@ -710,9 +697,9 @@ class KodiDevice:
         return not self._players
 
     @property
-    def state(self) -> States:
+    def state(self) -> MediaStates:
         """Return the cached state of the device."""
-        return self._attr_state
+        return self.get_state()
 
     @property
     def supported_features(self) -> list[Features]:
@@ -860,7 +847,6 @@ class KodiDevice:
             await asyncio.sleep(0)
         return ucapi.StatusCodes.OK
 
-
     @retry()
     async def power_off(self):
         """Send Power Off command."""
@@ -907,7 +893,7 @@ class KodiDevice:
 
     async def is_fullscreen_video(self) -> bool:
         """Check if Kodi is in fullscreen (playing video)."""
-        if self.state in (States.OFF, States.IDLE, States.UNKNOWN):
+        if self.state in (MediaStates.OFF, MediaStates.ON, MediaStates.UNKNOWN):
             return False
         try:
             result = await self._kodi.call_method("Gui.GetProperties", **{"properties": ["fullscreen"]})
