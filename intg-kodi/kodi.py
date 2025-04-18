@@ -170,7 +170,7 @@ class KodiDevice:
         self._is_volume_muted = False
         self._media_position = 0
         self._media_duration = 0
-        self._media_position_updated_at: datetime = datetime.datetime.now(datetime.timezone.utc)
+        self._media_position_updated_at: datetime.datetime|None = None
         self._media_type = MediaType.VIDEO
         self._media_title = ""
         self._media_image_url = ""
@@ -666,9 +666,10 @@ class KodiDevice:
             MediaAttr.MEDIA_ALBUM: self.media_album if self.media_album else "",
             MediaAttr.MEDIA_ARTIST: self.media_artist if self.media_artist else "",
             MediaAttr.MEDIA_POSITION: self.media_position,
-            MediaAttr.MEDIA_DURATION: self.media_duration,
-            "media_position_updated_at": self.media_position_updated_at
+            MediaAttr.MEDIA_DURATION: self.media_duration
         }
+        if self.media_position_updated_at:
+            attributes["media_position_updated_at"] = self.media_position_updated_at
         return attributes
 
     @property
@@ -717,9 +718,11 @@ class KodiDevice:
         return self._media_position
 
     @property
-    def media_position_updated_at(self):
+    def media_position_updated_at(self) -> str|None:
         """Return timestamp of urrent media position."""
-        return self._media_position_updated_at.isoformat()
+        if self._media_position_updated_at:
+            return self._media_position_updated_at.isoformat()
+        return None
 
     @property
     def media_duration(self):
