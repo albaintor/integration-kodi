@@ -666,10 +666,9 @@ class KodiDevice:
             MediaAttr.MEDIA_ALBUM: self.media_album if self.media_album else "",
             MediaAttr.MEDIA_ARTIST: self.media_artist if self.media_artist else "",
             MediaAttr.MEDIA_POSITION: self.media_position,
-            MediaAttr.MEDIA_DURATION: self.media_duration
+            MediaAttr.MEDIA_DURATION: self.media_duration,
+            "media_position_updated_at": self.media_position_updated_at if self.media_position_updated_at else ""
         }
-        if self.media_position_updated_at:
-            attributes["media_position_updated_at"] = self.media_position_updated_at
         return attributes
 
     @property
