@@ -6,6 +6,7 @@ This module implements Kodi communication of the Remote Two integration driver.
 """
 
 import asyncio
+import datetime
 import logging
 import time
 import urllib.parse
@@ -37,7 +38,7 @@ _LOG = logging.getLogger(__name__)
 DEFAULT_TIMEOUT = 8.0
 WEBSOCKET_WATCHDOG_INTERVAL = 10
 CONNECTION_RETRIES = 10
-UPDATE_POSITION_INTERVAL = 60
+UPDATE_POSITION_INTERVAL = 300
 
 
 class Events(IntEnum):
@@ -169,6 +170,7 @@ class KodiDevice:
         self._is_volume_muted = False
         self._media_position = 0
         self._media_duration = 0
+        self._media_position_updated_at: datetime = datetime.datetime.now(datetime.timezone.utc)
         self._media_type = MediaType.VIDEO
         self._media_title = ""
         self._media_image_url = ""
@@ -541,6 +543,8 @@ class KodiDevice:
             if self._media_position != media_position:
                 self._media_position = media_position
                 updated_data[MediaAttr.MEDIA_POSITION] = media_position
+                self._media_position_updated_at = datetime.datetime.now(datetime.timezone.utc)
+                updated_data["media_position_updated_at"] = self.media_position_updated_at
 
             totaltime = self._properties["totaltime"]
             if totaltime:
@@ -663,6 +667,7 @@ class KodiDevice:
             MediaAttr.MEDIA_ARTIST: self.media_artist if self.media_artist else "",
             MediaAttr.MEDIA_POSITION: self.media_position,
             MediaAttr.MEDIA_DURATION: self.media_duration,
+            "media_position_updated_at": self.media_position_updated_at
         }
         return attributes
 
@@ -710,6 +715,11 @@ class KodiDevice:
     def media_position(self):
         """Return current media position."""
         return self._media_position
+
+    @property
+    def media_position_updated_at(self):
+        """Return timestamp of urrent media position."""
+        return self._media_position_updated_at.isoformat()
 
     @property
     def media_duration(self):
