@@ -70,7 +70,7 @@ async def retry_call_command(
 
     # If the command should be bufferized (and retried later) add it to the list and returns OK
     if bufferize:
-        _LOG.debug("Bufferize command %s %s", func, args)
+        _LOG.debug("[%s] Bufferize command %s %s", obj.device_config.address, func, args)
         obj._buffered_callbacks[time.time()] = {"object": obj, "function": func, "args": args, "kwargs": kwargs}
         return ucapi.StatusCodes.OK
     try:
@@ -83,7 +83,7 @@ async def retry_call_command(
             log_function = _LOG.debug
         else:
             log_function = _LOG.error
-        log_function("Timeout for reconnect, command will probably fail")
+        log_function("[%s] Timeout for reconnect, command will probably fail", obj.device_config.address)
     # Try to send the command anyway
     await func(obj, *args, **kwargs)
     return ucapi.StatusCodes.OK
@@ -112,26 +112,26 @@ def retry(*, timeout: float = 5, bufferize=False) -> Callable[
                 else:
                     log_function = _LOG.error
                 log_function(
-                    "Error calling %s on [%s(%s)]: %r trying to reconnect",
+                    "[%s] Error calling %s on (%s): %r trying to reconnect",
+                    obj.device_config.address,
                     func.__name__,
                     obj._name,
-                    obj._device_config.address,
                     ex,
                 )
                 try:
                     return await retry_call_command(timeout, bufferize, func, obj, *args, **kwargs)
                 except (TransportError, ProtocolError, ServerTimeoutError) as ex:
                     log_function(
-                        "Error calling %s on [%s(%s)]: %r",
+                        "[%s] Error calling %s on (%s): %r",
+                        obj.device_config.address,
                         func.__name__,
                         obj._name,
-                        obj._device_config.address,
                         ex,
                     )
                     return ucapi.StatusCodes.BAD_REQUEST
             # pylint: disable = W0718
             except Exception as ex:
-                _LOG.error("Unknown error %s %s", func.__name__, ex)
+                _LOG.error("[%s] Unknown error %s %s", obj.device_config.address, func.__name__, ex)
                 return ucapi.StatusCodes.BAD_REQUEST
 
         return wrapper
@@ -183,7 +183,7 @@ class KodiDevice:
         self._connect_lock = Lock()
         self._reconnect_retry = 0
         self._kodi_ws_task = None
-        _LOG.debug("Kodi instance created: %s", device_config.address)
+        _LOG.debug("[%s] Kodi instance created", device_config.address)
         self.event_loop.create_task(self.init_connection())
         self._connection_status: Future | None = None
         self._buffered_callbacks = {}
@@ -206,7 +206,7 @@ class KodiDevice:
             try:
                 await self._session.close()
             except Exception as ex:
-                _LOG.warning("Error closing session to %s : %s", self._device_config.address, ex)
+                _LOG.warning("[%s] Error closing session : %s", self._device_config.address, ex)
             self._session = None
         # timeout=ClientTimeout(
         # sock_connect=DEFAULT_TIMEOUT,
@@ -242,7 +242,7 @@ class KodiDevice:
     # pylint: disable = W0613
     def on_speed_event(self, sender, data):
         """Handle player changes between playing and paused."""
-        _LOG.debug("Kodi playback changed %s", data)
+        _LOG.debug("[%s] Kodi playback changed %s", self.device_config.address, data)
         self._properties["speed"] = data["player"]["speed"]
         self.event_loop.create_task(self._update_states())
 
@@ -250,7 +250,7 @@ class KodiDevice:
     def on_stop(self, sender, data):
         """Handle the stop of the player playback."""
         # Prevent stop notifications which are sent after quit notification
-        _LOG.debug("Kodi stopped")
+        _LOG.debug("[%s] Kodi stopped", self.device_config.address)
         if self._kodi_is_off:
             return
         current_state = self._attr_state
@@ -262,7 +262,7 @@ class KodiDevice:
     # pylint: disable = W0613
     def on_volume_changed(self, sender, data):
         """Handle the volume changes."""
-        _LOG.debug("Kodi volume changed %s", data)
+        _LOG.debug("[%s] Kodi volume changed %s", self.device_config.address, data)
         volume = self._volume
         muted = self._is_volume_muted
         self._app_properties["volume"] = data["volume"]
@@ -280,7 +280,7 @@ class KodiDevice:
     # pylint: disable = W0613
     def on_key_press(self, sender, data):
         """Handle a incoming key press notification."""
-        _LOG.debug("Keypress %s %s", sender, data)
+        _LOG.debug("[%s] Keypress %s %s", self.device_config.address, sender, data)
 
     # pylint: disable = W0613
     async def on_quit(self, sender, data):
@@ -288,7 +288,7 @@ class KodiDevice:
         await self._clear_connection()
 
     def _register_ws_callbacks(self):
-        _LOG.debug("Kodi register callbacks")
+        _LOG.debug("[%s] Kodi register callbacks", self.device_config.address)
         self._kodi_connection.server.Player.OnPause = self.on_speed_event
         self._kodi_connection.server.Player.OnPlay = self.on_speed_event
         self._kodi_connection.server.Player.OnAVStart = self.on_speed_event
@@ -325,11 +325,11 @@ class KodiDevice:
         except (TransportError, CannotConnectError, ServerTimeoutError):
             if not self._connect_error:
                 self._connect_error = True
-                _LOG.warning("Unable to ping Kodi via websocket")
+                _LOG.warning("[%s] Unable to ping Kodi via websocket", self.device_config.address)
             await self._clear_connection()
         # pylint: disable = W0718
         except Exception as ex:
-            _LOG.error("Unknown exception ping %s", ex)
+            _LOG.error("[%s] Unknown exception ping %s", self.device_config.address, ex)
         else:
             self._connect_error = False
 
@@ -340,7 +340,7 @@ class KodiDevice:
         if not self._kodi_connection.connected:
             self._reconnect_retry += 1
             _LOG.debug(
-                "Kodi websocket %s not connected, retry %s / %s",
+                "[%s] Kodi websocket not connected, retry %s / %s",
                 self._device_config.address,
                 self._reconnect_retry,
                 CONNECTION_RETRIES,
@@ -351,11 +351,11 @@ class KodiDevice:
             try:
                 await asyncio.wait_for(shield(self.connect()), DEFAULT_TIMEOUT * 2)
             except asyncio.TimeoutError:
-                _LOG.debug("Kodi websocket too slow to reconnect on %s", self._device_config.address)
+                _LOG.debug("[%s] Kodi websocket too slow to reconnect", self._device_config.address)
         else:
             if self._reconnect_retry > 0:
                 self._reconnect_retry = 0
-                _LOG.debug("Kodi websocket is connected")
+                _LOG.debug("[%s] Kodi websocket is connected", self.device_config.address)
             await self._ping()
         return True
         # _LOG.debug("Kodi websocket %s ping : %s", self._device_config.address, self._connect_error)
@@ -369,7 +369,7 @@ class KodiDevice:
         if message is None:
             message = ""
         # log exception
-        _LOG.error(f"Websocket task failed to %s, msg={message}, exception={exception}", self._device_config.address)
+        _LOG.error(f"[%s] Websocket task failed, msg={message}, exception={exception}", self.device_config.address)
 
     async def start_watchdog(self):
         """Start websocket watchdog."""
@@ -377,25 +377,27 @@ class KodiDevice:
             await asyncio.sleep(WEBSOCKET_WATCHDOG_INTERVAL)
             try:
                 if not await self._reconnect_websocket_if_disconnected():
-                    _LOG.debug("Stop watchdog for %s", self._device_config.address)
+                    _LOG.debug("[%s] Stop watchdog", self.device_config.address)
                     self._websocket_task = None
                     break
             except Exception as ex:
-                _LOG.error("Unknown exception %s", ex)
+                _LOG.error("[%s] Unknown exception %s", self.device_config.address, ex)
 
     async def connect(self) -> bool:
         """Connect to Kodi via websocket protocol."""
         try:
             if self._connect_lock.locked():
-                _LOG.debug("Connect to %s : already in progress, returns", self._device_config.address)
+                _LOG.debug("[%s] Connect already in progress, returns", self.device_config.address)
                 return True
-            _LOG.debug("Connecting to %s", self._device_config.address)
+            _LOG.debug("[%s] Connecting", self.device_config.address)
             await self._connect_lock.acquire()
             if self._kodi_connection and self._kodi_connection.connected:
-                _LOG.debug("Already connected to %s", self._device_config.address)
+                _LOG.debug("[%s] Already connected", self.device_config.address)
                 return True
-            await self.init_connection()
+            self._connect_error = False
+            self._reconnect_retry = 0
 
+            await self.init_connection()
             # This method was buggy, this is the reason why pykodi library has been integrated into the driver
             # TODO report the fix
             await self._kodi_connection.connect()
@@ -403,9 +405,7 @@ class KodiDevice:
             await self._ping()
             await self._update_states()
 
-            self._connect_error = False
-            _LOG.debug("Connection successful to %s", self._device_config.address)
-            self._reconnect_retry = 0
+            _LOG.debug("[%s] Connection successful", self._device_config.address)
             if self._websocket_task is None:
                 self._websocket_task = self.event_loop.create_task(self.start_watchdog())
             if self._connection_status and not self._connection_status.done():
@@ -416,29 +416,30 @@ class KodiDevice:
                 try:
                     self._update_position_task.cancel()
                 except Exception as ex:
-                    _LOG.error("Failed to cancel update task %s", ex)
+                    _LOG.error("[%s] Failed to cancel update task %s", self.device_config.address, ex)
                 self._update_position_task = None
             return True
-        except (TransportError, CannotConnectError, ServerTimeoutError):
+        except (TransportError, CannotConnectError, ServerTimeoutError) as ex:
+            _LOG.debug("[%s] Connection error : %s", self.device_config.address, ex)
             if not self._connection_status or self._connection_status.done():
                 self._connection_status = self.event_loop.create_future()
             if not self._connect_error:
                 self._connect_error = True
-                _LOG.warning("Unable to connect to Kodi via websocket to %s", self._device_config.address)
+                _LOG.warning("[%s] Unable to connect to Kodi via websocket", self.device_config.address)
                 # , ex, stack_info=True, exc_info=True)
             await self._clear_connection(False)
         # pylint: disable = W0718
         except Exception as ex:
-            _LOG.error("Unknown exception connect to %s : %s", self._device_config.address, ex)
+            _LOG.error("[%s] Unknown exception connect : %s", self.device_config.address, ex)
         finally:
             # After 10 retries, reconnection delay will go from 10 to 30s and stop logging
             if self._reconnect_retry >= CONNECTION_RETRIES and self._connect_error:
-                _LOG.debug("Kodi websocket not connected, abort retries to %s", self._device_config.address)
+                _LOG.debug("[%s] Kodi websocket not connected, abort retries", self.device_config.address)
                 if self._websocket_task:
                     try:
                         self._websocket_task.cancel()
                     except Exception as ex:
-                        _LOG.error("Failed to cancel websocket task %s", ex)
+                        _LOG.error("[%s] Failed to cancel websocket task %s", self.device_config.address, ex)
                     self._websocket_task = None
             elif self._websocket_task is None:
                 self._websocket_task = self.event_loop.create_task(self.start_watchdog())
@@ -449,7 +450,7 @@ class KodiDevice:
 
     async def disconnect(self):
         """Disconnect from TV."""
-        _LOG.debug("Disconnect %s", self.id)
+        _LOG.debug("[%s] Disconnect %s", self.device_config.address, self.id)
         try:
             if self._websocket_task:
                 self._websocket_task.cancel()
@@ -460,8 +461,8 @@ class KodiDevice:
             pass
         except InvalidAuthError as error:
             _LOG.error(
-                "Logout to %s failed: [%s]",
-                self._device_config.address,
+                "[%s] Logout failed: [%s]",
+                self.device_config.address,
                 error,
             )
             self._available = False
@@ -483,7 +484,7 @@ class KodiDevice:
             try:
                 await self._update_position()
             except Exception as ex:
-                _LOG.error("Unknown exception %s", ex)
+                _LOG.error("[%s] Unknown exception %s", self.device_config.address, ex)
 
     async def _update_position(self) -> None:
         if self._position_timestamp is not None and self._position_timestamp + UPDATE_POSITION_INTERVAL > time.time():
@@ -502,12 +503,12 @@ class KodiDevice:
         """Update entity state attributes."""
         # pylint: disable = R0914,R0915
         if not self._kodi_connection.connected:
-            _LOG.debug("Update states requested but not connected")
+            _LOG.debug("[%s] Update states requested but not connected", self.device_config.address)
             self._reset_state()
             return
-        _LOG.debug("Update states")
+        _LOG.debug("[%s] Update states", self.device_config.address)
         if self._update_lock.locked():
-            _LOG.debug("Update states already locked")
+            _LOG.debug("[%s] Update states already locked", self.device_config.address)
             return
         await self._update_lock.acquire()
         updated_data = {}
@@ -596,7 +597,8 @@ class KodiDevice:
                     except Exception:
                         pass
 
-                _LOG.debug("Kodi changed thumbnail %s => %s", thumbnail, self._media_image_url)
+                _LOG.debug("[%s] Kodi changed thumbnail %s => %s", self.device_config.address,
+                           thumbnail, self._media_image_url)
                 # self._media_image_url = self._media_image_url.removesuffix('%2F')
                 updated_data[MediaAttr.MEDIA_IMAGE_URL] = self._media_image_url
 
@@ -778,7 +780,7 @@ class KodiDevice:
         """Set volume level, range 0..100."""
         if volume is None:
             return ucapi.StatusCodes.BAD_REQUEST
-        _LOG.debug("Kodi setting volume to %s", volume)
+        _LOG.debug("[%s] Kodi setting volume to %s", self.device_config.address, volume)
         await self._kodi.set_volume_level(int(volume))
 
     @retry()
@@ -794,7 +796,7 @@ class KodiDevice:
     @retry()
     async def mute(self, muted: bool):
         """Send mute command to Kodi."""
-        _LOG.debug("Sending mute: %s", muted)
+        _LOG.debug("[%s] Sending mute: %s", muted, self.device_config.address)
         await self._kodi.mute(muted)
 
     async def async_media_play(self):
@@ -865,7 +867,7 @@ class KodiDevice:
         try:
             await self._kodi.call_method("Application.Quit")
         except TransportError as ex:
-            _LOG.info("Power off : client is already disconnected %s", ex)
+            _LOG.info("[%s] Power off : client is already disconnected %s", self.device_config.address, ex)
             try:
                 await self.event_loop.create_task(self._update_states())
             # pylint: disable = W0718
@@ -913,5 +915,5 @@ class KodiDevice:
                 return True
         # pylint: disable = W0718
         except Exception as ex:
-            _LOG.debug("Couldn't retrieve Kodi's window state %s", ex)
+            _LOG.debug("[%s] Couldn't retrieve Kodi's window state %s", self.device_config.address, ex)
         return False
