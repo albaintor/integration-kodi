@@ -49,6 +49,7 @@ class SetupSteps(IntEnum):
     CONFIGURATION_MODE = 1
     DISCOVER = 2
     DEVICE_CHOICE = 3
+    RECONFIGURE = 4
 
 
 _setup_step = SetupSteps.INIT
@@ -56,6 +57,19 @@ _cfg_add_device: bool = False
 _discovered_kodis: list[dict[str, str]] = []
 _pairing_device: KodiConnection | None = None
 _pairing_device_ws: KodiWSConnection | None = None
+_reconfigured_device: KodiConfigDevice | None = None
+_artwork_types_input = [
+                {"id": "0", "label": {"en": "Thumbnail", "fr": "Standard"}},
+                {"id": "1", "label": {"en": "Fan art", "fr": "Fan art"}},
+                {"id": "2", "label": {"en": "Poster", "fr": "Poster"}},
+                {"id": "3", "label": {"en": "Landscape", "fr": "Paysage"}},
+                {"id": "4", "label": {"en": "Key art", "fr": "Key art"}},
+                {"id": "5", "label": {"en": "Banner", "fr": "Affiche"}},
+                {"id": "6", "label": {"en": "Clear art", "fr": "Clear art"}},
+                {"id": "7", "label": {"en": "Clear logo", "fr": "Clear logo"}},
+                {"id": "8", "label": {"en": "Disc art", "fr": "Disc art"}},
+                {"id": "9", "label": {"en": "Icon", "fr": "Icône"}}
+            ]
 # pylint: disable = R0911
 _user_input_manual = RequestUserInput(
     {"en": "Setup mode", "de": "Setup Modus", "fr": "Installation"},
@@ -109,6 +123,14 @@ _user_input_manual = RequestUserInput(
             "label": {"en": "Use SSL", "fr": "Utiliser SSL"},
         },
         {
+            "field": {"dropdown": {"value": "0", "items": _artwork_types_input}},
+            "id": "artwork_type",
+            "label": {
+                "en": "Artwork type",
+                "fr": "Type d'image",
+            },
+        },
+        {
             "field": {"checkbox": {"value": False}},
             "id": "use_fanart",
             "label": {"en": "Use fanart instead of thumbnails", "fr": "Utiliser les fanarts à la place des posters"},
@@ -120,7 +142,6 @@ _user_input_manual = RequestUserInput(
         },
     ],
 )
-
 
 async def driver_setup_handler(msg: SetupDriver) -> SetupAction:
     """
@@ -140,6 +161,7 @@ async def driver_setup_handler(msg: SetupDriver) -> SetupAction:
         _setup_step = SetupSteps.INIT
         _cfg_add_device = False
         return await handle_driver_setup(msg)
+
     if isinstance(msg, UserDataResponse):
         _LOG.debug(msg)
         manual_config = False
@@ -158,6 +180,8 @@ async def driver_setup_handler(msg: SetupDriver) -> SetupAction:
         # No address typed, discovery mode then
         if _setup_step == SetupSteps.DISCOVER:
             return await handle_discovery(msg)
+        if _setup_step == SetupSteps.RECONFIGURE:
+            return await _handle_device_reconfigure(msg)
         if _setup_step == SetupSteps.DEVICE_CHOICE and "choice" in msg.input_values:
             return await _handle_configuration(msg)
         _LOG.error("No or invalid user response was received: %s (step %s)", msg, _setup_step)
@@ -380,11 +404,11 @@ async def handle_discovery(_msg: UserDataResponse) -> RequestUserInput | SetupEr
                 "label": {"en": "Use SSL", "fr": "Utiliser SSL"},
             },
             {
-                "field": {"checkbox": {"value": False}},
-                "id": "use_fanart",
+                "field": {"dropdown": {"value": "0", "items": _artwork_types_input}},
+                "id": "artwork_type",
                 "label": {
-                    "en": "Use fanart instead of thumbnails",
-                    "fr": "Utiliser les fanarts à la place des posters",
+                    "en": "Artwork type",
+                    "fr": "Type d'image",
                 },
             },
             {
@@ -408,6 +432,7 @@ async def handle_configuration_mode(msg: UserDataResponse) -> RequestUserInput |
     """
     global _setup_step
     global _cfg_add_device
+    global _reconfigured_device
 
     action = msg.input_values["action"]
 
@@ -424,6 +449,64 @@ async def handle_configuration_mode(msg: UserDataResponse) -> RequestUserInput |
                 return SetupError(error_type=IntegrationSetupError.OTHER)
             config.devices.store()
             return SetupComplete()
+        case "configure":
+            # Reconfigure device if the identifier has changed
+            choice = msg.input_values["choice"]
+            selected_device = config.devices.get(choice)
+            if not selected_device:
+                _LOG.warning("Can not configure device from configuration: %s", choice)
+                return SetupError(error_type=IntegrationSetupError.OTHER)
+
+            _setup_step = SetupSteps.RECONFIGURE
+            _reconfigured_device = selected_device
+
+            return RequestUserInput(
+                {
+                    "en": "Configure your Kodi device",
+                    "fr": "Configurez votre appareil Kodi",
+                },
+                [
+                    {
+                        "field": {"text": {"value": _reconfigured_device.username}},
+                        "id": "username",
+                        "label": {"en": "Username", "fr": "Utilisateur"},
+                    },
+                    {
+                        "field": {"text": {"value": _reconfigured_device.password}},
+                        "id": "password",
+                        "label": {"en": "Password", "fr": "Mot de passe"},
+                    },
+                    {
+                        "field": {"text": {"value": str(_reconfigured_device.ws_port)}},
+                        "id": "ws_port",
+                        "label": {"en": "Websocket port", "fr": "Port websocket"},
+                    },
+                    {
+                        "field": {"text": {"value": str(_reconfigured_device.port)}},
+                        "id": "port",
+                        "label": {"en": "HTTP port", "fr": "Port HTTP"},
+                    },
+                    {
+                        "field": {"checkbox": {"value": _reconfigured_device.ssl}},
+                        "id": "ssl",
+                        "label": {"en": "Use SSL", "fr": "Utiliser SSL"},
+                    },
+                    {
+                        "field": {"dropdown": {"value": str(_reconfigured_device.artwork_type),
+                                               "items": _artwork_types_input}},
+                        "id": "artwork_type",
+                        "label": {
+                            "en": "Artwork type",
+                            "fr": "Type d'image",
+                        },
+                    },
+                    {
+                        "field": {"checkbox": {"value": _reconfigured_device.media_update_task}},
+                        "id": "media_update_task",
+                        "label": {"en": "Enable media update task", "fr": "Activer la tâche de mise à jour du média"},
+                    }
+                ],
+            )
         case "reset":
             config.devices.clear()  # triggers device instance removal
         case _:
@@ -472,7 +555,7 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
     username = msg.input_values["username"]
     password = msg.input_values["password"]
     ssl = msg.input_values["ssl"]
-    use_fanart = msg.input_values["use_fanart"]
+    artwork_type_string = msg.input_values["artwork_type"]
     media_update_task = msg.input_values["media_update_task"]
 
     if ssl == "false":
@@ -480,10 +563,11 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
     else:
         ssl = True
 
-    if use_fanart == "false":
-        use_fanart = False
-    else:
-        use_fanart = True
+    artwork_type = 0
+    try:
+        artwork_type = int(artwork_type_string)
+    except ValueError:
+        pass
 
     if media_update_task == "false":
         media_update_task = False
@@ -559,7 +643,7 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
             port=port,
             ws_port=ws_port,
             ssl=ssl,
-            use_fanart=use_fanart,
+            artwork_type=artwork_type,
             media_update_task=media_update_task,
         )
     )  # triggers SonyLG TV instance creation
@@ -567,4 +651,57 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
 
     await asyncio.sleep(1)
     _LOG.info("Setup successfully completed for %s", address)
+    return SetupComplete()
+
+async def _handle_device_reconfigure(msg: UserDataResponse) -> SetupComplete | SetupError:
+    """
+    Process reconfiguration of a registered Android TV device.
+
+    :param msg: response data from the requested user data
+    :return: the setup action on how to continue: SetupComplete after updating configuration
+    """
+    # flake8: noqa:F824
+    # pylint: disable=W0602
+    global _reconfigured_device
+
+    if _reconfigured_device is None:
+        return SetupError()
+
+    port = msg.input_values["port"]
+    ws_port = msg.input_values["ws_port"]
+    username = msg.input_values["username"]
+    password = msg.input_values["password"]
+    ssl = msg.input_values["ssl"]
+    artwork_type_string = msg.input_values["artwork_type"]
+    media_update_task = msg.input_values["media_update_task"]
+
+    if ssl == "false":
+        ssl = False
+    else:
+        ssl = True
+
+    artwork_type = 0
+    try:
+        artwork_type = int(artwork_type_string)
+    except ValueError:
+        pass
+
+    if media_update_task == "false":
+        media_update_task = False
+    else:
+        media_update_task = True
+
+    _LOG.debug("User has changed configuration")
+    _reconfigured_device.username = username
+    _reconfigured_device.password = password
+    _reconfigured_device.port = port
+    _reconfigured_device.ws_port = ws_port
+    _reconfigured_device.ssl = ssl
+    _reconfigured_device.artwork_type = artwork_type
+    _reconfigured_device.media_update_task = media_update_task
+
+    config.devices.add_or_update(_reconfigured_device)  # triggers ATV instance update
+    await asyncio.sleep(1)
+    _LOG.info("Setup successfully completed for %s", _reconfigured_device.name)
+
     return SetupComplete()

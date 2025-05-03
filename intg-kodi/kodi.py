@@ -52,6 +52,18 @@ class Events(IntEnum):
     # IP_ADDRESS_CHANGED = 6
 
 
+class ArtworkType(IntEnum):
+    THUMBNAIL = 0
+    FANART = 1
+    POSTER = 2
+    LANDSCAPE = 3
+    KEYART = 4
+    BANNER = 5
+    CLEARART = 6
+    CLEARLOGO = 7
+    DISCART = 8
+    ICON = 9
+
 async def retry_call_command(
     timeout: float,
     bufferize: bool,
@@ -184,7 +196,7 @@ class KodiDevice:
         self._reconnect_retry = 0
         self._kodi_ws_task = None
         _LOG.debug("[%s] Kodi instance created", device_config.address)
-        self.event_loop.create_task(self.init_connection())
+        # self.event_loop.create_task(self.init_connection())
         self._connection_status: Future | None = None
         self._buffered_callbacks = {}
         self._previous_state = MediaStates.OFF
@@ -565,6 +577,7 @@ class KodiDevice:
                     "uniqueid",
                     "thumbnail",
                     "fanart",
+                    "art",
                     "artist",
                     "albumartist",
                     "showtitle",
@@ -574,8 +587,29 @@ class KodiDevice:
                 ],
             )
             thumbnail = None
-            if self._device_config.use_fanart:
-                thumbnail = self._item.get("fanart")
+            art = self._item.get("art", dict())
+            match self._device_config.artwork_type:
+                case ArtworkType.ICON:
+                    thumbnail = art.get("icon", None)
+                case ArtworkType.BANNER:
+                    thumbnail = art.get("banner", None)
+                case ArtworkType.FANART:
+                    thumbnail = self._item.get("fanart")
+                    if thumbnail is None:
+                        thumbnail = art.get("fanart", None)
+                case ArtworkType.KEYART:
+                    thumbnail = art.get("keyart", None)
+                case ArtworkType.LANDSCAPE:
+                    thumbnail = art.get("landscape", None)
+                case ArtworkType.POSTER:
+                    thumbnail = art.get("poster", None)
+                case ArtworkType.CLEARART:
+                    thumbnail = art.get("clearart", None)
+                case ArtworkType.CLEARLOGO:
+                    thumbnail = art.get("clearlogo", None)
+                case ArtworkType.DISCART:
+                    thumbnail = art.get("discart", None)
+
             if thumbnail is None:
                 thumbnail = self._item.get("thumbnail")
             if thumbnail != self._thumbnail:

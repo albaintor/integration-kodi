@@ -48,7 +48,7 @@ class KodiConfigDevice:
     username: str
     ssl: bool
     password: str
-    use_fanart: bool
+    artwork_type: int
     media_update_task: bool
 
 
@@ -105,6 +105,18 @@ class Devices:
         if self._add_handler is not None:
             self._add_handler(atv)
 
+    def add_or_update(self, atv: KodiConfigDevice) -> None:
+        """Add a new configured device."""
+        if self.contains(atv.id):
+            _LOG.debug("Existing config %s, updating it %s", atv.id, atv)
+            self.update(atv)
+        else:
+            _LOG.debug("Adding new config %s", atv)
+            self._config.append(atv)
+            self.store()
+        if self._add_handler is not None:
+            self._add_handler(atv)
+
     def get(self, avr_id: str) -> KodiConfigDevice | None:
         """Get device configuration for given identifier."""
         for item in self._config:
@@ -124,7 +136,7 @@ class Devices:
                 item.username = device.username
                 item.password = device.password
                 item.ssl = device.ssl
-                item.use_fanart = device.use_fanart
+                item.artwork_type = device.artwork_type
                 item.media_update_task = device.media_update_task
                 return self.store()
         return False
