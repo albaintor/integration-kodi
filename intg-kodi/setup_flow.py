@@ -467,6 +467,11 @@ async def handle_configuration_mode(msg: UserDataResponse) -> RequestUserInput |
                 },
                 [
                     {
+                        "field": {"text": {"value": _reconfigured_device.address}},
+                        "id": "address",
+                        "label": {"en": "IP address", "de": "IP-Adresse", "fr": "Adresse IP"},
+                    },
+                    {
                         "field": {"text": {"value": _reconfigured_device.username}},
                         "id": "username",
                         "label": {"en": "Username", "fr": "Utilisateur"},
@@ -653,6 +658,7 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
     _LOG.info("Setup successfully completed for %s", address)
     return SetupComplete()
 
+
 async def _handle_device_reconfigure(msg: UserDataResponse) -> SetupComplete | SetupError:
     """
     Process reconfiguration of a registered Android TV device.
@@ -667,6 +673,7 @@ async def _handle_device_reconfigure(msg: UserDataResponse) -> SetupComplete | S
     if _reconfigured_device is None:
         return SetupError()
 
+    address = msg.input_values["address"]
     port = msg.input_values["port"]
     ws_port = msg.input_values["ws_port"]
     username = msg.input_values["username"]
@@ -692,6 +699,7 @@ async def _handle_device_reconfigure(msg: UserDataResponse) -> SetupComplete | S
         media_update_task = True
 
     _LOG.debug("User has changed configuration")
+    _reconfigured_device.address = address
     _reconfigured_device.username = username
     _reconfigured_device.password = password
     _reconfigured_device.port = port
