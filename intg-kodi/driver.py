@@ -370,6 +370,12 @@ def on_device_added(device: config.KodiConfigDevice) -> None:
     _configure_new_device(device, connect=False)
 
 
+def on_device_updated(device: config.KodiConfigDevice) -> None:
+    """Handle an updated device in the configuration."""
+    _LOG.debug("Device config updated: %s, reconnect with new configuration", device)
+    _configure_new_device(device, connect=True)
+
+
 def on_device_removed(device: config.KodiConfigDevice | None) -> None:
     """Handle a removed device in the configuration."""
     if device is None:
@@ -411,7 +417,7 @@ async def main():
     logging.getLogger("pykodi.kodi").setLevel(level)
 
     # Load driver config
-    config.devices = config.Devices(api.config_dir_path, on_device_added, on_device_removed)
+    config.devices = config.Devices(api.config_dir_path, on_device_added, on_device_removed, on_device_updated)
     for device_config in config.devices.all():
         _configure_new_device(device_config, connect=False)
 

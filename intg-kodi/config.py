@@ -10,7 +10,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass
-from typing import Iterator
+from typing import Iterator, Callable
 
 from ucapi import EntityTypes
 
@@ -64,7 +64,10 @@ class _EnhancedJSONEncoder(json.JSONEncoder):
 class Devices:
     """Integration driver configuration class. Manages all configured Sony devices."""
 
-    def __init__(self, data_path: str, add_handler, remove_handler):
+    def __init__(self, data_path: str,
+                 add_handler: Callable[[KodiConfigDevice], None],
+                 remove_handler: Callable[[KodiConfigDevice|None], None],
+                 update_handler: Callable[[KodiConfigDevice], None]):
         """
         Create a configuration instance for the given configuration path.
 
@@ -75,6 +78,7 @@ class Devices:
         self._config: list[KodiConfigDevice] = []
         self._add_handler = add_handler
         self._remove_handler = remove_handler
+        self._update_handler = update_handler
 
         self.load()
 
@@ -110,6 +114,8 @@ class Devices:
         if self.contains(atv.id):
             _LOG.debug("Existing config %s, updating it %s", atv.id, atv)
             self.update(atv)
+            if self._update_handler is not None:
+                self._update_handler(atv)
         else:
             _LOG.debug("Adding new config %s", atv)
             self._config.append(atv)
