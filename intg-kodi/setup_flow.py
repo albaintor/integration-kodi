@@ -126,14 +126,9 @@ _user_input_manual = RequestUserInput(
             "field": {"dropdown": {"value": "0", "items": _artwork_types_input}},
             "id": "artwork_type",
             "label": {
-                "en": "Artwork type",
-                "fr": "Type d'image",
+                "en": "Artwork type to display",
+                "fr": "Type d'image média à afficher",
             },
-        },
-        {
-            "field": {"checkbox": {"value": False}},
-            "id": "use_fanart",
-            "label": {"en": "Use fanart instead of thumbnails", "fr": "Utiliser les fanarts à la place des posters"},
         },
         {
             "field": {"checkbox": {"value": True}},
@@ -407,8 +402,8 @@ async def handle_discovery(_msg: UserDataResponse) -> RequestUserInput | SetupEr
                 "field": {"dropdown": {"value": "0", "items": _artwork_types_input}},
                 "id": "artwork_type",
                 "label": {
-                    "en": "Artwork type",
-                    "fr": "Type d'image",
+                    "en": "Artwork type to display",
+                    "fr": "Type d'image média à afficher",
                 },
             },
             {
