@@ -29,7 +29,7 @@ async def main():
             username=username,
             ssl=False,
             password=password,
-            use_fanart=True,
+            artwork_type=0,
             media_update_task=True
         )
     )

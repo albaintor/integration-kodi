@@ -227,8 +227,9 @@ class KodiDevice:
         # sock_read=DEFAULT_TIMEOUT)
         # Maximal number of seconds for reading a portion of data from a peer=DEFAULT_TIMEOUT
         self._session = ClientSession(raise_for_status=True)
+        self.event_loop.set_exception_handler(self.exception_handler)
         # self.event_loop.set_exception_handler(self.exception_handler)
-        self._session.loop.set_exception_handler(self.exception_handler)
+        # self._session.loop.set_exception_handler(self.exception_handler)
         self._kodi_connection: KodiWSConnection = KodiWSConnection(
             host=self._device_config.address,
             port=self._device_config.port,
@@ -457,7 +458,11 @@ class KodiDevice:
                 self._websocket_task = self.event_loop.create_task(self.start_watchdog())
             self._available = True
             self.events.emit(Events.CONNECTED, self.id)
-            self._connect_lock.release()
+            try:
+                if self._connect_lock.locked():
+                    self._connect_lock.release()
+            except Exception:
+                pass
             return False
 
     async def disconnect(self):
