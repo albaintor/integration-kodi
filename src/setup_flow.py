@@ -246,6 +246,15 @@ async def handle_driver_setup(msg: DriverSetupRequest) -> RequestUserInput | Set
         if dropdown_devices:
             dropdown_actions.append(
                 {
+                    "id": "configure",
+                    "label": {
+                        "en": "Configure selected device",
+                        "fr": "Configurer l'appareil sélectionné",
+                    },
+                },
+            )
+            dropdown_actions.append(
+                {
                     "id": "remove",
                     "label": {
                         "en": "Delete selected device",
