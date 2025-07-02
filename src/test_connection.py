@@ -1,3 +1,10 @@
+"""
+Test connection script for Kodi integration driver.
+
+:copyright: (c) 2025 by Unfolded Circle ApS.
+:license: Mozilla Public License Version 2.0, see LICENSE for more details.
+"""
+
 import asyncio
 import logging
 import sys
