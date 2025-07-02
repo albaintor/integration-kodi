@@ -1,4 +1,9 @@
-"""Constants used for Kodi integration."""
+"""
+Constants used for Kodi integration.
+
+:copyright: (c) 2023 by Unfolded Circle ApS.
+:license: Mozilla Public License Version 2.0, see LICENSE for more details.
+"""
 
 from typing import TypedDict
 
