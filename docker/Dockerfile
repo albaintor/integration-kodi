@@ -9,15 +9,15 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Copy requirements first for better caching
-COPY ../requirements.txt .
+COPY requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy source code
-COPY ../src/ ./src/
-COPY ../driver.json .
-COPY ../kodi.png .
+COPY src/ ./src/
+COPY driver.json .
+COPY kodi.png .
 
 # Create non-root user for security
 RUN useradd -m -u 1000 kodi && chown -R kodi:kodi /app
