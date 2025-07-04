@@ -1,0 +1,11 @@
+services:
+  kodi-integration:
+    build: .
+    container_name: kodi-integration
+    restart: unless-stopped
+    network_mode: host  # Required for network discovery and magic packets
+    environment:
+      - UC_INTEGRATION_HTTP_PORT=9090
+      - UC_CONFIG_HOME=/app/config
+    volumes:
+      - ../config:/app/config

@@ -1,4 +1,4 @@
-# GitHub Action to build a self-contained binary of the Kodi Python driver
+# GitHub Action to build a self-contained binary of the Kodi Python driver and Docker images
 ---
 name: "Build & Release"
 
@@ -16,11 +16,17 @@ env:
   HASH_FILENAME: uc-src.hash
   # Python version to use in the builder image. See https://hub.docker.com/r/unfoldedcircle/r2-pyinstaller for possible versions.
   PYTHON_VER: 3.11.6-0.2.0
+  # Docker configuration
+  REGISTRY: docker.io
+  IMAGE_NAME: ${{ github.repository_owner }}/kodi-integration
 
 jobs:
   build:
     # using ubuntu-24.04: Package 'qemu' has no installation candidate
     runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        platform: [aarch64, x86_64]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -43,11 +49,16 @@ jobs:
             exit 1
           fi
 
-      - name: Prepare
+      - name: Prepare for aarch64 build
+        if: matrix.platform == 'aarch64'
         run: |
           sudo apt-get update && sudo apt-get install -y qemu binfmt-support qemu-user-static
           docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-          echo "Starting pyinstaller build"
+
+      - name: Build for aarch64
+        if: matrix.platform == 'aarch64'
+        run: |
+          echo "Starting pyinstaller build for aarch64"
           docker run --rm --name builder \
             --platform=aarch64 \
             --user=$(id -u):$(id -g) \
@@ -57,6 +68,18 @@ jobs:
             "cd /workspace && \
               python -m pip install -r requirements.txt && \
               pyinstaller --clean --onedir --name driver src/driver.py"
+
+      - name: Build for x86_64
+        if: matrix.platform == 'x86_64'
+        run: |
+          echo "Starting pyinstaller build for x86_64"
+          # Use native x86_64 Python environment
+          sudo apt-get update && sudo apt-get install -y python3-pip python3-venv
+          python3 -m venv build_env
+          source build_env/bin/activate
+          pip install -r requirements.txt
+          pip install pyinstaller
+          pyinstaller --clean --onedir --name driver src/driver.py
 
       - name: Add version
         run: |
@@ -72,7 +95,7 @@ jobs:
           cp -r dist/driver/* artifacts/bin
           cp driver.json artifacts/
           cp kodi.png artifacts/
-          echo "ARTIFACT_NAME=uc-intg-${{ env.INTG_NAME }}-${{ env.VERSION }}-aarch64" >> $GITHUB_ENV
+          echo "ARTIFACT_NAME=uc-intg-${{ env.INTG_NAME }}-${{ env.VERSION }}-${{ matrix.platform }}" >> $GITHUB_ENV
           
       - name: Create upload artifact
         shell: bash
@@ -87,13 +110,56 @@ jobs:
           path: ${{ env.ARTIFACT_NAME }}.tar.gz
           if-no-files-found: error
           retention-days: 3
-            
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   release:
     name: Create Release
     if: github.ref == 'refs/heads/main' || contains(github.ref, 'tags/v')
     # using ubuntu-24.04: Package 'qemu' has no installation candidate
     runs-on: ubuntu-22.04
-    needs: [build]
+    needs: [build, docker]
 
     steps:
       - name: Download build artifacts
@@ -148,4 +214,4 @@ jobs:
           prerelease: false
           files: |
             *.tar.gz
-            ${{ env.HASH_FILENAME }}            
+            ${{ env.HASH_FILENAME }}

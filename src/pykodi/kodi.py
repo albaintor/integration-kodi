@@ -1,4 +1,9 @@
-"""Implementation of a Kodi inteface."""
+"""
+Implementation of a Kodi interface.
+
+:copyright: (c) 2023 by Unfolded Circle ApS.
+:license: Mozilla Public License Version 2.0, see LICENSE for more details.
+"""
 
 import asyncio
 import logging

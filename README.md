@@ -137,6 +137,88 @@ docker run --rm --name builder \
       pyinstaller --clean --onefile --name intg-kodi intg-kodi/driver.py"
 ```
 
+## Docker Setup (x86-64 & ARM64)
+
+For easy installation on x86-64 and ARM64 systems using Docker:
+
+### Quick Start
+
+```bash
+# Clone repository
+git clone https://github.com/albaintor/integration-kodi.git
+cd integration-kodi
+
+# Start with Docker Compose
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+```
+
+### Using Makefile (recommended)
+
+```bash
+# Build and start
+make start
+
+# View logs  
+make logs
+
+# Stop
+make down
+
+# Restart
+make restart
+```
+
+### Using Pre-built Docker Images
+
+```bash
+# Pull and run from Docker Hub
+docker run -d \
+  --name kodi-integration \
+  --network host \
+  -v $(pwd)/config:/app/config \
+  -e UC_INTEGRATION_HTTP_PORT=9090 \
+  docker.io/your-username/kodi-integration:latest
+```
+
+### Manual Docker Commands
+
+```bash
+# Build image locally
+docker build -t kodi-integration .
+
+# Run container
+docker run -d \
+  --name kodi-integration \
+  --network host \
+  -v $(pwd)/config:/app/config \
+  -e UC_INTEGRATION_HTTP_PORT=9090 \
+  kodi-integration
+```
+
+### Configuration
+
+- Integration runs on port `9090` (configurable via `UC_INTEGRATION_HTTP_PORT`)
+- Configuration data is stored in `./config` directory
+- `network_mode: host` is required for network discovery and magic packets
+- Supports both x86-64 and ARM64 architectures
+
+### Access
+
+After startup, the integration is available at `http://localhost:9090` and can be configured in Remote Two/Three.
+
+### Available Docker Tags
+
+- `latest` - Latest development build from main branch
+- `v1.x.x` - Specific version releases
+- `main` - Latest commit from main branch
+
+### Docker Hub
+
+Pre-built images are available on Docker Hub with multi-architecture support (x86-64 and ARM64).
+
 ## Versioning
 
 We use [SemVer](http://semver.org/) for versioning. For the versions available, see the
@@ -155,3 +237,5 @@ Please read our [contribution guidelines](CONTRIBUTING.md) before opening a pull
 
 This project is licensed under the [**Mozilla Public License 2.0**](https://choosealicense.com/licenses/mpl-2.0/).
 See the [LICENSE](LICENSE) file for details.
+
+
