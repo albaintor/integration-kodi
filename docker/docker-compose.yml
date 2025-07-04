@@ -1,6 +1,6 @@
 services:
   kodi-integration:
-    build: .
+    image: albator78/kodi-integration
     container_name: kodi-integration
     restart: unless-stopped
     network_mode: host  # Required for network discovery and magic packets
@@ -8,4 +8,4 @@ services:
       - UC_INTEGRATION_HTTP_PORT=9090
       - UC_CONFIG_HOME=/app/config
     volumes:
-      - ../config:/app/config
+      - ./config:/app/config
