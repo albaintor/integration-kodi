@@ -149,20 +149,21 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: docker/Dockerfile
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/kodi-integration:latest
       
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: docker/Dockerfile
-          platforms: linux/amd64
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      #- name: Build and push Docker image
+      #  uses: docker/build-push-action@v5
+      #  with:
+      #    context: .
+      #    file: docker/Dockerfile
+      #    platforms: linux/amd64
+      #    push: ${{ github.event_name != 'pull_request' }}
+      #    tags: ${{ steps.meta.outputs.tags }}
+      #    labels: ${{ steps.meta.outputs.labels }}
+      #    cache-from: type=gha
+      #    cache-to: type=gha,mode=max
 
   release:
     name: Create Release
