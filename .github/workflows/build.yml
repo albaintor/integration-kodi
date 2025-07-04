@@ -24,6 +24,7 @@ jobs:
   build:
     # using ubuntu-24.04: Package 'qemu' has no installation candidate
     runs-on: ubuntu-22.04
+    environment: Ubuntu
     strategy:
       matrix:
         platform: [aarch64, x86_64]
@@ -113,6 +114,7 @@ jobs:
 
   docker:
     runs-on: ubuntu-latest
+    environment: Ubuntu
     needs: [build]
     steps:
       - name: Checkout
@@ -159,7 +161,7 @@ jobs:
     if: github.ref == 'refs/heads/main' || contains(github.ref, 'tags/v')
     # using ubuntu-24.04: Package 'qemu' has no installation candidate
     runs-on: ubuntu-22.04
-    needs: [build, docker]
+    needs: [build]
 
     steps:
       - name: Download build artifacts
