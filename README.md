@@ -54,11 +54,11 @@ Note : this release requires remote firmware `>= 1.7.10`
 ### Tips
 - The (simple) commands, interface or buttons mapping can be updated while a previous version of the integration has already been configured. In that case the new functionalities may not be visible. In that case, just remove the configured entity from the integration page and add it again. It won't affect your existing setup, but only trigger a refresh of the integration.
 - To get Kodi control working, go into Kodi's Addons, Peripheral Support, and disable Joystick Support. Kodi is treating Android TV IP control as a joystick (no idea why). Don’t forget to quit Kodi and restart it in order to take effect.
+- Non working commands/buttons : There is a weird (default) behaviour in Kodi that requires to change settings in order to make all buttons work (back...). Within Kodi, click settings, then go to Apps/Add-on Browser, "My Add-ons" and scroll down and click on Peripheral Libraries : click on Joystick Support and click Disable. THEN : kill and restart Kodi and the remote works fine. But you don't have all commands (only basic ones)
 
 
 ## To do
 
-- ~~Add automatic discovery of Kodi instances on the network~~ done
 - Add more simple commands if necessary
 
 
