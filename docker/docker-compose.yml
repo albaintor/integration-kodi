@@ -1,6 +1,6 @@
 services:
   kodi-integration:
-    build: .
+    image: albator78/kodi-integration:latest
     container_name: kodi-integration
     restart: unless-stopped
     network_mode: host  # Required for network discovery and magic packets
