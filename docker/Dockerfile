@@ -19,6 +19,9 @@ COPY src/ ./src/
 COPY driver.json .
 COPY kodi.png .
 
+# Create config directory
+RUN mkdir -p /app/config
+
 # Create non-root user for security
 RUN useradd -m -u 1000 kodi && chown -R kodi:kodi /app
 USER kodi
