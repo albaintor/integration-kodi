@@ -8,4 +8,4 @@ services:
       - UC_INTEGRATION_HTTP_PORT=9090
       - UC_CONFIG_HOME=/config
     volumes:
-      - ../config:/config
+      - ./config:/config
