@@ -355,6 +355,7 @@ class KodiDevice:
             return False
         if not self._kodi_connection.connected:
             self._reconnect_retry += 1
+            self._available = False
             _LOG.debug(
                 "[%s] Kodi websocket not connected, retry %s / %s",
                 self._device_config.address,
@@ -476,16 +477,20 @@ class KodiDevice:
             await self._kodi_connection.close()
             self._previous_state = self._attr_state
             self._attr_state = MediaStates.OFF
-        except CannotConnectError:
-            pass
+        except CannotConnectError as er:
+            _LOG.error(
+                "[%s] Logout failed cannot connect: [%s]",
+                self.device_config.address,
+                er,
+            )
         except InvalidAuthError as error:
             _LOG.error(
                 "[%s] Logout failed: [%s]",
                 self.device_config.address,
                 error,
             )
-            self._available = False
         finally:
+            self._available = False
             self._websocket_task = None
 
     def _reset_state(self, players=None):
@@ -738,13 +743,6 @@ class KodiDevice:
         """Return True if device is available."""
         return self._available
 
-    @available.setter
-    def available(self, value: bool):
-        """Set device availability and emit CONNECTED / DISCONNECTED event on change."""
-        if self._available != value:
-            self._available = value
-            # self.events.emit(Events.CONNECTED if value else Events.DISCONNECTED, self.id)
-
     @property
     def device_config(self) -> KodiConfigDevice:
         """Return device configuration."""
@@ -918,9 +916,8 @@ class KodiDevice:
 
     async def power_on(self):
         """Handle connection to Kodi device."""
-        if not self.available:
-            connect_task = self.event_loop.create_task(self.connect())
-            await asyncio.sleep(0)
+        self.event_loop.create_task(self.connect())
+        await asyncio.sleep(0)
         return ucapi.StatusCodes.OK
 
     @retry()
