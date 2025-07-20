@@ -38,7 +38,7 @@ _LOG = logging.getLogger(__name__)
 DEFAULT_TIMEOUT = 8.0
 WEBSOCKET_WATCHDOG_INTERVAL = 10
 CONNECTION_RETRIES = 10
-UPDATE_POSITION_INTERVAL = 300
+UPDATE_POSITION_INTERVAL = 30
 
 
 class Events(IntEnum):
@@ -408,7 +408,6 @@ class KodiDevice:
                 _LOG.debug("[%s] Already connected", self.device_config.address)
                 return True
             self._connect_error = False
-            self._reconnect_retry = 0
 
             await self.init_connection()
             # This method was buggy, this is the reason why pykodi library has been integrated into the driver
@@ -503,8 +502,13 @@ class KodiDevice:
             except Exception as ex:
                 _LOG.error("[%s] Unknown exception %s", self.device_config.address, ex)
 
-    async def _update_position(self) -> None:
-        if self._position_timestamp is not None and self._position_timestamp + UPDATE_POSITION_INTERVAL > time.time():
+    async def _update_position(self, deferred=0) -> None:
+        if deferred > 0:
+            await asyncio.sleep(deferred)
+            self._position_timestamp = None
+
+        if (self._position_timestamp is not None and self._position_timestamp + float(UPDATE_POSITION_INTERVAL - 10)
+                > time.time()):
             return
         if (
             not self._kodi_connection.connected
@@ -558,7 +562,7 @@ class KodiDevice:
                 media_position = position["hours"] * 3600 + position["minutes"] * 60 + position["seconds"]
             else:
                 media_position = 0
-            if self._media_position != media_position:
+            if self._media_position != media_position or self._media_position_updated_at is None:
                 self._media_position = media_position
                 updated_data[MediaAttr.MEDIA_POSITION] = media_position
                 self._media_position_updated_at = datetime.datetime.now(datetime.timezone.utc)
@@ -849,6 +853,7 @@ class KodiDevice:
     @retry()
     async def play_pause(self):
         """Send toggle-play-pause command to Kodi."""
+        self._position_timestamp = None
         try:
             players = await self._kodi.get_players()
             player_id = players[0]["playerid"]
@@ -859,6 +864,7 @@ class KodiDevice:
                 await self.async_media_play()
             else:
                 await self.async_media_pause()
+        asyncio.create_task(self._update_position(deferred=2))
 
     @retry()
     async def stop(self):

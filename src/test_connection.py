@@ -8,9 +8,12 @@ Test connection script for Kodi integration driver.
 import asyncio
 import logging
 import sys
+from typing import Any
+
 from rich import print_json
 from kodi import KodiDevice
 from config import KodiConfigDevice
+import kodi
 
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -20,6 +23,10 @@ asyncio.set_event_loop(_LOOP)
 address = "192.168.1.20"
 username = "kodi"
 password = "ludi"
+
+
+async def on_device_update(device_id: str, update: dict[str, Any] | None) -> None:
+    print_json(data=update)
 
 
 async def main():
@@ -41,10 +48,16 @@ async def main():
         )
     )
     # await client.power_on()
+    client.events.on(kodi.Events.UPDATE, on_device_update)
     await client.connect()
+
     await asyncio.sleep(4)
-    properties = client._item
-    print_json(data=properties)
+    #properties = client._item
+    #print("Properties :")
+    #print_json(data=properties)
+    await client.play_pause()
+    await asyncio.sleep(4)
+    await client.play_pause()
     # power_state = await client._tv.get_power_state()
     # _LOG.debug("Power state %s", power_state)
     # tv_info = client._tv.tv_info

@@ -36,6 +36,7 @@ _R2_IN_STANDBY = False
 @api.listens_to(ucapi.Events.CONNECT)
 async def on_r2_connect_cmd() -> None:
     """Connect all configured TVs when the Remote Two sends the connect command."""
+    await api.set_device_state(ucapi.DeviceStates.CONNECTED)
     # TODO check if we were in standby and ignore the call? We'll also get an EXIT_STANDBY
     _LOG.debug("R2 connect command: connecting device(s)")
     for device in _configured_kodis.values():
@@ -46,7 +47,6 @@ async def on_r2_connect_cmd() -> None:
             await _LOOP.create_task(device.connect())
         except RuntimeError as ex:
             _LOG.debug("Could not connect to device %s : %s", device.device_config.address, ex)
-    await api.set_device_state(ucapi.DeviceStates.CONNECTED)
 
 
 @api.listens_to(ucapi.Events.DISCONNECT)
@@ -207,6 +207,10 @@ async def on_device_connected(device_id: str):
                 api.configured_entities.update_attributes(
                     entity_id, {ucapi.media_player.Attributes.STATE: ucapi.media_player.States.STANDBY}
                 )
+            else:
+                api.configured_entities.update_attributes(
+                    entity_id, {ucapi.media_player.Attributes.STATE: ucapi.media_player.States.ON}
+                )
         elif configured_entity.entity_type == ucapi.EntityTypes.REMOTE:
             if configured_entity.attributes[ucapi.remote.Attributes.STATE] == ucapi.remote.States.UNAVAILABLE:
                 api.configured_entities.update_attributes(
@@ -286,8 +290,8 @@ async def on_device_update(device_id: str, update: dict[str, Any] | None) -> Non
     attributes = None
 
     # TODO awkward logic: this needs better support from the integration library
-    _LOG.info("Update device %s for configured devices %s", device_id, api.configured_entities)
     for entity_id in _entities_from_device_id(device_id):
+        _LOG.info("Update device %s for configured entity %s", device_id, entity_id)
         configured_entity = api.configured_entities.get(entity_id)
         if configured_entity is None:
             return
