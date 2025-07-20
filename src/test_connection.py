@@ -52,12 +52,12 @@ async def main():
     await client.connect()
 
     await asyncio.sleep(4)
-    #properties = client._item
-    #print("Properties :")
-    #print_json(data=properties)
-    await client.play_pause()
-    await asyncio.sleep(4)
-    await client.play_pause()
+    properties = client._item
+    print("Properties :")
+    print_json(data=properties)
+    #await client.play_pause()
+    #await asyncio.sleep(4)
+    #await client.play_pause()
     # power_state = await client._tv.get_power_state()
     # _LOG.debug("Power state %s", power_state)
     # tv_info = client._tv.tv_info

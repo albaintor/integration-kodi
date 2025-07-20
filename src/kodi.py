@@ -6,6 +6,7 @@ This module implements Kodi communication of the Remote Two integration driver.
 """
 
 import asyncio
+import base64
 import datetime
 import logging
 import time
@@ -186,6 +187,7 @@ class KodiDevice:
         self._media_type = MediaType.VIDEO
         self._media_title = ""
         self._media_image_url = ""
+        self._media_image_data = ""
         self._media_artist = ""
         self._media_album = ""
         self._thumbnail = None
@@ -203,6 +205,7 @@ class KodiDevice:
         self._update_lock = Lock()
         self._position_timestamp: float | None = None
         self._update_position_task = None
+        self._download_media_image = True
 
     async def init_connection(self):
         """Initialize connection to device."""
@@ -639,11 +642,25 @@ class KodiDevice:
                     # pylint: disable = W0718
                     except Exception:
                         pass
+                if self._download_media_image:
+                    try:
+                        async with ClientSession() as session:
+                            async with session.get(self._media_image_url) as response:
+                                buffer = b""
+                                async for data, end_of_http_chunk in response.content.iter_chunks():
+                                    buffer += data
+                                self._media_image_data = "data:"+response.content_type+";base64," + base64.b64encode(buffer).decode("utf-8")
+                    except Exception as ex:
+                        _LOG.warning("[%s] Failed to download artwork : %s", self.device_config.address, ex)
+                        self._media_image_data = ""
 
                 _LOG.debug("[%s] Kodi changed thumbnail %s => %s", self.device_config.address,
                            thumbnail, self._media_image_url)
                 # self._media_image_url = self._media_image_url.removesuffix('%2F')
-                updated_data[MediaAttr.MEDIA_IMAGE_URL] = self._media_image_url
+                if self._download_media_image:
+                    updated_data[MediaAttr.MEDIA_IMAGE_URL] = self._media_image_data
+                else:
+                    updated_data[MediaAttr.MEDIA_IMAGE_URL] = self._media_image_url
 
             media_title = self._item.get("title") or self._item.get("label") or self._item.get("file")
             if media_title != self._media_title:
