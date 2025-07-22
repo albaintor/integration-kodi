@@ -51,7 +51,8 @@ Note : this release requires remote firmware `>= 1.7.10`
 - There is no turn on command : Kodi has to be started some other way
 - Change these Kodi settings to get full control working : within Kodi, click settings, then go to `Apps`/`Add-on Browser`, `My Add-ons` and scroll down and click on `Peripheral Libraries` : click on `Joystick Support` and click `Disable`. THEN : kill and restart Kodi in order to take effect and then all the remote commands will work fine
 
-**Important hint :**
+
+### Important hint
 
 To spare battery life, the integration will stop reconnecting if Kodi is off (which is the case on most devices when you switch from Kodi to another app). 
 But if any Kodi command is sent (cursor pad, turn on, play/pause...), a reconnection will be automatically triggered.
