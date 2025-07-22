@@ -66,13 +66,14 @@ class ArtworkType(IntEnum):
     DISCART = 8
     ICON = 9
 
+
 async def retry_call_command(
-    timeout: float,
-    bufferize: bool,
-    func: Callable[Concatenate[_KodiDeviceT, _P], Awaitable[ucapi.StatusCodes | None]],
-    obj: _KodiDeviceT,
-    *args: _P.args,
-    **kwargs: _P.kwargs,
+        timeout: float,
+        bufferize: bool,
+        func: Callable[Concatenate[_KodiDeviceT, _P], Awaitable[ucapi.StatusCodes | None]],
+        obj: _KodiDeviceT,
+        *args: _P.args,
+        **kwargs: _P.kwargs,
 ) -> ucapi.StatusCodes:
     """Retry call command when failed"""
     # Launch reconnection task if not active
@@ -107,9 +108,8 @@ def retry(*, timeout: float = 5, bufferize=False) -> Callable[
     [Callable[_P, Awaitable[ucapi.StatusCodes]]],
     Callable[Concatenate[_KodiDeviceT, _P], Coroutine[Any, Any, ucapi.StatusCodes | None]],
 ]:
-
     def decorator(
-        func: Callable[Concatenate[_KodiDeviceT, _P], Awaitable[ucapi.StatusCodes | None]]
+            func: Callable[Concatenate[_KodiDeviceT, _P], Awaitable[ucapi.StatusCodes | None]]
     ) -> Callable[Concatenate[_KodiDeviceT, _P], Coroutine[Any, Any, ucapi.StatusCodes | None]]:
         @wraps(func)
         async def wrapper(obj: _KodiDeviceT, *args: _P.args, **kwargs: _P.kwargs) -> ucapi.StatusCodes:
@@ -157,9 +157,9 @@ class KodiDevice:
     """Representing a LG TV Device."""
 
     def __init__(
-        self,
-        device_config: KodiConfigDevice,
-        loop: AbstractEventLoop | None = None,
+            self,
+            device_config: KodiConfigDevice,
+            loop: AbstractEventLoop | None = None,
     ):
         """Create instance with given IP or hostname of AVR."""
         # TODO find a better ID than the IP address
@@ -184,7 +184,7 @@ class KodiDevice:
         self._is_volume_muted = False
         self._media_position = 0
         self._media_duration = 0
-        self._media_position_updated_at: datetime.datetime|None = None
+        self._media_position_updated_at: datetime.datetime | None = None
         self._media_type = MediaType.VIDEO
         self._media_title = ""
         self._media_image_url = ""
@@ -521,11 +521,11 @@ class KodiDevice:
                 > time.time()):
             return
         if (
-            not self._kodi_connection.connected
-            or self._update_lock.locked()
-            or self._kodi_is_off
-            or self._players is None
-            or len(self._players) == 0
+                not self._kodi_connection.connected
+                or self._update_lock.locked()
+                or self._kodi_is_off
+                or self._players is None
+                or len(self._players) == 0
         ):
             return
         await self._update_states()
@@ -634,11 +634,14 @@ class KodiDevice:
                 case ArtworkType.DISCART:
                     thumbnail = art.get("discart", None)
 
+            changed_thumbnail = False
             if thumbnail is None:
                 thumbnail = self._item.get("thumbnail")
             if thumbnail != self._thumbnail:
                 self._thumbnail = thumbnail
                 self._media_image_url = self._kodi.thumbnail_url(thumbnail)
+                _LOG.debug("[%s] Kodi changed thumbnail %s : %s", self.device_config.address, thumbnail,
+                           self._media_image_url)
                 self._media_image_data = ""
                 # Not working with smb links.
                 # TODO extend this approach for other media types
@@ -653,8 +656,11 @@ class KodiDevice:
                             self._media_image_url = self._media_image_url.removeprefix("image://").removesuffix("/")
                             self._media_image_url = urllib.parse.unquote(self._media_image_url)
                     # pylint: disable = W0718
-                    except Exception:
-                        pass
+                    except Exception as ex:
+                        _LOG.info("[%s] Kodi please report faulty thumbnail analysis %s : %s (%s)",
+                                  self.device_config.address,
+                                  thumbnail,
+                                  self._media_image_url, ex)
                 if self._download_media_image:
                     try:
                         async with ClientSession() as session:
@@ -662,7 +668,8 @@ class KodiDevice:
                                 buffer = b""
                                 async for data, end_of_http_chunk in response.content.iter_chunks():
                                     buffer += data
-                                self._media_image_data = "data:"+response.content_type+";base64," + base64.b64encode(buffer).decode("utf-8")
+                                self._media_image_data = "data:" + response.content_type + ";base64," + base64.b64encode(
+                                    buffer).decode("utf-8")
                     except Exception as ex:
                         _LOG.warning("[%s] Failed to download artwork : %s", self.device_config.address, ex)
                         self._media_image_data = ""
@@ -674,13 +681,19 @@ class KodiDevice:
                     updated_data[MediaAttr.MEDIA_IMAGE_URL] = self._media_image_data
                 else:
                     updated_data[MediaAttr.MEDIA_IMAGE_URL] = self._media_image_url
+                if len(updated_data[MediaAttr.MEDIA_IMAGE_URL]) > 0:
+                    changed_thumbnail = True
 
             media_title = self._item.get("title") or self._item.get("label") or self._item.get("file")
             if media_title != self._media_title:
                 self._media_title = media_title
                 updated_data[MediaAttr.MEDIA_TITLE] = self._media_title
                 # If title changed, request a deferred artwork update as it may not be available at this time
-                asyncio.create_task(self._update_states(deferred=4))
+                if changed_thumbnail:
+                    deferred = 4
+                    _LOG.debug("[%s] Kodi changed title %s but thumbnail is empty, will try again in %s seconds",
+                               self.device_config.address, media_title, deferred)
+                    asyncio.create_task(self._update_states(deferred=deferred))
 
             artists = self._item.get("artist")
             season: int | None = self._item.get("season")
@@ -789,7 +802,7 @@ class KodiDevice:
         return self._media_position
 
     @property
-    def media_position_updated_at(self) -> str|None:
+    def media_position_updated_at(self) -> str | None:
         """Return timestamp of urrent media position."""
         if self._media_position_updated_at:
             return self._media_position_updated_at.isoformat()
