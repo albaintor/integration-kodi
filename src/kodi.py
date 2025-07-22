@@ -189,6 +189,8 @@ class KodiDevice:
         self._media_title = ""
         self._media_image_url = ""
         self._media_image_data = ""
+        self._download_media_image = True
+        self._thumbnail = ""
         self._media_artist = ""
         self._media_album = ""
         self._thumbnail = None
@@ -206,7 +208,6 @@ class KodiDevice:
         self._update_lock = Lock()
         self._position_timestamp: float | None = None
         self._update_position_task = None
-        self._download_media_image = True
 
     async def init_connection(self):
         """Initialize connection to device."""
@@ -713,6 +714,7 @@ class KodiDevice:
             self._media_album = ""
             self._media_artist = ""
             self._media_image_url = ""
+            self._thumbnail = ""
             updated_data[MediaAttr.MEDIA_POSITION] = 0
             updated_data[MediaAttr.MEDIA_DURATION] = 0
             updated_data[MediaAttr.MEDIA_TITLE] = ""
