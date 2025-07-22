@@ -47,12 +47,20 @@ Note : this release requires remote firmware `>= 1.7.10`
 
 - Kodi must be running for setup, and control enabled from Settings > Services > Control section. Set the username, password and enable HTTP control.
 <img width="588" alt="image" src="https://github.com/user-attachments/assets/7809d1c7-0be6-4b44-ab9a-73539b58a3f0">
-
 - Port numbers shouldn't be modified normally (8080 for HTTP and 9090 for websocket) : websocket port is not configurable from the GUI (in advanced settings file)
 - There is no turn on command : Kodi has to be started some other way
-- The (simple) commands, interface or buttons mapping can be updated while a previous version of the integration has already been configured. In that case the new functionalities may not be visible. In that case, just remove the configured entity from the integration page and add it again. It won't affect your existing setup, but only trigger a refresh of the integration.
-- To get Kodi control working, go into Kodi's Addons, Peripheral Support, and disable Joystick Support. Kodi is treating Android TV IP control as a joystick (no idea why). Don’t forget to quit Kodi and restart it in order to take effect.
-- Non working commands/buttons : There is a weird (default) behaviour in Kodi that requires to change settings in order to make all buttons work (back...). Within Kodi, click settings, then go to Apps/Add-on Browser, "My Add-ons" and scroll down and click on Peripheral Libraries : click on Joystick Support and click Disable. THEN : kill and restart Kodi and the remote works fine. But you don't have all commands (only basic ones)
+- Change these Kodi settings to get full control working : within Kodi, click settings, then go to `Apps`/`Add-on Browser`, `My Add-ons` and scroll down and click on `Peripheral Libraries` : click on `Joystick Support` and click `Disable`. THEN : kill and restart Kodi in order to take effect and then all the remote commands will work fine
+
+**Important hint :**
+
+To spare battery life, the integration will stop reconnecting if Kodi is off (which is the case on most devices when you switch from Kodi to another app). 
+But if any Kodi command is sent (cursor pad, turn on, play/pause...), a reconnection will be automatically triggered.
+So if you start Kodi from for example your Nvidia Shield but you mapped all cursors pad and enter to Nvidia Shield device (through AndroidTV integration or bluetooth), Kodi reconnection won't be triggered.
+So here is the trick to make Kodi integration reconnect : create a macro with your devices (e.g. Nvidia Shield, and Kodi media player) with the following commands :
+1. Nvidia Shield : `Input Source` command to start app `Kodi`
+2. Kodi media player : `Switch On` command (which does nothing except triggering reconnection)
+
+And add the macro to your activity, mapped to the screen or to a button. In that way, it will both launch Kodi and trigger the reconnection.
 
 
 ### Installation on the Remote (recommended)
