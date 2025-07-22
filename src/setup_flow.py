@@ -135,6 +135,12 @@ _user_input_manual = RequestUserInput(
             "id": "media_update_task",
             "label": {"en": "Enable media update task", "fr": "Activer la tâche de mise à jour du média"},
         },
+        {
+            "field": {"checkbox": {"value": False}},
+            "id": "download_artwork",
+            "label": {"en": "Download artwork instead of transmitting URL to the remote",
+                      "fr": "Télécharger l'image au lieu de transmettre l'URL à la télécommande"},
+        },
     ],
 )
 
@@ -420,6 +426,12 @@ async def handle_discovery(_msg: UserDataResponse) -> RequestUserInput | SetupEr
                 "id": "media_update_task",
                 "label": {"en": "Enable media update task", "fr": "Activer la tâche de mise à jour du média"},
             },
+            {
+                "field": {"checkbox": {"value": False}},
+                "id": "download_artwork",
+                "label": {"en": "Download artwork instead of transmitting URL to the remote",
+                          "fr": "Télécharger l'image au lieu de transmettre l'URL à la télécommande"},
+            },
         ],
     )
 
@@ -513,7 +525,13 @@ async def handle_configuration_mode(msg: UserDataResponse) -> RequestUserInput |
                         "field": {"checkbox": {"value": _reconfigured_device.media_update_task}},
                         "id": "media_update_task",
                         "label": {"en": "Enable media update task", "fr": "Activer la tâche de mise à jour du média"},
-                    }
+                    },
+                    {
+                        "field": {"checkbox": {"value": _reconfigured_device.download_artwork}},
+                        "id": "download_artwork",
+                        "label": {"en": "Download artwork instead of transmitting URL to the remote",
+                                  "fr": "Télécharger l'image au lieu de transmettre l'URL à la télécommande"},
+                    },
                 ],
             )
         case "reset":
@@ -566,6 +584,7 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
     ssl = msg.input_values["ssl"]
     artwork_type_string = msg.input_values["artwork_type"]
     media_update_task = msg.input_values["media_update_task"]
+    download_artwork = msg.input_values["download_artwork"]
 
     if ssl == "false":
         ssl = False
@@ -582,6 +601,11 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
         media_update_task = False
     else:
         media_update_task = True
+
+    if download_artwork == "false":
+        download_artwork = False
+    else:
+        download_artwork = True
 
     if device_choice:
         _LOG.debug("Configure device following discovery : %s %s", device_choice, _discovered_kodis)
@@ -654,6 +678,7 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
             ssl=ssl,
             artwork_type=artwork_type,
             media_update_task=media_update_task,
+            download_artwork=download_artwork
         )
     )  # triggers SonyLG TV instance creation
     config.devices.store()
@@ -685,6 +710,7 @@ async def _handle_device_reconfigure(msg: UserDataResponse) -> SetupComplete | S
     ssl = msg.input_values["ssl"]
     artwork_type_string = msg.input_values["artwork_type"]
     media_update_task = msg.input_values["media_update_task"]
+    download_artwork = msg.input_values["download_artwork"]
 
     if ssl == "false":
         ssl = False
@@ -702,6 +728,11 @@ async def _handle_device_reconfigure(msg: UserDataResponse) -> SetupComplete | S
     else:
         media_update_task = True
 
+    if download_artwork == "false":
+        download_artwork = False
+    else:
+        download_artwork = True
+
     _LOG.debug("User has changed configuration")
     _reconfigured_device.address = address
     _reconfigured_device.username = username
@@ -711,6 +742,7 @@ async def _handle_device_reconfigure(msg: UserDataResponse) -> SetupComplete | S
     _reconfigured_device.ssl = ssl
     _reconfigured_device.artwork_type = artwork_type
     _reconfigured_device.media_update_task = media_update_task
+    _reconfigured_device.download_artwork = download_artwork
 
     config.devices.add_or_update(_reconfigured_device)  # triggers ATV instance update
     await asyncio.sleep(1)

@@ -1,15 +1,15 @@
 {
   "driver_id": "kodi_driver",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "min_core_api": "0.20.0",
   "name": {
     "en": "Kodi"
   },
   "icon":"custom:kodi.png",
   "description": {
-    "en": "Control your Kodi instances with Remote Two and Three.",
-    "de": "Steuere Kodi instances mit Remote Two und Three.",
-    "fr": "Contrôler vos instances Kodi avec Remote Two et Three."
+    "en": "Control your Kodi instances with Remote Two/3.",
+    "de": "Steuere Kodi instances mit Remote Two/3.",
+    "fr": "Contrôler vos instances Kodi avec Remote Two/3."
   },
   "developer": {
     "name": "Albaintor",
@@ -42,5 +42,5 @@
       }
     ]
   },
-  "release_date": "2025-07-20"
+  "release_date": "2025-07-22"
 }

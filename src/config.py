@@ -50,6 +50,7 @@ class KodiConfigDevice:
     password: str
     artwork_type: int
     media_update_task: bool
+    download_artwork: bool
 
 
 class _EnhancedJSONEncoder(json.JSONEncoder):
@@ -144,6 +145,7 @@ class Devices:
                 item.ssl = device.ssl
                 item.artwork_type = device.artwork_type
                 item.media_update_task = device.media_update_task
+                item.download_artwork = device.download_artwork
                 return self.store()
         return False
 

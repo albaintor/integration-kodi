@@ -168,5 +168,5 @@ class KodiRemote(Remote):
             state = KODI_REMOTE_STATE_MAPPING.get(update[Attributes.STATE])
             attributes = key_update_helper(self.attributes, Attributes.STATE, state, attributes)
 
-        _LOG.debug("KodiRemote update attributes %s -> %s", update, attributes)
+        _LOG.debug("KodiRemote update attributes %s", attributes)
         return attributes

@@ -37,6 +37,7 @@ _P = ParamSpec("_P")
 _LOG = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT = 8.0
+ARTWORK_TIMEOUT = 5.0
 WEBSOCKET_WATCHDOG_INTERVAL = 10
 CONNECTION_RETRIES = 10
 UPDATE_POSITION_INTERVAL = 300
@@ -528,17 +529,22 @@ class KodiDevice:
             return
         await self._update_states()
 
-    async def _update_states(self) -> None:
+    async def _update_states(self, deferred=0) -> None:
         """Update entity state attributes."""
+        if deferred > 0:
+            await asyncio.sleep(deferred)
+
         # pylint: disable = R0914,R0915
         if not self._kodi_connection.connected:
             _LOG.debug("[%s] Update states requested but not connected", self.device_config.address)
             self._reset_state()
             return
-        _LOG.debug("[%s] Update states", self.device_config.address)
+
         if self._update_lock.locked():
             _LOG.debug("[%s] Update states already locked", self.device_config.address)
             return
+        else:
+            _LOG.debug("[%s] Update states", self.device_config.address)
         await self._update_lock.acquire()
         updated_data = {}
 
@@ -632,6 +638,7 @@ class KodiDevice:
             if thumbnail != self._thumbnail:
                 self._thumbnail = thumbnail
                 self._media_image_url = self._kodi.thumbnail_url(thumbnail)
+                self._media_image_data = ""
                 # Not working with smb links.
                 # TODO extend this approach for other media types
                 if self._item["type"] == "movie" and "@smb" in thumbnail:
@@ -650,7 +657,7 @@ class KodiDevice:
                 if self._download_media_image:
                     try:
                         async with ClientSession() as session:
-                            async with session.get(self._media_image_url) as response:
+                            async with session.get(self._media_image_url, timeout=ARTWORK_TIMEOUT) as response:
                                 buffer = b""
                                 async for data, end_of_http_chunk in response.content.iter_chunks():
                                     buffer += data
@@ -671,6 +678,9 @@ class KodiDevice:
             if media_title != self._media_title:
                 self._media_title = media_title
                 updated_data[MediaAttr.MEDIA_TITLE] = self._media_title
+                # If title changed, request a deferred artwork update as it may not be available at this time
+                asyncio.create_task(self._update_states(deferred=4))
+
             artists = self._item.get("artist")
             season: int | None = self._item.get("season")
             episode: int | None = self._item.get("episode")
