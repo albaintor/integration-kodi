@@ -189,7 +189,6 @@ class KodiDevice:
         self._media_title = ""
         self._media_image_url = ""
         self._media_image_data = ""
-        self._download_media_image = True
         self._thumbnail = ""
         self._media_artist = ""
         self._media_album = ""
@@ -661,7 +660,7 @@ class KodiDevice:
                                   self.device_config.address,
                                   thumbnail,
                                   self._media_image_url, ex)
-                if self._download_media_image:
+                if self._device_config.download_artwork:
                     try:
                         async with ClientSession() as session:
                             async with session.get(self._media_image_url, timeout=ARTWORK_TIMEOUT) as response:
@@ -677,7 +676,7 @@ class KodiDevice:
                 _LOG.debug("[%s] Kodi changed thumbnail %s => %s", self.device_config.address,
                            thumbnail, self._media_image_url)
                 # self._media_image_url = self._media_image_url.removesuffix('%2F')
-                if self._download_media_image:
+                if self._device_config.download_artwork:
                     updated_data[MediaAttr.MEDIA_IMAGE_URL] = self._media_image_data
                 else:
                     updated_data[MediaAttr.MEDIA_IMAGE_URL] = self._media_image_url
