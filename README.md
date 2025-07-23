@@ -33,6 +33,7 @@ Note : this release requires remote firmware `>= 1.7.10`
 - Colored buttons
 - Subtitle/audio language switching
 - Fast forward / rewind
+- Stop
 - Simple commands (more can be added) : video menu, toggle fullscreen, zoom in/out, increase/decrease aspect ratio, toggle subtitles, subtitles delay minus/plus, audio delay minus/plus
 
 

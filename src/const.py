@@ -81,7 +81,11 @@ KODI_SIMPLE_COMMANDS = {
     "APP_SHUTDOWN": "System.Shutdown",
     "APP_REBOOT": "System.Reboot",
     "APP_HIBERNATE": "System.Hibernate",
-    "APP_SUSPEND": "System.Suspend"
+    "APP_SUSPEND": "System.Suspend",
+    "ACTION_BLUE": "blue",
+    "ACTION_GREEN": "green",
+    "ACTION_RED": "red",
+    "ACTION_YELLOW": "yellow",
 }
 
 KODI_SIMPLE_COMMANDS_DIRECT = [
@@ -96,10 +100,6 @@ KODI_ACTIONS_KEYMAP = {
     Commands.AUDIO_TRACK: "audionextlanguage",
     Commands.FAST_FORWARD: "fastforward",
     Commands.REWIND: "rewind",
-    Commands.FUNCTION_GREEN: "green",
-    Commands.FUNCTION_BLUE: "blue",
-    Commands.FUNCTION_RED: "red",
-    Commands.FUNCTION_YELLOW: "yellow",
     Commands.MENU: "menu",
     Commands.INFO: "info",
 }
@@ -139,6 +139,10 @@ KODI_BUTTONS_KEYMAP: dict[str, ButtonKeymap] = {
     Commands.DIGIT_9: {"button": "nine", "keymap": "R1"},
     Commands.RECORD: {"button": "record", "keymap": "R1"},
     Commands.GUIDE: {"button": "guide", "keymap": "R1"},
+    Commands.FUNCTION_GREEN: {"button": "green", "keymap": "R1"},
+    Commands.FUNCTION_BLUE: {"button": "blue", "keymap": "R1"},
+    Commands.FUNCTION_RED: {"button": "red", "keymap": "R1"},
+    Commands.FUNCTION_YELLOW: {"button": "yellow", "keymap": "R1"},
 }
 
 KODI_REMOTE_BUTTONS_MAPPING: [DeviceButtonMapping] = [
@@ -157,6 +161,9 @@ KODI_REMOTE_BUTTONS_MAPPING: [DeviceButtonMapping] = [
     {"button": Buttons.VOLUME_UP, "short_press": {"cmd_id": Commands.VOLUME_UP}},
     {"button": Buttons.VOLUME_DOWN, "short_press": {"cmd_id": Commands.VOLUME_DOWN}},
     {"button": Buttons.MUTE, "short_press": {"cmd_id": Commands.MUTE_TOGGLE}},
+    {"button": "STOP", "short_press": {"cmd_id": Commands.STOP}}, # TODO missing R3 buttons in UCAPI
+    {"button": "MENU", "short_press": {"cmd_id": Commands.CONTEXT_MENU}},  # TODO missing R3 buttons in UCAPI
+
 ]
 
 # All defined commands for remote entity
