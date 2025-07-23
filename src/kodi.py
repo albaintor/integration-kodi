@@ -633,7 +633,6 @@ class KodiDevice:
                 case ArtworkType.DISCART:
                     thumbnail = art.get("discart", None)
 
-            changed_thumbnail = False
             if thumbnail is None:
                 thumbnail = self._item.get("thumbnail")
             if thumbnail != self._thumbnail:
@@ -680,25 +679,21 @@ class KodiDevice:
                     updated_data[MediaAttr.MEDIA_IMAGE_URL] = self._media_image_data
                 else:
                     updated_data[MediaAttr.MEDIA_IMAGE_URL] = self._media_image_url
-                if len(updated_data[MediaAttr.MEDIA_IMAGE_URL]) > 0:
-                    changed_thumbnail = True
 
             media_title = self._item.get("title") or self._item.get("label") or self._item.get("file")
+
+            changed_media = False
             if media_title != self._media_title:
                 self._media_title = media_title
                 updated_data[MediaAttr.MEDIA_TITLE] = self._media_title
-                # If title changed, request a deferred artwork update as it may not be available at this time
-                if changed_thumbnail:
-                    deferred = 4
-                    _LOG.debug("[%s] Kodi changed title %s but thumbnail is empty, will try again in %s seconds",
-                               self.device_config.address, media_title, deferred)
-                    asyncio.create_task(self._update_states(deferred=deferred))
+                changed_media = True
 
             artists = self._item.get("artist")
             season: int | None = self._item.get("season")
             episode: int | None = self._item.get("episode")
             if artists and len(artists) > 0:
                 media_artist = artists[0]
+                changed_media = True
             elif (season and season > 0) or (episode and episode > 0):
                 media_artist = ""
                 if season and season > 0:
@@ -710,14 +705,23 @@ class KodiDevice:
             if media_artist != self._media_artist:
                 self._media_artist = media_artist
                 updated_data[MediaAttr.MEDIA_ARTIST] = self._media_artist
+                changed_media = True
             media_album = self._item.get("album")
             if media_album != self._media_album:
                 self._media_album = media_album
                 updated_data[MediaAttr.MEDIA_ALBUM] = self._media_album
+                changed_media = True
             item_type = KODI_MEDIA_TYPES.get(self._item.get("type"))
             if item_type != self._media_type:
                 self._media_type = item_type
                 updated_data[MediaAttr.MEDIA_TYPE] = self.media_type
+
+            # If media changed, request a deferred artwork update as it may not be available at this time
+            if changed_media and len(self._media_image_url) == 0:
+                deferred = 4
+                _LOG.debug("[%s] Kodi changed media %s but thumbnail is empty, will try again in %s seconds",
+                           self.device_config.address, media_title, deferred)
+                asyncio.create_task(self._update_states(deferred=deferred))
         else:
             self._reset_state([])
             self._media_position = 0
