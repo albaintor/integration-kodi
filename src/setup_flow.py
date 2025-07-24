@@ -33,7 +33,7 @@ from ucapi import (
     UserDataResponse,
 )
 
-from src.const import KODI_ARTWORK_LABELS, KODI_ARTWORK_TVSHOWS_LABELS
+from const import KODI_ARTWORK_LABELS, KODI_ARTWORK_TVSHOWS_LABELS
 
 _LOG = logging.getLogger(__name__)
 
