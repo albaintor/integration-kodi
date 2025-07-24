@@ -189,10 +189,9 @@ class KodiDevice:
         self._media_title = ""
         self._media_image_url = ""
         self._media_image_data = ""
-        self._thumbnail = ""
         self._media_artist = ""
         self._media_album = ""
-        self._thumbnail = None
+        self._thumbnail: str|None = None
         self._attr_state = MediaStates.OFF
         self._websocket_task = None
         self._buffered_callbacks = {}
@@ -530,11 +529,11 @@ class KodiDevice:
 
     async def _reset_media_artwork(self):
         """Emit artwork data only."""
-        updated_data = {
-            MediaAttr.MEDIA_IMAGE_URL: ""
-        }
-        self.events.emit(Events.UPDATE, self.id, updated_data)
-        await asyncio.sleep(0)
+        # updated_data = {
+        #     MediaAttr.MEDIA_IMAGE_URL: ""
+        # }
+        # self.events.emit(Events.UPDATE, self.id, updated_data)
+        # await asyncio.sleep(0)
         updated_data = {
             MediaAttr.MEDIA_IMAGE_URL: self.media_artwork
         }
@@ -691,8 +690,8 @@ class KodiDevice:
                         _LOG.warning("[%s] Failed to download artwork : %s", self.device_config.address, ex)
                         self._media_image_data = ""
 
-                _LOG.debug("[%s] Kodi changed thumbnail %s => %s", self.device_config.address,
-                           thumbnail, self.media_artwork)
+                _LOG.debug("[%s] Kodi changed thumbnail %s : %s", self.device_config.address,
+                           self._thumbnail, self.media_artwork)
                 # self._media_image_url = self._media_image_url.removesuffix('%2F')
                 updated_data[MediaAttr.MEDIA_IMAGE_URL] = self.media_artwork
 
@@ -746,14 +745,14 @@ class KodiDevice:
             self._media_title = ""
             self._media_album = ""
             self._media_artist = ""
-            self._media_image_url = ""
-            self._thumbnail = ""
+            #self._media_image_url = ""
+            #self._thumbnail = None
             updated_data[MediaAttr.MEDIA_POSITION] = 0
             updated_data[MediaAttr.MEDIA_DURATION] = 0
             updated_data[MediaAttr.MEDIA_TITLE] = ""
             updated_data[MediaAttr.MEDIA_ALBUM] = ""
             updated_data[MediaAttr.MEDIA_ARTIST] = ""
-            updated_data[MediaAttr.MEDIA_IMAGE_URL] = ""
+            #updated_data[MediaAttr.MEDIA_IMAGE_URL] = ""
 
         self._position_timestamp = time.time()
         if self._attr_state != self.get_state():
