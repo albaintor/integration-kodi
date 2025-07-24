@@ -43,7 +43,8 @@ async def main():
             username=username,
             ssl=False,
             password=password,
-            artwork_type=0,
+            artwork_type="fanart",
+            artwork_type_tvshows="season.banner",
             media_update_task=True,
             download_artwork=False
         )
