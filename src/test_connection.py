@@ -44,7 +44,8 @@ async def main():
             ssl=False,
             password=password,
             artwork_type=0,
-            media_update_task=True
+            media_update_task=True,
+            download_artwork=False
         )
     )
     # await client.power_on()

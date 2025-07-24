@@ -48,7 +48,8 @@ class KodiConfigDevice:
     username: str
     ssl: bool
     password: str
-    artwork_type: int
+    artwork_type: str
+    artwork_type_tvshows: str
     media_update_task: bool
     download_artwork: bool
 
@@ -144,6 +145,7 @@ class Devices:
                 item.password = device.password
                 item.ssl = device.ssl
                 item.artwork_type = device.artwork_type
+                item.artwork_type_tvshows = device.artwork_type_tvshows
                 item.media_update_task = device.media_update_task
                 item.download_artwork = device.download_artwork
                 return self.store()

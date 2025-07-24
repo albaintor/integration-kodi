@@ -33,6 +33,8 @@ from ucapi import (
     UserDataResponse,
 )
 
+from src.const import KODI_ARTWORK_LABELS, KODI_ARTWORK_TVSHOWS_LABELS
+
 _LOG = logging.getLogger(__name__)
 
 
@@ -58,18 +60,7 @@ _discovered_kodis: list[dict[str, str]] = []
 _pairing_device: KodiConnection | None = None
 _pairing_device_ws: KodiWSConnection | None = None
 _reconfigured_device: KodiConfigDevice | None = None
-_artwork_types_input = [
-                {"id": "0", "label": {"en": "Thumbnail", "fr": "Standard"}},
-                {"id": "1", "label": {"en": "Fan art", "fr": "Fan art"}},
-                {"id": "2", "label": {"en": "Poster", "fr": "Poster"}},
-                {"id": "3", "label": {"en": "Landscape", "fr": "Paysage"}},
-                {"id": "4", "label": {"en": "Key art", "fr": "Key art"}},
-                {"id": "5", "label": {"en": "Banner", "fr": "Affiche"}},
-                {"id": "6", "label": {"en": "Clear art", "fr": "Clear art"}},
-                {"id": "7", "label": {"en": "Clear logo", "fr": "Clear logo"}},
-                {"id": "8", "label": {"en": "Disc art", "fr": "Disc art"}},
-                {"id": "9", "label": {"en": "Icon", "fr": "Icône"}}
-            ]
+
 # pylint: disable = R0911
 _user_input_manual = RequestUserInput(
     {"en": "Setup mode", "de": "Setup Modus", "fr": "Installation"},
@@ -123,11 +114,19 @@ _user_input_manual = RequestUserInput(
             "label": {"en": "Use SSL", "fr": "Utiliser SSL"},
         },
         {
-            "field": {"dropdown": {"value": "0", "items": _artwork_types_input}},
+            "field": {"dropdown": {"value": "thumb", "items": KODI_ARTWORK_LABELS}},
             "id": "artwork_type",
             "label": {
                 "en": "Artwork type to display",
                 "fr": "Type d'image média à afficher",
+            },
+        },
+        {
+            "field": {"dropdown": {"value": "thumb", "items": KODI_ARTWORK_TVSHOWS_LABELS}},
+            "id": "artwork_type_tvshows",
+            "label": {
+                "en": "Artwork type to display for TV Shows",
+                "fr": "Type d'image média à afficher pour les séries",
             },
         },
         {
@@ -414,11 +413,19 @@ async def handle_discovery(_msg: UserDataResponse) -> RequestUserInput | SetupEr
                 "label": {"en": "Use SSL", "fr": "Utiliser SSL"},
             },
             {
-                "field": {"dropdown": {"value": "0", "items": _artwork_types_input}},
+                "field": {"dropdown": {"value": "thumb", "items": KODI_ARTWORK_LABELS}},
                 "id": "artwork_type",
                 "label": {
                     "en": "Artwork type to display",
                     "fr": "Type d'image média à afficher",
+                },
+            },
+            {
+                "field": {"dropdown": {"value": "thumb", "items": KODI_ARTWORK_TVSHOWS_LABELS}},
+                "id": "artwork_type_tvshows",
+                "label": {
+                    "en": "Artwork type to display for TV Shows",
+                    "fr": "Type d'image média à afficher pour les séries",
                 },
             },
             {
@@ -513,12 +520,21 @@ async def handle_configuration_mode(msg: UserDataResponse) -> RequestUserInput |
                         "label": {"en": "Use SSL", "fr": "Utiliser SSL"},
                     },
                     {
-                        "field": {"dropdown": {"value": str(_reconfigured_device.artwork_type),
-                                               "items": _artwork_types_input}},
+                        "field": {"dropdown": {"value": _reconfigured_device.artwork_type,
+                                               "items": KODI_ARTWORK_LABELS}},
                         "id": "artwork_type",
                         "label": {
-                            "en": "Artwork type",
-                            "fr": "Type d'image",
+                            "en": "Artwork type to display",
+                            "fr": "Type d'image média à afficher",
+                        },
+                    },
+                    {
+                        "field": {"dropdown": {"value": _reconfigured_device.artwork_type_tvshows,
+                                               "items": KODI_ARTWORK_TVSHOWS_LABELS}},
+                        "id": "artwork_type_tvshows",
+                        "label": {
+                            "en": "Artwork type to display for TV Shows",
+                            "fr": "Type d'image média à afficher pour les séries",
                         },
                     },
                     {
@@ -582,7 +598,8 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
     username = msg.input_values["username"]
     password = msg.input_values["password"]
     ssl = msg.input_values["ssl"]
-    artwork_type_string = msg.input_values["artwork_type"]
+    artwork_type = msg.input_values.get("artwork_type", "thumb")
+    artwork_type_tvshows = msg.input_values.get("artwork_type_tvshows", "thumb")
     media_update_task = msg.input_values["media_update_task"]
     download_artwork = msg.input_values["download_artwork"]
 
@@ -590,12 +607,6 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
         ssl = False
     else:
         ssl = True
-
-    artwork_type = 0
-    try:
-        artwork_type = int(artwork_type_string)
-    except ValueError:
-        pass
 
     if media_update_task == "false":
         media_update_task = False
@@ -677,6 +688,7 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
             ws_port=ws_port,
             ssl=ssl,
             artwork_type=artwork_type,
+            artwork_type_tvshows=artwork_type_tvshows,
             media_update_task=media_update_task,
             download_artwork=download_artwork
         )
@@ -708,7 +720,8 @@ async def _handle_device_reconfigure(msg: UserDataResponse) -> SetupComplete | S
     username = msg.input_values["username"]
     password = msg.input_values["password"]
     ssl = msg.input_values["ssl"]
-    artwork_type_string = msg.input_values["artwork_type"]
+    artwork_type = msg.input_values.get("artwork_type", "thumb")
+    artwork_type_tvshows = msg.input_values.get("artwork_type_tvshows", "thumb")
     media_update_task = msg.input_values["media_update_task"]
     download_artwork = msg.input_values["download_artwork"]
 
@@ -716,12 +729,6 @@ async def _handle_device_reconfigure(msg: UserDataResponse) -> SetupComplete | S
         ssl = False
     else:
         ssl = True
-
-    artwork_type = 0
-    try:
-        artwork_type = int(artwork_type_string)
-    except ValueError:
-        pass
 
     if media_update_task == "false":
         media_update_task = False
@@ -741,6 +748,7 @@ async def _handle_device_reconfigure(msg: UserDataResponse) -> SetupComplete | S
     _reconfigured_device.ws_port = ws_port
     _reconfigured_device.ssl = ssl
     _reconfigured_device.artwork_type = artwork_type
+    _reconfigured_device.artwork_type_tvshows = artwork_type_tvshows
     _reconfigured_device.media_update_task = media_update_task
     _reconfigured_device.download_artwork = download_artwork
 

@@ -609,29 +609,21 @@ class KodiDevice:
                     "episode",
                 ],
             )
-            thumbnail = None
+
+            item_type = KODI_MEDIA_TYPES.get(self._item.get("type"))
+            if item_type != self._media_type:
+                self._media_type = item_type
+                updated_data[MediaAttr.MEDIA_TYPE] = self.media_type
+
             art = self._item.get("art", dict())
-            match self._device_config.artwork_type:
-                case ArtworkType.ICON:
-                    thumbnail = art.get("icon", None)
-                case ArtworkType.BANNER:
-                    thumbnail = art.get("banner", None)
-                case ArtworkType.FANART:
-                    thumbnail = self._item.get("fanart")
-                    if thumbnail is None:
-                        thumbnail = art.get("fanart", None)
-                case ArtworkType.KEYART:
-                    thumbnail = art.get("keyart", None)
-                case ArtworkType.LANDSCAPE:
-                    thumbnail = art.get("landscape", None)
-                case ArtworkType.POSTER:
-                    thumbnail = art.get("poster", None)
-                case ArtworkType.CLEARART:
-                    thumbnail = art.get("clearart", None)
-                case ArtworkType.CLEARLOGO:
-                    thumbnail = art.get("clearlogo", None)
-                case ArtworkType.DISCART:
-                    thumbnail = art.get("discart", None)
+            if self.media_type == MediaType.TVSHOW:
+                artwork_type = self._device_config.artwork_type_tvshows
+            else:
+                artwork_type = self._device_config.artwork_type
+
+            thumbnail = art.get(artwork_type, None)
+            if thumbnail is None and artwork_type == "fanart":
+                thumbnail = self._item.get("fanart")
 
             if thumbnail is None:
                 thumbnail = self._item.get("thumbnail")
@@ -711,10 +703,6 @@ class KodiDevice:
                 self._media_album = media_album
                 updated_data[MediaAttr.MEDIA_ALBUM] = self._media_album
                 changed_media = True
-            item_type = KODI_MEDIA_TYPES.get(self._item.get("type"))
-            if item_type != self._media_type:
-                self._media_type = item_type
-                updated_data[MediaAttr.MEDIA_TYPE] = self.media_type
 
             # If media changed, request a deferred artwork update as it may not be available at this time
             if changed_media and len(self._media_image_url) == 0:
