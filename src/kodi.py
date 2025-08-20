@@ -68,12 +68,12 @@ class ArtworkType(IntEnum):
 
 
 async def retry_call_command(
-        timeout: float,
-        bufferize: bool,
-        func: Callable[Concatenate[_KodiDeviceT, _P], Awaitable[ucapi.StatusCodes | None]],
-        obj: _KodiDeviceT,
-        *args: _P.args,
-        **kwargs: _P.kwargs,
+    timeout: float,
+    bufferize: bool,
+    func: Callable[Concatenate[_KodiDeviceT, _P], Awaitable[ucapi.StatusCodes | None]],
+    obj: _KodiDeviceT,
+    *args: _P.args,
+    **kwargs: _P.kwargs,
 ) -> ucapi.StatusCodes:
     """Retry call command when failed"""
     # Launch reconnection task if not active
@@ -109,7 +109,7 @@ def retry(*, timeout: float = 5, bufferize=False) -> Callable[
     Callable[Concatenate[_KodiDeviceT, _P], Coroutine[Any, Any, ucapi.StatusCodes | None]],
 ]:
     def decorator(
-            func: Callable[Concatenate[_KodiDeviceT, _P], Awaitable[ucapi.StatusCodes | None]]
+        func: Callable[Concatenate[_KodiDeviceT, _P], Awaitable[ucapi.StatusCodes | None]],
     ) -> Callable[Concatenate[_KodiDeviceT, _P], Coroutine[Any, Any, ucapi.StatusCodes | None]]:
         @wraps(func)
         async def wrapper(obj: _KodiDeviceT, *args: _P.args, **kwargs: _P.kwargs) -> ucapi.StatusCodes:
@@ -157,9 +157,9 @@ class KodiDevice:
     """Representing a LG TV Device."""
 
     def __init__(
-            self,
-            device_config: KodiConfigDevice,
-            loop: AbstractEventLoop | None = None,
+        self,
+        device_config: KodiConfigDevice,
+        loop: AbstractEventLoop | None = None,
     ):
         """Create instance with given IP or hostname of AVR."""
         # TODO find a better ID than the IP address
@@ -191,7 +191,7 @@ class KodiDevice:
         self._media_image_data = ""
         self._media_artist = ""
         self._media_album = ""
-        self._thumbnail: str|None = None
+        self._thumbnail: str | None = None
         self._attr_state = MediaStates.OFF
         self._websocket_task = None
         self._buffered_callbacks = {}
@@ -514,15 +514,17 @@ class KodiDevice:
             await asyncio.sleep(deferred)
             self._position_timestamp = None
 
-        if (self._position_timestamp is not None and self._position_timestamp + float(UPDATE_POSITION_INTERVAL - 10)
-                > time.time()):
+        if (
+            self._position_timestamp is not None
+            and self._position_timestamp + float(UPDATE_POSITION_INTERVAL - 10) > time.time()
+        ):
             return
         if (
-                not self._kodi_connection.connected
-                or self._update_lock.locked()
-                or self._kodi_is_off
-                or self._players is None
-                or len(self._players) == 0
+            not self._kodi_connection.connected
+            or self._update_lock.locked()
+            or self._kodi_is_off
+            or self._players is None
+            or len(self._players) == 0
         ):
             return
         await self._update_states()
@@ -534,9 +536,7 @@ class KodiDevice:
         # }
         # self.events.emit(Events.UPDATE, self.id, updated_data)
         # await asyncio.sleep(0)
-        updated_data = {
-            MediaAttr.MEDIA_IMAGE_URL: self.media_artwork
-        }
+        updated_data = {MediaAttr.MEDIA_IMAGE_URL: self.media_artwork}
         _LOG.debug("[%s] Emit of artwork %s", self.device_config.address, updated_data)
         self.events.emit(Events.UPDATE, self.id, updated_data)
         await asyncio.sleep(0)
@@ -556,212 +556,237 @@ class KodiDevice:
             _LOG.debug("[%s] Update states already locked", self.device_config.address)
             return
         else:
-            _LOG.debug("[%s] Update states", self.device_config.address)
+            _LOG.debug("[%s] Update states in progress", self.device_config.address)
         await self._update_lock.acquire()
         updated_data = {}
 
-        self._players = await self._kodi.get_players()
-        if self._kodi_is_off:
-            current_state = self.state
-            self._reset_state()
-            if current_state != self.state:
-                self.events.emit(Events.UPDATE, self.id, {MediaAttr.STATE: self.state})
+        try:
+            self._players = await self._kodi.get_players()
+            if self._kodi_is_off:
+                current_state = self.state
+                self._reset_state()
+                if current_state != self.state:
+                    self.events.emit(Events.UPDATE, self.id, {MediaAttr.STATE: self.state})
                 self._update_lock.release()
-            return
+                return
 
-        if self._players and len(self._players) > 0:
-            self._app_properties = await self._kodi.get_application_properties(["volume", "muted"])
-            volume = int(self._app_properties["volume"])
-            if self._volume != volume:
-                self._volume = volume
-                updated_data[MediaAttr.VOLUME] = self._volume
-            muted = self._app_properties["muted"]
-            if muted != self._is_volume_muted:
-                self._is_volume_muted = muted
-                updated_data[MediaAttr.MUTED] = muted
+            if self._players and len(self._players) > 0:
+                self._app_properties = await self._kodi.get_application_properties(["volume", "muted"])
+                volume = int(self._app_properties["volume"])
+                if self._volume != volume:
+                    self._volume = volume
+                    updated_data[MediaAttr.VOLUME] = self._volume
+                muted = self._app_properties["muted"]
+                if muted != self._is_volume_muted:
+                    self._is_volume_muted = muted
+                    updated_data[MediaAttr.MUTED] = muted
 
-            self._properties = await self._kodi.get_player_properties(
-                self._players[0], ["time", "totaltime", "speed", "live"]
+                self._properties = await self._kodi.get_player_properties(
+                    self._players[0], ["time", "totaltime", "speed", "live"]
+                )
+                position = self._properties["time"]
+                if position:
+                    media_position = position["hours"] * 3600 + position["minutes"] * 60 + position["seconds"]
+                else:
+                    media_position = 0
+                if self._media_position != media_position or self._media_position_updated_at is None:
+                    self._media_position = media_position
+                    updated_data[MediaAttr.MEDIA_POSITION] = media_position
+                    self._media_position_updated_at = datetime.datetime.now(datetime.timezone.utc)
+                    updated_data["media_position_updated_at"] = self.media_position_updated_at
+
+                totaltime = self._properties["totaltime"]
+                if totaltime:
+                    duration = totaltime["hours"] * 3600 + totaltime["minutes"] * 60 + totaltime["seconds"]
+                else:
+                    duration = 0
+                if self._media_duration != duration:
+                    self._media_duration = duration
+                    updated_data[MediaAttr.MEDIA_POSITION] = self.media_position
+                    updated_data[MediaAttr.MEDIA_DURATION] = duration
+
+                self._item = await self._kodi.get_playing_item_properties(
+                    self._players[0],
+                    [
+                        "title",
+                        "file",
+                        "uniqueid",
+                        "thumbnail",
+                        "fanart",
+                        "art",
+                        "artist",
+                        "albumartist",
+                        "showtitle",
+                        "album",
+                        "season",
+                        "episode",
+                    ],
+                )
+
+                _LOG.debug("[%s] Kodi extracted properties : %s", self.device_config.address, self._item)
+
+                item_type = KODI_MEDIA_TYPES.get(self._item.get("type"))
+                if item_type != self._media_type:
+                    self._media_type = item_type
+                    updated_data[MediaAttr.MEDIA_TYPE] = self.media_type
+
+                art = self._item.get("art", dict())
+                if self.media_type == MediaType.TVSHOW:
+                    artwork_type = self._device_config.artwork_type_tvshows
+                else:
+                    artwork_type = self._device_config.artwork_type
+
+                # Workaround for remote bug : when stopping/playing the same media or another media with the same artwork
+                # it won't be displayed
+                current_artwork = self.media_artwork
+                is_starting_media = False
+                # Playback state goes from stop (MediaStates.ON) to play
+                if self._attr_state == self._attr_state == MediaStates.ON and self.get_state() in [
+                    MediaStates.PLAYING,
+                    MediaStates.BUFFERING,
+                    MediaStates.PAUSED,
+                ]:
+                    is_starting_media = True
+
+                thumbnail = art.get(artwork_type, None)
+                if thumbnail is None and artwork_type == "fanart":
+                    thumbnail = self._item.get("fanart")
+
+                if thumbnail is None or thumbnail == "":
+                    thumbnail = self._item.get("thumbnail", None)
+
+                if thumbnail == "":
+                    thumbnail = None
+
+                if thumbnail != self._thumbnail:
+                    self._thumbnail = thumbnail
+                    self._media_image_url = self._kodi.thumbnail_url(thumbnail) or ""
+                    self._media_image_data = ""
+                    # Not working with smb links.
+                    # TODO extend this approach for other media types
+                    if self._item["type"] == "movie" and "@smb" in thumbnail:
+                        try:
+                            result = await self._kodi.call_method(
+                                "VideoLibrary.GetAvailableArt",
+                                **{"item": {"movieid": self._item["id"]}, "arttype": "poster"},
+                            )
+                            if result and len(result["availableart"]) > 0:
+                                self._media_image_url = result["availableart"][0]["url"] or ""
+                                self._media_image_url = self._media_image_url.removeprefix("image://").removesuffix("/")
+                                self._media_image_url = urllib.parse.unquote(self._media_image_url)
+                        # pylint: disable = W0718
+                        except Exception as ex:
+                            _LOG.info(
+                                "[%s] Kodi please report faulty thumbnail analysis %s : %s (%s)",
+                                self.device_config.address,
+                                thumbnail,
+                                self._media_image_url,
+                                ex,
+                            )
+                    if self._device_config.download_artwork:
+                        try:
+                            async with ClientSession() as session:
+                                async with session.get(self._media_image_url, timeout=ARTWORK_TIMEOUT) as response:
+                                    buffer = b""
+                                    async for data, end_of_http_chunk in response.content.iter_chunks():
+                                        buffer += data
+                                    self._media_image_data = (
+                                        "data:"
+                                        + response.content_type
+                                        + ";base64,"
+                                        + base64.b64encode(buffer).decode("utf-8")
+                                    )
+                        except Exception as ex:
+                            _LOG.warning("[%s] Failed to download artwork : %s", self.device_config.address, ex)
+                            self._media_image_data = ""
+
+                    _LOG.debug(
+                        "[%s] Kodi changed thumbnail %s : %s",
+                        self.device_config.address,
+                        self._thumbnail,
+                        self.media_artwork,
+                    )
+                    # self._media_image_url = self._media_image_url.removesuffix('%2F')
+                    updated_data[MediaAttr.MEDIA_IMAGE_URL] = self.media_artwork
+
+                media_title = self._item.get("title") or self._item.get("label") or self._item.get("file")
+
+                changed_media = False
+                if media_title != self._media_title:
+                    self._media_title = media_title
+                    updated_data[MediaAttr.MEDIA_TITLE] = self._media_title
+                    changed_media = True
+
+                artists = self._item.get("artist")
+                season: int | None = self._item.get("season")
+                episode: int | None = self._item.get("episode")
+                if artists and len(artists) > 0:
+                    media_artist = artists[0]
+                elif (season and season > 0) or (episode and episode > 0):
+                    media_artist = ""
+                    if season and season > 0:
+                        media_artist = "S" + str(season)
+                    if episode and episode > 0:
+                        media_artist += "E" + str(episode)
+                else:
+                    media_artist = ""
+                if media_artist != self._media_artist:
+                    self._media_artist = media_artist
+                    updated_data[MediaAttr.MEDIA_ARTIST] = self._media_artist
+                    changed_media = True
+                media_album = self._item.get("album")
+                if media_album != self._media_album:
+                    self._media_album = media_album
+                    updated_data[MediaAttr.MEDIA_ALBUM] = self._media_album
+                    changed_media = True
+
+                if is_starting_media and len(self.media_artwork) > 0 and current_artwork == self.media_artwork:
+                    _LOG.debug(
+                        "[%s] Starting new media but unchanged artwork, sending empty artwork to reset it",
+                        self.device_config.address,
+                    )
+                    await self._reset_media_artwork()
+
+                # If media changed, request a deferred artwork update as it may not be available at this time
+                if changed_media and len(self.media_artwork) == 0:
+                    deferred = 4
+                    _LOG.debug(
+                        '[%s] Kodi changed media to "%s" but artwork is empty, will try again in %s seconds',
+                        self.device_config.address,
+                        media_title,
+                        deferred,
+                    )
+                    asyncio.create_task(self._update_states(deferred=deferred))
+
+            else:
+                self._reset_state([])
+                self._media_position = 0
+                self._media_duration = 0
+                self._media_title = ""
+                self._media_album = ""
+                self._media_artist = ""
+                # self._media_image_url = ""
+                # self._thumbnail = None
+                updated_data[MediaAttr.MEDIA_POSITION] = 0
+                updated_data[MediaAttr.MEDIA_DURATION] = 0
+                updated_data[MediaAttr.MEDIA_TITLE] = ""
+                updated_data[MediaAttr.MEDIA_ALBUM] = ""
+                updated_data[MediaAttr.MEDIA_ARTIST] = ""
+                # updated_data[MediaAttr.MEDIA_IMAGE_URL] = ""
+
+            self._position_timestamp = time.time()
+            if self._attr_state != self.get_state():
+                self._attr_state = self.get_state()
+                updated_data[MediaAttr.STATE] = self.get_state()
+
+            if updated_data:
+                self.events.emit(Events.UPDATE, self.id, updated_data)
+        except Exception as ex:
+            _LOG.info(
+                "[%s] Update states : unknown error : %s",
+                self.device_config.address,
+                ex,
             )
-            position = self._properties["time"]
-            if position:
-                media_position = position["hours"] * 3600 + position["minutes"] * 60 + position["seconds"]
-            else:
-                media_position = 0
-            if self._media_position != media_position or self._media_position_updated_at is None:
-                self._media_position = media_position
-                updated_data[MediaAttr.MEDIA_POSITION] = media_position
-                self._media_position_updated_at = datetime.datetime.now(datetime.timezone.utc)
-                updated_data["media_position_updated_at"] = self.media_position_updated_at
-
-            totaltime = self._properties["totaltime"]
-            if totaltime:
-                duration = totaltime["hours"] * 3600 + totaltime["minutes"] * 60 + totaltime["seconds"]
-            else:
-                duration = 0
-            if self._media_duration != duration:
-                self._media_duration = duration
-                updated_data[MediaAttr.MEDIA_POSITION] = self.media_position
-                updated_data[MediaAttr.MEDIA_DURATION] = duration
-
-            self._item = await self._kodi.get_playing_item_properties(
-                self._players[0],
-                [
-                    "title",
-                    "file",
-                    "uniqueid",
-                    "thumbnail",
-                    "fanart",
-                    "art",
-                    "artist",
-                    "albumartist",
-                    "showtitle",
-                    "album",
-                    "season",
-                    "episode",
-                ],
-            )
-
-            _LOG.debug("[%s] Kodi extracted properties : %s", self.device_config.address,
-                       self._item)
-
-            item_type = KODI_MEDIA_TYPES.get(self._item.get("type"))
-            if item_type != self._media_type:
-                self._media_type = item_type
-                updated_data[MediaAttr.MEDIA_TYPE] = self.media_type
-
-            art = self._item.get("art", dict())
-            if self.media_type == MediaType.TVSHOW:
-                artwork_type = self._device_config.artwork_type_tvshows
-            else:
-                artwork_type = self._device_config.artwork_type
-
-            # Workaround for remote bug : when stopping/playing the same media or another media with the same artwork
-            # it won't be displayed
-            current_artwork = self.media_artwork
-            is_starting_media = False
-            # Playback state goes from stop (MediaStates.ON) to play
-            if (self._attr_state == self._attr_state == MediaStates.ON
-                    and self.get_state() in [MediaStates.PLAYING, MediaStates.BUFFERING, MediaStates.PAUSED]):
-                is_starting_media = True
-
-            thumbnail = art.get(artwork_type, None)
-            if thumbnail is None and artwork_type == "fanart":
-                thumbnail = self._item.get("fanart")
-
-            if thumbnail is None or thumbnail == "":
-                thumbnail = self._item.get("thumbnail", None)
-
-            if thumbnail == "":
-                thumbnail = None
-
-            if thumbnail != self._thumbnail:
-                self._thumbnail = thumbnail
-                self._media_image_url = self._kodi.thumbnail_url(thumbnail) or ""
-                self._media_image_data = ""
-                # Not working with smb links.
-                # TODO extend this approach for other media types
-                if self._item["type"] == "movie" and "@smb" in thumbnail:
-                    try:
-                        result = await self._kodi.call_method(
-                            "VideoLibrary.GetAvailableArt",
-                            **{"item": {"movieid": self._item["id"]}, "arttype": "poster"},
-                        )
-                        if result and len(result["availableart"]) > 0:
-                            self._media_image_url = result["availableart"][0]["url"] or ""
-                            self._media_image_url = self._media_image_url.removeprefix("image://").removesuffix("/")
-                            self._media_image_url = urllib.parse.unquote(self._media_image_url)
-                    # pylint: disable = W0718
-                    except Exception as ex:
-                        _LOG.info("[%s] Kodi please report faulty thumbnail analysis %s : %s (%s)",
-                                  self.device_config.address,
-                                  thumbnail,
-                                  self._media_image_url, ex)
-                if self._device_config.download_artwork:
-                    try:
-                        async with ClientSession() as session:
-                            async with session.get(self._media_image_url, timeout=ARTWORK_TIMEOUT) as response:
-                                buffer = b""
-                                async for data, end_of_http_chunk in response.content.iter_chunks():
-                                    buffer += data
-                                self._media_image_data = "data:" + response.content_type + ";base64," + base64.b64encode(
-                                    buffer).decode("utf-8")
-                    except Exception as ex:
-                        _LOG.warning("[%s] Failed to download artwork : %s", self.device_config.address, ex)
-                        self._media_image_data = ""
-
-                _LOG.debug("[%s] Kodi changed thumbnail %s : %s", self.device_config.address,
-                           self._thumbnail, self.media_artwork)
-                # self._media_image_url = self._media_image_url.removesuffix('%2F')
-                updated_data[MediaAttr.MEDIA_IMAGE_URL] = self.media_artwork
-
-            media_title = self._item.get("title") or self._item.get("label") or self._item.get("file")
-
-            changed_media = False
-            if media_title != self._media_title:
-                self._media_title = media_title
-                updated_data[MediaAttr.MEDIA_TITLE] = self._media_title
-                changed_media = True
-
-            artists = self._item.get("artist")
-            season: int | None = self._item.get("season")
-            episode: int | None = self._item.get("episode")
-            if artists and len(artists) > 0:
-                media_artist = artists[0]
-            elif (season and season > 0) or (episode and episode > 0):
-                media_artist = ""
-                if season and season > 0:
-                    media_artist = "S" + str(season)
-                if episode and episode > 0:
-                    media_artist += "E" + str(episode)
-            else:
-                media_artist = ""
-            if media_artist != self._media_artist:
-                self._media_artist = media_artist
-                updated_data[MediaAttr.MEDIA_ARTIST] = self._media_artist
-                changed_media = True
-            media_album = self._item.get("album")
-            if media_album != self._media_album:
-                self._media_album = media_album
-                updated_data[MediaAttr.MEDIA_ALBUM] = self._media_album
-                changed_media = True
-
-            if is_starting_media and len(self.media_artwork) > 0 and current_artwork == self.media_artwork:
-                _LOG.debug("[%s] Starting new media but unchanged artwork, sending empty artwork to reset it",
-                           self.device_config.address)
-                await self._reset_media_artwork()
-
-            # If media changed, request a deferred artwork update as it may not be available at this time
-            if changed_media and len(self.media_artwork) == 0:
-                deferred = 4
-                _LOG.debug("[%s] Kodi changed media to \"%s\" but artwork is empty, will try again in %s seconds",
-                           self.device_config.address, media_title, deferred)
-                asyncio.create_task(self._update_states(deferred=deferred))
-
-        else:
-            self._reset_state([])
-            self._media_position = 0
-            self._media_duration = 0
-            self._media_title = ""
-            self._media_album = ""
-            self._media_artist = ""
-            #self._media_image_url = ""
-            #self._thumbnail = None
-            updated_data[MediaAttr.MEDIA_POSITION] = 0
-            updated_data[MediaAttr.MEDIA_DURATION] = 0
-            updated_data[MediaAttr.MEDIA_TITLE] = ""
-            updated_data[MediaAttr.MEDIA_ALBUM] = ""
-            updated_data[MediaAttr.MEDIA_ARTIST] = ""
-            #updated_data[MediaAttr.MEDIA_IMAGE_URL] = ""
-
-        self._position_timestamp = time.time()
-        if self._attr_state != self.get_state():
-            self._attr_state = self.get_state()
-            updated_data[MediaAttr.STATE] = self.get_state()
-
-        if updated_data:
-            self.events.emit(Events.UPDATE, self.id, updated_data)
-
         self._update_lock.release()
 
     @property
@@ -778,7 +803,7 @@ class KodiDevice:
             MediaAttr.MEDIA_ARTIST: self.media_artist if self.media_artist else "",
             MediaAttr.MEDIA_POSITION: self.media_position,
             MediaAttr.MEDIA_DURATION: self.media_duration,
-            "media_position_updated_at": self.media_position_updated_at if self.media_position_updated_at else ""
+            "media_position_updated_at": self.media_position_updated_at if self.media_position_updated_at else "",
         }
         return attributes
 
