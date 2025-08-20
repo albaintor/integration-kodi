@@ -38,13 +38,16 @@ KODI_ARTWORK_LABELS = [
     {"id": "clearart", "label": {"en": "Clear art", "fr": "Clear art"}},
     {"id": "clearlogo", "label": {"en": "Clear logo", "fr": "Clear logo"}},
     {"id": "discart", "label": {"en": "Disc art", "fr": "Disc art"}},
-    {"id": "icon", "label": {"en": "Icon", "fr": "Icône"}}
+    {"id": "icon", "label": {"en": "Icon", "fr": "Icône"}},
+    {"id": "set.fanart", "label": {"en": "Fanart set", "fr": "Jeu de fanart"}},
+    {"id": "set.poster", "label": {"en": "Poster set", "fr": "Jeu de poster"}},
 ]
 
 KODI_ARTWORK_TVSHOWS_LABELS = [
     {"id": "thumb", "label": {"en": "Thumbnail", "fr": "Standard"}},
     {"id": "season.banner", "label": {"en": "Season banner", "fr": "Affiche de la saison"}},
     {"id": "season.landscape", "label": {"en": "Season landscape", "fr": "Saison en paysage"}},
+    {"id": "season.poster", "label": {"en": "Season poster", "fr": "Affiche de la saison"}},
     {"id": "tvshow.banner", "label": {"en": "TV show banner", "fr": "Affiche de la série"}},
     {"id": "tvshow.characterart", "label": {"en": "TV show character art", "fr": "Personnages de la série"}},
     {"id": "tvshow.clearart", "label": {"en": "TV show clear art", "fr": "Affiche sans fond de la série"}},
@@ -52,7 +55,7 @@ KODI_ARTWORK_TVSHOWS_LABELS = [
     {"id": "tvshow.fanart", "label": {"en": "TV show fan art", "fr": "Fan art de la série"}},
     {"id": "tvshow.landscape", "label": {"en": "TV show landscape", "fr": "Affiche en paysage"}},
     {"id": "tvshow.poster", "label": {"en": "TV show poster", "fr": "Affiche de la série"}},
-    {"id": "icon", "label": {"en": "Icon", "fr": "Icône"}}
+    {"id": "icon", "label": {"en": "Icon", "fr": "Icône"}},
 ]
 
 KODI_FEATURES = [
@@ -115,9 +118,7 @@ KODI_SIMPLE_COMMANDS = {
     "ACTION_YELLOW": "yellow",
 }
 
-KODI_SIMPLE_COMMANDS_DIRECT = [
-    "System.Hibernate", "System.Reboot", "System.Shutdown", "System.Suspend"
-]
+KODI_SIMPLE_COMMANDS_DIRECT = ["System.Hibernate", "System.Reboot", "System.Shutdown", "System.Suspend"]
 
 # Taken from https://kodi.wiki/view/JSON-RPC_API/v10#Input.Action
 # (expand schema description),
@@ -188,9 +189,8 @@ KODI_REMOTE_BUTTONS_MAPPING: [DeviceButtonMapping] = [
     {"button": Buttons.VOLUME_UP, "short_press": {"cmd_id": Commands.VOLUME_UP}},
     {"button": Buttons.VOLUME_DOWN, "short_press": {"cmd_id": Commands.VOLUME_DOWN}},
     {"button": Buttons.MUTE, "short_press": {"cmd_id": Commands.MUTE_TOGGLE}},
-    {"button": "STOP", "short_press": {"cmd_id": Commands.STOP}}, # TODO missing R3 buttons in UCAPI
+    {"button": "STOP", "short_press": {"cmd_id": Commands.STOP}},  # TODO missing R3 buttons in UCAPI
     {"button": "MENU", "short_press": {"cmd_id": Commands.CONTEXT_MENU}},  # TODO missing R3 buttons in UCAPI
-
 ]
 
 # All defined commands for remote entity

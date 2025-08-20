@@ -46,7 +46,7 @@ async def main():
             artwork_type="fanart",
             artwork_type_tvshows="season.banner",
             media_update_task=True,
-            download_artwork=False
+            download_artwork=False,
         )
     )
     # await client.power_on()
@@ -57,19 +57,18 @@ async def main():
     properties = client._item
     print("Properties :")
     print_json(data=properties)
-    #await client.play_pause()
-    #await asyncio.sleep(4)
-    #await client.play_pause()
+    # await client.play_pause()
+    # await asyncio.sleep(4)
+    # await client.play_pause()
     # power_state = await client._tv.get_power_state()
     # _LOG.debug("Power state %s", power_state)
-    # tv_info = client._tv.tv_info
-    # _LOG.debug("TV Info %s", tv_info)
+    tv_info = client._tv.tv_info
+    _LOG.debug("TV Info %s", tv_info)
 
     # Validate pairing key (77)
     # await client.button("ENTER")
 
     # Validate pairing key (55)
-
 
 
 if __name__ == "__main__":
