@@ -329,7 +329,7 @@ def _configure_new_device(device_config: config.KodiConfigDevice, connect: bool 
     # the device should not yet be configured, but better be safe
     if device_config.id in _configured_kodis:
         device = _configured_kodis[device_config.id]
-        device.disconnect()
+        asyncio.create_task(device.disconnect())
     else:
         device = kodi.KodiDevice(device_config, loop=_LOOP)
 

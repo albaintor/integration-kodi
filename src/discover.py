@@ -7,6 +7,7 @@ This module implements a Remote Two integration driver for Kodi receivers.
 
 import asyncio
 import logging
+from typing import Any
 
 from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
 
@@ -22,7 +23,7 @@ class KodiDiscover(ServiceListener):
 
     _services_found = []
 
-    async def discover(self) -> []:
+    async def discover(self) -> list[Any]:
         """Discover instances."""
         self._services_found = []
         zeroconf = Zeroconf()
