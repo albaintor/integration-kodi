@@ -148,6 +148,7 @@ _user_input_manual = RequestUserInput(
 )
 
 
+# pylint: disable=R0911
 async def driver_setup_handler(msg: SetupDriver) -> SetupAction:
     """
     Dispatch driver setup requests to corresponding handlers.
@@ -246,7 +247,7 @@ async def handle_driver_setup(msg: DriverSetupRequest) -> RequestUserInput | Set
     reconfigure = msg.reconfigure
     _LOG.debug("Handle driver setup, reconfigure=%s", reconfigure)
     if reconfigure:
-        _setup_step = SetupSteps.WORKFLOW_MODE
+        _setup_step = SetupSteps.DEVICE_CONFIGURATION_MODE
 
         # get all configured devices for the user to choose from
         dropdown_devices = []
@@ -372,9 +373,132 @@ async def handle_driver_setup(msg: DriverSetupRequest) -> RequestUserInput | Set
             ],
         )
 
-    # Initial setup, make sure we have a clean configuration
-    config.devices.clear()  # triggers device instance removal
-    _setup_step = SetupSteps.DEVICE_CONFIGURATION_MODE
+
+async def handle_configuration_mode(msg: UserDataResponse) -> RequestUserInput | SetupComplete | SetupError:
+    """
+    Process user data response in a setup process.
+
+    If ``address`` field is set by the user: try connecting to device and retrieve model information.
+    Otherwise, start instances discovery and present the found devices to the user to choose from.
+
+    :param msg: response data from the requested user data
+    :return: the setup action on how to continue
+    """
+    global _setup_step
+    global _cfg_add_device
+    global _reconfigured_device
+
+    action = msg.input_values["action"]
+
+    _LOG.debug("Handle configuration mode")
+
+    # workaround for web-configurator not picking up first response
+    await asyncio.sleep(1)
+
+    match action:
+        case "add":
+            _cfg_add_device = True
+        case "remove":
+            choice = msg.input_values["choice"]
+            if not config.devices.remove(choice):
+                _LOG.warning("Could not remove device from configuration: %s", choice)
+                return SetupError(error_type=IntegrationSetupError.OTHER)
+            config.devices.store()
+            return SetupComplete()
+        case "configure":
+            # Reconfigure device if the identifier has changed
+            choice = msg.input_values["choice"]
+            selected_device = config.devices.get(choice)
+            if not selected_device:
+                _LOG.warning("Can not configure device from configuration: %s", choice)
+                return SetupError(error_type=IntegrationSetupError.OTHER)
+
+            _setup_step = SetupSteps.RECONFIGURE
+            _reconfigured_device = selected_device
+
+            return RequestUserInput(
+                {
+                    "en": "Configure your Kodi device",
+                    "fr": "Configurez votre appareil Kodi",
+                },
+                [
+                    {
+                        "field": {"text": {"value": _reconfigured_device.address}},
+                        "id": "address",
+                        "label": {"en": "IP address", "de": "IP-Adresse", "fr": "Adresse IP"},
+                    },
+                    {
+                        "field": {"text": {"value": _reconfigured_device.username}},
+                        "id": "username",
+                        "label": {"en": "Username", "fr": "Utilisateur"},
+                    },
+                    {
+                        "field": {"text": {"value": _reconfigured_device.password}},
+                        "id": "password",
+                        "label": {"en": "Password", "fr": "Mot de passe"},
+                    },
+                    {
+                        "field": {"text": {"value": str(_reconfigured_device.ws_port)}},
+                        "id": "ws_port",
+                        "label": {"en": "Websocket port", "fr": "Port websocket"},
+                    },
+                    {
+                        "field": {"text": {"value": str(_reconfigured_device.port)}},
+                        "id": "port",
+                        "label": {"en": "HTTP port", "fr": "Port HTTP"},
+                    },
+                    {
+                        "field": {"checkbox": {"value": _reconfigured_device.ssl}},
+                        "id": "ssl",
+                        "label": {"en": "Use SSL", "fr": "Utiliser SSL"},
+                    },
+                    {
+                        "field": {
+                            "dropdown": {"value": _reconfigured_device.artwork_type, "items": KODI_ARTWORK_LABELS}
+                        },
+                        "id": "artwork_type",
+                        "label": {
+                            "en": "Artwork type to display",
+                            "fr": "Type d'image média à afficher",
+                        },
+                    },
+                    {
+                        "field": {
+                            "dropdown": {
+                                "value": _reconfigured_device.artwork_type_tvshows,
+                                "items": KODI_ARTWORK_TVSHOWS_LABELS,
+                            }
+                        },
+                        "id": "artwork_type_tvshows",
+                        "label": {
+                            "en": "Artwork type to display for TV Shows",
+                            "fr": "Type d'image média à afficher pour les séries",
+                        },
+                    },
+                    {
+                        "field": {"checkbox": {"value": _reconfigured_device.media_update_task}},
+                        "id": "media_update_task",
+                        "label": {"en": "Enable media update task", "fr": "Activer la tâche de mise à jour du média"},
+                    },
+                    {
+                        "field": {"checkbox": {"value": _reconfigured_device.download_artwork}},
+                        "id": "download_artwork",
+                        "label": {
+                            "en": "Download artwork instead of transmitting URL to the remote",
+                            "fr": "Télécharger l'image au lieu de transmettre l'URL à la télécommande",
+                        },
+                    },
+                ],
+            )
+        case "reset":
+            config.devices.clear()  # triggers device instance removal
+        case "backup_restore":
+            return await _handle_backup_restore_step()
+        case _:
+            _LOG.error("Invalid configuration action: %s", action)
+            return SetupError(error_type=IntegrationSetupError.OTHER)
+
+    _setup_step = SetupSteps.DISCOVER
     return _user_input_manual
 
 
@@ -509,134 +633,6 @@ async def handle_discovery(_msg: UserDataResponse) -> RequestUserInput | SetupEr
             },
         ],
     )
-
-
-async def handle_configuration_mode(msg: UserDataResponse) -> RequestUserInput | SetupComplete | SetupError:
-    """
-    Process user data response in a setup process.
-
-    If ``address`` field is set by the user: try connecting to device and retrieve model information.
-    Otherwise, start Kodi instances discovery and present the found devices to the user to choose from.
-
-    :param msg: response data from the requested user data
-    :return: the setup action on how to continue
-    """
-    global _setup_step
-    global _cfg_add_device
-    global _reconfigured_device
-
-    action = msg.input_values["action"]
-
-    _LOG.debug("Handle configuration mode")
-
-    # workaround for web-configurator not picking up first response
-    await asyncio.sleep(1)
-
-    match action:
-        case "add":
-            _cfg_add_device = True
-        case "remove":
-            choice = msg.input_values["choice"]
-            if not config.devices.remove(choice):
-                _LOG.warning("Could not remove device from configuration: %s", choice)
-                return SetupError(error_type=IntegrationSetupError.OTHER)
-            config.devices.store()
-            return SetupComplete()
-        case "configure":
-            # Reconfigure device if the identifier has changed
-            choice = msg.input_values["choice"]
-            selected_device = config.devices.get(choice)
-            if not selected_device:
-                _LOG.warning("Can not configure device from configuration: %s", choice)
-                return SetupError(error_type=IntegrationSetupError.OTHER)
-
-            _setup_step = SetupSteps.RECONFIGURE
-            _reconfigured_device = selected_device
-
-            return RequestUserInput(
-                {
-                    "en": "Configure your Kodi device",
-                    "fr": "Configurez votre appareil Kodi",
-                },
-                [
-                    {
-                        "field": {"text": {"value": _reconfigured_device.address}},
-                        "id": "address",
-                        "label": {"en": "IP address", "de": "IP-Adresse", "fr": "Adresse IP"},
-                    },
-                    {
-                        "field": {"text": {"value": _reconfigured_device.username}},
-                        "id": "username",
-                        "label": {"en": "Username", "fr": "Utilisateur"},
-                    },
-                    {
-                        "field": {"text": {"value": _reconfigured_device.password}},
-                        "id": "password",
-                        "label": {"en": "Password", "fr": "Mot de passe"},
-                    },
-                    {
-                        "field": {"text": {"value": str(_reconfigured_device.ws_port)}},
-                        "id": "ws_port",
-                        "label": {"en": "Websocket port", "fr": "Port websocket"},
-                    },
-                    {
-                        "field": {"text": {"value": str(_reconfigured_device.port)}},
-                        "id": "port",
-                        "label": {"en": "HTTP port", "fr": "Port HTTP"},
-                    },
-                    {
-                        "field": {"checkbox": {"value": _reconfigured_device.ssl}},
-                        "id": "ssl",
-                        "label": {"en": "Use SSL", "fr": "Utiliser SSL"},
-                    },
-                    {
-                        "field": {
-                            "dropdown": {"value": _reconfigured_device.artwork_type, "items": KODI_ARTWORK_LABELS}
-                        },
-                        "id": "artwork_type",
-                        "label": {
-                            "en": "Artwork type to display",
-                            "fr": "Type d'image média à afficher",
-                        },
-                    },
-                    {
-                        "field": {
-                            "dropdown": {
-                                "value": _reconfigured_device.artwork_type_tvshows,
-                                "items": KODI_ARTWORK_TVSHOWS_LABELS,
-                            }
-                        },
-                        "id": "artwork_type_tvshows",
-                        "label": {
-                            "en": "Artwork type to display for TV Shows",
-                            "fr": "Type d'image média à afficher pour les séries",
-                        },
-                    },
-                    {
-                        "field": {"checkbox": {"value": _reconfigured_device.media_update_task}},
-                        "id": "media_update_task",
-                        "label": {"en": "Enable media update task", "fr": "Activer la tâche de mise à jour du média"},
-                    },
-                    {
-                        "field": {"checkbox": {"value": _reconfigured_device.download_artwork}},
-                        "id": "download_artwork",
-                        "label": {
-                            "en": "Download artwork instead of transmitting URL to the remote",
-                            "fr": "Télécharger l'image au lieu de transmettre l'URL à la télécommande",
-                        },
-                    },
-                ],
-            )
-        case "reset":
-            config.devices.clear()  # triggers device instance removal
-        case "backup_restore":
-            return await _handle_backup_restore_step()
-        case _:
-            _LOG.error("Invalid configuration action: %s", action)
-            return SetupError(error_type=IntegrationSetupError.OTHER)
-
-    _setup_step = SetupSteps.DISCOVER
-    return _user_input_manual
 
 
 async def _handle_backup_restore_step() -> RequestUserInput:
