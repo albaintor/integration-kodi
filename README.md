@@ -48,6 +48,7 @@ Note : this release requires remote firmware `>= 1.7.10`
 
 - Kodi must be running for setup, and control enabled from Settings > Services > Control section. Set the username, password and enable HTTP control.
 <img width="588" alt="image" src="https://github.com/user-attachments/assets/7809d1c7-0be6-4b44-ab9a-73539b58a3f0">
+
 - Port numbers shouldn't be modified normally (8080 for HTTP and 9090 for websocket) : websocket port is not configurable from the GUI (in advanced settings file)
 - There is no turn on command : Kodi has to be started some other way
 - Change these Kodi settings to get full control working : within Kodi, click settings, then go to `Apps`/`Add-on Browser`, `My Add-ons` and scroll down and click on `Peripheral Libraries` : click on `Joystick Support` and click `Disable`. THEN : kill and restart Kodi in order to take effect and then all the remote commands will work fine
@@ -75,8 +76,10 @@ And add the macro to your activity, mapped to the screen or to a button. In that
 
 ### Backup or restore configuration
 
-The integration lets backup or save the devices configuration.
-To use this functionality, select the "Backup or restore" option in the setup flow, then you will have a text field which will be empty if no devices are configured. You just have to replace the content by the previously saved configuration and click on next to apply it. Beware while using this functionality : the expected format should be respected and could change in the future.
+The integration lets backup or restore the devices configuration (in JSON format).
+To use this functionality, select the "Backup or restore" option in the setup flow, then you will have a text field which will be empty if no devices are configured. 
+- Backup : just save the content of the text field in a file for later restore and abort the setup flow (clicking next will apply this configuration)
+- Restore : just replace the content by the previously saved configuration and click on next to apply it. Beware while using this functionality : the expected format should be respected and could change in the future.
 If the format is not recognized, the import will be aborted and existing configuration will remain unchanged.
 
 
