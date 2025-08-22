@@ -73,6 +73,12 @@ And add the macro to your activity, mapped to the screen or to a button. In that
 - Once uploaded, the new integration should appear in the list : click on it and select `Start setup`
 - Your TV must be running and connected to the network before proceed
 
+### Backup or restore configuration
+
+The integration lets backup or save the devices configuration.
+To use this functionality, select the "Backup or restore" option in the setup flow, then you will have a text field which will be empty if no devices are configured. You just have to replace the content by the previously saved configuration and click on next to apply it. Beware while using this functionality : the expected format should be respected and could change in the future.
+If the format is not recognized, the import will be aborted and existing configuration will remain unchanged.
+
 
 ### Installation as external integration
 
