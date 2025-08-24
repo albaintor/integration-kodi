@@ -46,6 +46,10 @@ Note : this release requires remote firmware `>= 1.7.10`
 
 ## Installation
 
+- First [go to the release section](https://github.com/albaintor/integration-kodi/releases) and download the `xxx_aarch64-xxx.tar.gz` file
+- On the Web configurator of your remote, go to the `Integrations` tab, click on `Add new` and select `Install custom`
+- Select the downloaded file in first step and wait for the upload to finish
+- A new integration will appear in the list : click on it and start setup 
 - Kodi must be running for setup, and control enabled from Settings > Services > Control section. Set the username, password and enable HTTP control.
 <img width="588" alt="image" src="https://github.com/user-attachments/assets/7809d1c7-0be6-4b44-ab9a-73539b58a3f0">
 
