@@ -41,6 +41,7 @@ ARTWORK_TIMEOUT = 5.0
 WEBSOCKET_WATCHDOG_INTERVAL = 10
 CONNECTION_RETRIES = 10
 UPDATE_POSITION_INTERVAL = 300
+UPDATE_STATE_RETRY = 2
 
 
 class Events(IntEnum):
@@ -205,6 +206,7 @@ class KodiDevice:
         self._update_lock = Lock()
         self._position_timestamp: float | None = None
         self._update_position_task = None
+        self._update_state_retry = 0
 
     async def init_connection(self):
         """Initialize connection to device."""
@@ -781,6 +783,25 @@ class KodiDevice:
 
             if updated_data:
                 self.events.emit(Events.UPDATE, self.id, updated_data)
+            self._update_state_retry = 0
+        except TimeoutError as timeoutError:
+            if self._update_state_retry < UPDATE_STATE_RETRY:
+                self._update_state_retry += 1
+                _LOG.info(
+                    "[%s] Update states : timeout error, retry %s : %s",
+                    self.device_config.address,
+                    self._update_state_retry,
+                    timeoutError,
+                )
+                asyncio.create_task(self._update_states(deferred=1))
+            else:
+                _LOG.info(
+                    "[%s] Update states : timeout error : %s",
+                    self.device_config.address,
+                    self._update_state_retry,
+                    timeoutError,
+                )
+                self._update_state_retry = 0
         except Exception as ex:
             _LOG.info(
                 "[%s] Update states : unknown error : %s",
