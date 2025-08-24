@@ -33,7 +33,7 @@ from ucapi import (
     UserDataResponse,
 )
 
-from const import KODI_ARTWORK_LABELS, KODI_ARTWORK_TVSHOWS_LABELS
+from const import KODI_ARTWORK_LABELS, KODI_ARTWORK_TVSHOWS_LABELS, KODI_DEFAULT_ARTWORK, KODI_DEFAULT_TVSHOW_ARTWORK
 
 _LOG = logging.getLogger(__name__)
 
@@ -116,7 +116,7 @@ _user_input_manual = RequestUserInput(
             "label": {"en": "Use SSL", "fr": "Utiliser SSL"},
         },
         {
-            "field": {"dropdown": {"value": "thumb", "items": KODI_ARTWORK_LABELS}},
+            "field": {"dropdown": {"value": KODI_DEFAULT_ARTWORK, "items": KODI_ARTWORK_LABELS}},
             "id": "artwork_type",
             "label": {
                 "en": "Artwork type to display",
@@ -124,7 +124,7 @@ _user_input_manual = RequestUserInput(
             },
         },
         {
-            "field": {"dropdown": {"value": "thumb", "items": KODI_ARTWORK_TVSHOWS_LABELS}},
+            "field": {"dropdown": {"value": KODI_DEFAULT_TVSHOW_ARTWORK, "items": KODI_ARTWORK_TVSHOWS_LABELS}},
             "id": "artwork_type_tvshows",
             "label": {
                 "en": "Artwork type to display for TV Shows",
@@ -603,7 +603,7 @@ async def handle_discovery(_msg: UserDataResponse) -> RequestUserInput | SetupEr
                 "label": {"en": "Use SSL", "fr": "Utiliser SSL"},
             },
             {
-                "field": {"dropdown": {"value": "thumb", "items": KODI_ARTWORK_LABELS}},
+                "field": {"dropdown": {"value": KODI_DEFAULT_ARTWORK, "items": KODI_ARTWORK_LABELS}},
                 "id": "artwork_type",
                 "label": {
                     "en": "Artwork type to display",
@@ -611,7 +611,7 @@ async def handle_discovery(_msg: UserDataResponse) -> RequestUserInput | SetupEr
                 },
             },
             {
-                "field": {"dropdown": {"value": "thumb", "items": KODI_ARTWORK_TVSHOWS_LABELS}},
+                "field": {"dropdown": {"value": KODI_DEFAULT_TVSHOW_ARTWORK, "items": KODI_ARTWORK_TVSHOWS_LABELS}},
                 "id": "artwork_type_tvshows",
                 "label": {
                     "en": "Artwork type to display for TV Shows",
@@ -705,8 +705,8 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
     username = msg.input_values["username"]
     password = msg.input_values["password"]
     ssl = msg.input_values["ssl"]
-    artwork_type = msg.input_values.get("artwork_type", "thumb")
-    artwork_type_tvshows = msg.input_values.get("artwork_type_tvshows", "thumb")
+    artwork_type = msg.input_values.get("artwork_type", KODI_DEFAULT_ARTWORK)
+    artwork_type_tvshows = msg.input_values.get("artwork_type_tvshows", KODI_DEFAULT_TVSHOW_ARTWORK)
     media_update_task = msg.input_values["media_update_task"]
     download_artwork = msg.input_values["download_artwork"]
 
@@ -829,8 +829,8 @@ async def _handle_device_reconfigure(msg: UserDataResponse) -> SetupComplete | S
     username = msg.input_values["username"]
     password = msg.input_values["password"]
     ssl = msg.input_values["ssl"]
-    artwork_type = msg.input_values.get("artwork_type", "thumb")
-    artwork_type_tvshows = msg.input_values.get("artwork_type_tvshows", "thumb")
+    artwork_type = msg.input_values.get("artwork_type", KODI_DEFAULT_ARTWORK)
+    artwork_type_tvshows = msg.input_values.get("artwork_type_tvshows", KODI_DEFAULT_TVSHOW_ARTWORK)
     media_update_task = msg.input_values["media_update_task"]
     download_artwork = msg.input_values["download_artwork"]
 

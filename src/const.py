@@ -58,6 +58,9 @@ KODI_ARTWORK_TVSHOWS_LABELS = [
     {"id": "icon", "label": {"en": "Icon", "fr": "Icône"}},
 ]
 
+KODI_DEFAULT_ARTWORK = "thumb"
+KODI_DEFAULT_TVSHOW_ARTWORK = "tvshow.poster"
+
 KODI_FEATURES = [
     Features.ON_OFF,
     #  Features.TOGGLE,
