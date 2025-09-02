@@ -34,34 +34,7 @@ Note : this release requires remote firmware `>= 1.7.10`
 - Subtitle/audio language switching
 - Fast forward / rewind
 - Stop
-- Simple commands (more can be added) : 
-
-| Simple command             | Description                                   |
-|----------------------------|-----------------------------------------------|
-| MENU_VIDEO                 | Show video menu (showvideomenu)               |
-| MODE_FULLSCREEN            | Toggle full screen (togglefullscreen)         |
-| MODE_ZOOM_IN               | Zoom in (zoomin)                              |
-| MODE_ZOOM_OUT              | Zoom out (zoomout)                            |
-| MODE_INCREASE_PAR          | Increase aspect ratio (increasepar)           |
-| MODE_DECREASE_PAR          | Decrease aspect ratio (decreasepar)           |
-| MODE_SHOW_SUBTITLES        | Toggle subtitles (showsubtitles)              |
-| MODE_SUBTITLES_DELAY_MINUS | Decrease subtitles delay (subtitledelayminus) |
-| MODE_SUBTITLES_DELAY_PLUS  | Increase subtitles delay (subtitledelayplus)  |
-| MODE_AUDIO_DELAY_MINUS     | Decrease audio delay (audiodelayminus)        |
-| MODE_AUDIO_DELAY_PLUS      | Increase audio delay (audiodelayplus)         |
-| MODE_DELETE                | Delete (delete)                               |
-| APP_HIBERNATE              | Hibernate the device (System.Hibernate)       |
-| APP_REBOOT                 | Reboot the device (System.Reboot)             |
-| APP_SHUTDOWN               | Shutdown the device (System.Shutdown)         |
-| APP_SUSPEND                | Suspend the device (System.Suspend)           |
-| ACTION_BLUE                | Blue command                                  |
-| ACTION_GREEN               | Green command                                 |
-| ACTION_RED                 | Red command                                   |
-| ACTION_YELLOW              | Yellow command                                |
-| System.Hibernate           | Hibernate the device                          |
-| System.Reboot              | Reboot the device                             |
-| System.Shutdown            | Shutdown the device                           |
-| System.Suspend             | Suspend the device                            |
+- Simple commands (more can be added) : see [list of simple commands](#list-of-simple-commands)
 
 
 ### Supported commands for Remote entity
@@ -69,7 +42,9 @@ Note : this release requires remote firmware `>= 1.7.10`
 Example : type in `togglefullscreen` in the command field of the remote entity to toggle full screen 
 - Send command sequence (same commands as above)
 - Support for the repeat, hold, delay parameters
-- Simple commands : the same as previous list of commands in the  media player entity
+- Available commands :
+  - Standard commands : see the [list of standard commands](#list-of-standard-commands)
+  - Simple commands : see the [list of simple commands](#list-of-simple-commands)
 
 
 ## Installation
@@ -271,6 +246,44 @@ After startup, the integration is available at `http://localhost:9090` and can b
 ### Docker Hub
 
 Pre-built images are available on Docker Hub with multi-architecture support (x86-64 and ARM64).
+
+
+## List of simple commands
+
+| Simple command             | Description                                   |
+|----------------------------|-----------------------------------------------|
+| MENU_VIDEO                 | Show video menu (showvideomenu)               |
+| MODE_FULLSCREEN            | Toggle full screen (togglefullscreen)         |
+| MODE_ZOOM_IN               | Zoom in (zoomin)                              |
+| MODE_ZOOM_OUT              | Zoom out (zoomout)                            |
+| MODE_INCREASE_PAR          | Increase aspect ratio (increasepar)           |
+| MODE_DECREASE_PAR          | Decrease aspect ratio (decreasepar)           |
+| MODE_SHOW_SUBTITLES        | Toggle subtitles (showsubtitles)              |
+| MODE_SUBTITLES_DELAY_MINUS | Decrease subtitles delay (subtitledelayminus) |
+| MODE_SUBTITLES_DELAY_PLUS  | Increase subtitles delay (subtitledelayplus)  |
+| MODE_AUDIO_DELAY_MINUS     | Decrease audio delay (audiodelayminus)        |
+| MODE_AUDIO_DELAY_PLUS      | Increase audio delay (audiodelayplus)         |
+| MODE_DELETE                | Delete (delete)                               |
+| APP_HIBERNATE              | Hibernate the device (System.Hibernate)       |
+| APP_REBOOT                 | Reboot the device (System.Reboot)             |
+| APP_SHUTDOWN               | Shutdown the device (System.Shutdown)         |
+| APP_SUSPEND                | Suspend the device (System.Suspend)           |
+| ACTION_BLUE                | Blue command                                  |
+| ACTION_GREEN               | Green command                                 |
+| ACTION_RED                 | Red command                                   |
+| ACTION_YELLOW              | Yellow command                                |
+| System.Hibernate           | Hibernate the device                          |
+| System.Reboot              | Reboot the device                             |
+| System.Shutdown            | Shutdown the device                           |
+| System.Suspend             | Suspend the device                            |
+
+
+
+## Lisf of standard commands
+
+The following commands are standard commands available for the remote entity in addition of simple commands :
+
+`on, off, toggle, play_pause, stop, previous, next, fast_forward, rewind, seek, volume, volume_up, volume_down, mute_toggle, mute, unmute, repeat, shuffle, channel_up, channel_down, cursor_up, cursor_down, cursor_left, cursor_right, cursor_enter, digit_0, digit_1, digit_2, digit_3, digit_4, digit_5, digit_6, digit_7, digit_8, digit_9, function_red, function_green, function_yellow, function_blue, home, menu, context_menu, guide, info, back, select_source, select_sound_mode, record, my_recordings, live, eject, open_close, audio_track, subtitle, settings, search`
 
 ## Versioning
 
