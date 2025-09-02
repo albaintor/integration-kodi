@@ -34,14 +34,42 @@ Note : this release requires remote firmware `>= 1.7.10`
 - Subtitle/audio language switching
 - Fast forward / rewind
 - Stop
-- Simple commands (more can be added) : video menu, toggle fullscreen, zoom in/out, increase/decrease aspect ratio, toggle subtitles, subtitles delay minus/plus, audio delay minus/plus
+- Simple commands (more can be added) : 
+
+| Simple command             | Description                                   |
+|----------------------------|-----------------------------------------------|
+| MENU_VIDEO                 | Show video menu (showvideomenu)               |
+| MODE_FULLSCREEN            | Toggle full screen (togglefullscreen)         |
+| MODE_ZOOM_IN               | Zoom in (zoomin)                              |
+| MODE_ZOOM_OUT              | Zoom out (zoomout)                            |
+| MODE_INCREASE_PAR          | Increase aspect ratio (increasepar)           |
+| MODE_DECREASE_PAR          | Decrease aspect ratio (decreasepar)           |
+| MODE_SHOW_SUBTITLES        | Toggle subtitles (showsubtitles)              |
+| MODE_SUBTITLES_DELAY_MINUS | Decrease subtitles delay (subtitledelayminus) |
+| MODE_SUBTITLES_DELAY_PLUS  | Increase subtitles delay (subtitledelayplus)  |
+| MODE_AUDIO_DELAY_MINUS     | Decrease audio delay (audiodelayminus)        |
+| MODE_AUDIO_DELAY_PLUS      | Increase audio delay (audiodelayplus)         |
+| MODE_DELETE                | Delete (delete)                               |
+| APP_HIBERNATE              | Hibernate the device (System.Hibernate)       |
+| APP_REBOOT                 | Reboot the device (System.Reboot)             |
+| APP_SHUTDOWN               | Shutdown the device (System.Shutdown)         |
+| APP_SUSPEND                | Suspend the device (System.Suspend)           |
+| ACTION_BLUE                | Blue command                                  |
+| ACTION_GREEN               | Green command                                 |
+| ACTION_RED                 | Red command                                   |
+| ACTION_YELLOW              | Yellow command                                |
+| System.Hibernate           | Hibernate the device                          |
+| System.Reboot              | Reboot the device                             |
+| System.Shutdown            | Shutdown the device                           |
+| System.Suspend             | Suspend the device                            |
 
 
 ### Supported commands for Remote entity
-- Send command : commands are sent as KB keymap commands in JSON RPC (see [Kodi keyboard map](https://github.com/xbmc/xbmc/blob/master/system/keymaps/keyboard.xml) for the list of available commands)
+- Send command : commands are sent as KB keymap commands in JSON RPC (see [Kodi keyboard map](https://github.com/xbmc/xbmc/blob/master/system/keymaps/keyboard.xml) and more specifically [Action Ids](https://kodi.wiki/view/Action_IDs) for the list of available commands)
+Example : type in `togglefullscreen` in the command field of the remote entity to toggle full screen 
 - Send command sequence (same commands as above)
 - Support for the repeat, hold, delay parameters
-- Simple commands : the same as media player simple commands, with the addition of the other media player commands
+- Simple commands : the same as previous list of commands in the  media player entity
 
 
 ## Installation
