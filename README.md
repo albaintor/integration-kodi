@@ -279,7 +279,7 @@ Pre-built images are available on Docker Hub with multi-architecture support (x8
 
 
 
-## Lisf of standard commands
+## List of standard commands
 
 The following commands are standard commands available for the remote entity in addition of simple commands :
 
