@@ -57,7 +57,7 @@ async def main():
     client.events.on(kodi.Events.UPDATE, on_device_update)
     await client.connect()
 
-    await asyncio.sleep(4)
+    await asyncio.sleep(2)
     properties = client._item
     print("Properties :")
     print_json(data=properties)
@@ -66,7 +66,7 @@ async def main():
     # await client.play_pause()
 
     # Examples :
-    #await client._kodi.call_method("Input.Down")
+    await client._kodi.call_method("Input.Down")
     #await client._kodi._server.Input.Down()
     # command = KODI_ALTERNATIVE_BUTTONS_KEYMAP[Commands.CURSOR_DOWN]
     # await client.call_command(command["method"], **command["params"])
@@ -75,8 +75,9 @@ async def main():
     # await client.call_command(command["method"], **command["params"])
 
     #await client.command_action(KODI_SIMPLE_COMMANDS["MODE_FULLSCREEN"])
+    #await client.call_command("GUI.SetFullscreen", **{"fullscreen": "toggle"})
+    #await client.call_command("GUI.ActivateWindow", **{"window": "osdsubtitlesettings"})
 
-    await client.call_command("GUI.SetFullscreen", **{"fullscreen": "toggle"})
     exit(0)
 
 if __name__ == "__main__":
