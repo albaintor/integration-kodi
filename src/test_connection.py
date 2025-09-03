@@ -13,7 +13,7 @@ from typing import Any
 from rich import print_json
 from ucapi.media_player import Commands
 
-from const import KODI_ALTERNATIVE_BUTTONS_KEYMAP
+from const import KODI_ALTERNATIVE_BUTTONS_KEYMAP, KODI_SIMPLE_COMMANDS
 from kodi import KodiDevice
 from config import KodiConfigDevice
 import kodi
@@ -66,13 +66,18 @@ async def main():
     # await client.play_pause()
 
     # Examples :
-    await client._kodi.call_method("Input.Down")
+    #await client._kodi.call_method("Input.Down")
     #await client._kodi._server.Input.Down()
     # command = KODI_ALTERNATIVE_BUTTONS_KEYMAP[Commands.CURSOR_DOWN]
     # await client.call_command(command["method"], **command["params"])
 
     # command = KODI_ALTERNATIVE_BUTTONS_KEYMAP[Commands.CHANNEL_DOWN]
     # await client.call_command(command["method"], **command["params"])
+
+    #await client.command_action(KODI_SIMPLE_COMMANDS["MODE_FULLSCREEN"])
+
+    await client.call_command("GUI.SetFullscreen", **{"fullscreen": "toggle"})
+    exit(0)
 
 if __name__ == "__main__":
     _LOG = logging.getLogger(__name__)

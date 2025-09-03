@@ -185,6 +185,10 @@ KODI_BUTTONS_KEYMAP: dict[str, ButtonKeymap] = {
     Commands.FUNCTION_YELLOW: {"button": "yellow", "keymap": "R1"},
 }
 
+KODI_ADVANCED_SIMPLE_COMMANDS: dict[str, MethodCall] = {
+    "MODE_TOGGLE_GUI": {"method": "GUI.SetFullscreen", "params": {"fullscreen": "toggle"}, "holdtime": None}
+}
+
 KODI_ALTERNATIVE_BUTTONS_KEYMAP: dict[str, MethodCall] = {
     Commands.CHANNEL_UP: {"method": "Input.ExecuteAction", "params": {"action": "pageup"}, "holdtime": None},  # channelup or pageup
     Commands.CHANNEL_DOWN: {"method": "Input.ExecuteAction", "params": {"action": "pagedown"}, "holdtime": None},  # channeldown or pagedown
@@ -236,6 +240,7 @@ KODI_REMOTE_BUTTONS_MAPPING: [DeviceButtonMapping] = [
 # TODO rename simple commands to be compliant to expected names in R2
 KODI_REMOTE_SIMPLE_COMMANDS = [
     *list(KODI_SIMPLE_COMMANDS.keys()),
+    *list(KODI_ADVANCED_SIMPLE_COMMANDS.keys()),
     *list(KODI_ACTIONS_KEYMAP.keys()),
     *list(KODI_BUTTONS_KEYMAP.keys()),
     Commands.CONTEXT_MENU,

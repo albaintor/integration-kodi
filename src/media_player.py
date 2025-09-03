@@ -14,7 +14,7 @@ from const import (
     KODI_ACTIONS_KEYMAP,
     KODI_BUTTONS_KEYMAP,
     KODI_SIMPLE_COMMANDS,
-    KODI_SIMPLE_COMMANDS_DIRECT, KODI_ALTERNATIVE_BUTTONS_KEYMAP,
+    KODI_SIMPLE_COMMANDS_DIRECT, KODI_ALTERNATIVE_BUTTONS_KEYMAP, KODI_ADVANCED_SIMPLE_COMMANDS,
 )
 from ucapi import EntityTypes, MediaPlayer, StatusCodes
 from ucapi.media_player import Attributes, Commands, DeviceClasses, Options
@@ -39,7 +39,12 @@ class KodiMediaPlayer(MediaPlayer):
         #     features.append(Features.SELECT_SOUND_MODE)
         #     attributes[Attributes.SOUND_MODE] = ""
         #     attributes[Attributes.SOUND_MODE_LIST] = []
-        options = {Options.SIMPLE_COMMANDS: list(KODI_SIMPLE_COMMANDS.keys())}
+        simple_commands = [
+            *list(KODI_SIMPLE_COMMANDS.keys()),
+            *list(KODI_ADVANCED_SIMPLE_COMMANDS.keys())
+        ]
+        simple_commands.sort()
+        options = {Options.SIMPLE_COMMANDS: simple_commands}
         super().__init__(
             entity_id, config_device.name, features, attributes, device_class=DeviceClasses.RECEIVER, options=options
         )
@@ -101,11 +106,15 @@ class KodiMediaPlayer(MediaPlayer):
         elif cmd_id in KODI_ACTIONS_KEYMAP:
             res = await self._device.command_action(KODI_ACTIONS_KEYMAP[cmd_id])
         elif cmd_id in self.options[Options.SIMPLE_COMMANDS]:
-            command = KODI_SIMPLE_COMMANDS[cmd_id]
-            if command in KODI_SIMPLE_COMMANDS_DIRECT:
-                res = await self._device.call_command(command)
+            if cmd_id in KODI_ADVANCED_SIMPLE_COMMANDS:
+                command = KODI_ADVANCED_SIMPLE_COMMANDS[cmd_id]
+                res = await self._device.call_command(command["method"], **command["params"])
             else:
-                res = await self._device.command_action(command)
+                command = KODI_SIMPLE_COMMANDS[cmd_id]
+                if command in KODI_SIMPLE_COMMANDS_DIRECT:
+                    res = await self._device.call_command(command)
+                else:
+                    res = await self._device.command_action(command)
         else:
             return StatusCodes.NOT_IMPLEMENTED
         return res
