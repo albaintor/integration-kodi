@@ -10,6 +10,23 @@ from typing import TypedDict
 from ucapi.media_player import Commands, Features, MediaType
 from ucapi.ui import Buttons, DeviceButtonMapping, UiPage
 
+
+class ButtonKeymap(TypedDict):
+    """Kodi keymap."""
+
+    button: str
+    keymap: str | None
+    holdtime: int | None
+
+
+class MethodCall(TypedDict):
+    """Kodi method call."""
+
+    method: str
+    params: dict[str, any]
+    holdtime: int | None
+
+
 KODI_MEDIA_TYPES = {
     "music": MediaType.MUSIC,
     "artist": MediaType.MUSIC,
@@ -136,14 +153,6 @@ KODI_ACTIONS_KEYMAP = {
 }
 
 
-class ButtonKeymap(TypedDict):
-    """Kodi keymap."""
-
-    button: str
-    keymap: str | None
-    holdtime: int | None
-
-
 # Taken from https://kodi.wiki/view/List_of_keynames,
 # For remote buttons :
 # see https://github.com/xbmc/xbmc/blob/master/system/keymaps/remote.xml for R1 keymap or
@@ -174,6 +183,33 @@ KODI_BUTTONS_KEYMAP: dict[str, ButtonKeymap] = {
     Commands.FUNCTION_BLUE: {"button": "blue", "keymap": "R1"},
     Commands.FUNCTION_RED: {"button": "red", "keymap": "R1"},
     Commands.FUNCTION_YELLOW: {"button": "yellow", "keymap": "R1"},
+}
+
+KODI_ALTERNATIVE_BUTTONS_KEYMAP: dict[str, MethodCall] = {
+    Commands.CHANNEL_UP: {"method": "Input.ExecuteAction", "params": {"action": "pageup"}, "holdtime": None},  # channelup or pageup
+    Commands.CHANNEL_DOWN: {"method": "Input.ExecuteAction", "params": {"action": "pagedown"}, "holdtime": None},  # channeldown or pagedown
+    Commands.CURSOR_UP: {"method": "Input.Up", "params": {}, "holdtime": None},
+    Commands.CURSOR_DOWN: {"method": "Input.Down", "params": {}, "holdtime": None},
+    Commands.CURSOR_LEFT: {"method": "Input.Left", "params": {}, "holdtime": None},
+    Commands.CURSOR_RIGHT: {"method": "Input.Right", "params": {}, "holdtime": None},
+    Commands.CURSOR_ENTER: {"method": "Input.Select", "params": {}, "holdtime": None},
+    Commands.BACK: {"method": "Input.Back", "params": {}, "holdtime": None},
+    # Commands.DIGIT_0: {"method": "Input.zero"},
+    # Commands.DIGIT_1: {"method": "Input.one"},
+    # Commands.DIGIT_2: {"method": "Input.two"},
+    # Commands.DIGIT_3: {"method": "Input.three"},
+    # Commands.DIGIT_4: {"method": "Input.four"},
+    # Commands.DIGIT_5: {"method": "Input.five"},
+    # Commands.DIGIT_6: {"method": "Input.six"},
+    # Commands.DIGIT_7: {"method": "Input.seven"},
+    # Commands.DIGIT_8: {"method": "Input.eight"},
+    # Commands.DIGIT_9: {"method": "Input.nine"},
+    # Commands.RECORD: {"method": "Input.record"},
+    # Commands.GUIDE: {"method": "Input.guide"},
+    # Commands.FUNCTION_GREEN: {"method": "Input.green"},
+    # Commands.FUNCTION_BLUE: {"method": "Input.blue"},
+    # Commands.FUNCTION_RED: {"method": "Input.red"},
+    # Commands.FUNCTION_YELLOW: {"method": "Input.yellow"},
 }
 
 KODI_REMOTE_BUTTONS_MAPPING: [DeviceButtonMapping] = [

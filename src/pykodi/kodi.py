@@ -10,7 +10,7 @@ import logging
 import urllib
 
 import aiohttp
-import jsonrpc_async  # pylint: disable = E0401
+import jsonrpc_async
 import jsonrpc_base  # pylint: disable = E0401
 import jsonrpc_websocket  # pylint: disable = E0401
 from aiohttp import ServerTimeoutError
@@ -59,21 +59,21 @@ class KodiConnection:
             self._created_session = False
 
     @property
-    def server(self):
+    def server(self) -> jsonrpc_base.Server:
         """Return server."""
         raise NotImplementedError
 
     @property
-    def connected(self):
+    def connected(self) -> bool:
         """Is the server connected."""
         raise NotImplementedError
 
     @property
-    def can_subscribe(self):
+    def can_subscribe(self) -> bool:
         """Can subscribe."""
         return False
 
-    def thumbnail_url(self, thumbnail):
+    def thumbnail_url(self, thumbnail) -> str|None:
         """Get the URL for a thumbnail."""
         if thumbnail is None:
             return None
@@ -95,10 +95,10 @@ class KodiHTTPConnection(KodiConnection):
 
         http_url = f"{http_protocol}://{host}:{port}/jsonrpc"
 
-        self._http_server = jsonrpc_async.Server(http_url, **self._kwargs)
+        self._http_server: jsonrpc_async.Server = jsonrpc_async.Server(http_url, **self._kwargs)
 
     @property
-    def connected(self):
+    def connected(self) -> bool:
         """Is the server connected."""
         return True
 
@@ -108,7 +108,7 @@ class KodiHTTPConnection(KodiConnection):
         await super().close()
 
     @property
-    def server(self):
+    def server(self) -> jsonrpc_async.Server:
         """Active server for json-rpc requests."""
         return self._http_server
 
@@ -125,7 +125,7 @@ class KodiWSConnection(KodiConnection):
         ws_protocol = "wss" if ssl else "ws"
         ws_url = f"{ws_protocol}://{host}:{ws_port}/jsonrpc"
 
-        self._ws_server = jsonrpc_websocket.Server(ws_url, **self._kwargs)
+        self._ws_server: jsonrpc_websocket.Server = jsonrpc_websocket.Server(ws_url, **self._kwargs)
 
     @property
     def connected(self):
@@ -169,10 +169,14 @@ class KodiWSConnection(KodiConnection):
 class Kodi:
     """A high level Kodi interface."""
 
-    def __init__(self, connection):
+    def __init__(self, connection: KodiConnection):
         """Initialize the object."""
-        self._conn = connection
-        self._server = connection.server
+        self._conn: KodiConnection = connection
+        self._server: jsonrpc_base.Server = connection.server
+
+    @property
+    def server(self) -> jsonrpc_base.Server | None:
+        return self._server
 
     async def ping(self):
         """Ping the server."""

@@ -19,7 +19,7 @@ from const import (
     KODI_REMOTE_UI_PAGES,
     KODI_SIMPLE_COMMANDS,
     key_update_helper,
-    KODI_SIMPLE_COMMANDS_DIRECT,
+    KODI_SIMPLE_COMMANDS_DIRECT, KODI_ALTERNATIVE_BUTTONS_KEYMAP,
 )
 from ucapi import EntityTypes, Remote, StatusCodes
 from ucapi.media_player import Commands as MediaPlayerCommands
@@ -130,8 +130,11 @@ class KodiRemote(Remote):
             return StatusCodes.NOT_IMPLEMENTED  # TODO ?
         elif command == MediaPlayerCommands.CONTEXT_MENU:
             res = await self._device.context_menu()
-        elif command in KODI_BUTTONS_KEYMAP:
-            res = await self._device.command_button(KODI_BUTTONS_KEYMAP[command])
+        elif not self._device.device_config.disable_keyboard_map and cmd_id in KODI_BUTTONS_KEYMAP:
+            res = await self._device.command_button(KODI_BUTTONS_KEYMAP[cmd_id])
+        elif self._device.device_config.disable_keyboard_map and cmd_id in KODI_ALTERNATIVE_BUTTONS_KEYMAP:
+            command = KODI_ALTERNATIVE_BUTTONS_KEYMAP[cmd_id]
+            res = await self._device.call_command(command["method"], **command["params"])
         elif command in KODI_ACTIONS_KEYMAP:
             res = await self._device.command_action(KODI_ACTIONS_KEYMAP[command])
         elif command in self.options[Options.SIMPLE_COMMANDS]:

@@ -16,11 +16,12 @@ from enum import IntEnum
 from functools import wraps
 from typing import Any, Awaitable, Callable, Concatenate, Coroutine, ParamSpec, TypeVar
 
+import jsonrpc_base
 import ucapi
 from aiohttp import ClientSession, ServerTimeoutError
 
 from config import KodiConfigDevice
-from const import KODI_FEATURES, KODI_MEDIA_TYPES, ButtonKeymap
+from const import KODI_FEATURES, KODI_MEDIA_TYPES, ButtonKeymap, MethodCall
 from jsonrpc_base.jsonrpc import (  # pylint: disable = E0401
     ProtocolError,
     TransportError,
@@ -811,6 +812,12 @@ class KodiDevice:
         self._update_lock.release()
 
     @property
+    def server(self) -> jsonrpc_base.Server|None:
+        if self._kodi is None:
+            return None
+        return self._kodi.server
+
+    @property
     def attributes(self) -> dict[str, any]:
         """Return the device attributes."""
         attributes = {
@@ -1045,9 +1052,9 @@ class KodiDevice:
         await self._kodi.call_method("Input.ExecuteAction", **{"action": command})
 
     @retry()
-    async def call_command(self, command: str):
+    async def call_command(self, command: str, **kwargs):
         """Send custom command."""
-        await self._kodi.call_method(command)
+        await self._kodi.call_method(command, **kwargs)
 
     @retry()
     async def seek(self, media_position: int):

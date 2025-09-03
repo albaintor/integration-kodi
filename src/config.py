@@ -52,6 +52,7 @@ class KodiConfigDevice:
     artwork_type_tvshows: str
     media_update_task: bool
     download_artwork: bool
+    disable_keyboard_map: bool
 
 
 class _EnhancedJSONEncoder(json.JSONEncoder):
@@ -151,6 +152,7 @@ class Devices:
                 item.artwork_type_tvshows = device.artwork_type_tvshows
                 item.media_update_task = device.media_update_task
                 item.download_artwork = device.download_artwork
+                item.disable_keyboard_map = device.disable_keyboard_map
                 return self.store()
         return False
 

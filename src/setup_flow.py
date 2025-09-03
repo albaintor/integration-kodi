@@ -144,6 +144,15 @@ _user_input_manual = RequestUserInput(
                 "fr": "Télécharger l'image au lieu de transmettre l'URL à la télécommande",
             },
         },
+        {
+            "field": {"checkbox": {"value": False}},
+            "id": "disable_keyboard_map",
+            "label": {
+                "en": "Disable keyboard map : check only if some commands fail (eg arrow keys)",
+                "fr": "Désactiver les commandes clavier : cocher uniquement si certaines commandes échouent "
+                      "(ex : commandes de direction)",
+            },
+        },
     ],
 )
 
@@ -488,6 +497,15 @@ async def handle_configuration_mode(msg: UserDataResponse) -> RequestUserInput |
                             "fr": "Télécharger l'image au lieu de transmettre l'URL à la télécommande",
                         },
                     },
+                    {
+                        "field": {"checkbox": {"value": _reconfigured_device.disable_keyboard_map}},
+                        "id": "disable_keyboard_map",
+                        "label": {
+                            "en": "Disable keyboard map : check only if some commands fail (eg arrow keys)",
+                            "fr": "Désactiver les commandes clavier : cocher uniquement si certaines commandes"
+                                  " échouent (ex : commandes de direction)",
+                        },
+                    },
                 ],
             )
         case "reset":
@@ -631,6 +649,15 @@ async def handle_discovery(_msg: UserDataResponse) -> RequestUserInput | SetupEr
                     "fr": "Télécharger l'image au lieu de transmettre l'URL à la télécommande",
                 },
             },
+            {
+                "field": {"checkbox": {"value": False}},
+                "id": "disable_keyboard_map",
+                "label": {
+                    "en": "Disable keyboard map : check only if some commands fail (eg arrow keys)",
+                    "fr": "Désactiver les commandes clavier : cocher uniquement si certaines commandes échouent "
+                          "(ex : commandes de direction)",
+                },
+            },
         ],
     )
 
@@ -709,6 +736,7 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
     artwork_type_tvshows = msg.input_values.get("artwork_type_tvshows", KODI_DEFAULT_TVSHOW_ARTWORK)
     media_update_task = msg.input_values["media_update_task"]
     download_artwork = msg.input_values["download_artwork"]
+    disable_keyboard_map = msg.input_values["disable_keyboard_map"]
 
     if ssl == "false":
         ssl = False
@@ -724,6 +752,12 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
         download_artwork = False
     else:
         download_artwork = True
+
+    if disable_keyboard_map == "false":
+        disable_keyboard_map = False
+    else:
+        disable_keyboard_map = True
+
 
     if device_choice:
         _LOG.debug("Configure device following discovery : %s %s", device_choice, _discovered_kodis)
@@ -798,6 +832,7 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
             artwork_type_tvshows=artwork_type_tvshows,
             media_update_task=media_update_task,
             download_artwork=download_artwork,
+            disable_keyboard_map=disable_keyboard_map
         )
     )  # triggers SonyLG TV instance creation
     config.devices.store()
@@ -833,6 +868,7 @@ async def _handle_device_reconfigure(msg: UserDataResponse) -> SetupComplete | S
     artwork_type_tvshows = msg.input_values.get("artwork_type_tvshows", KODI_DEFAULT_TVSHOW_ARTWORK)
     media_update_task = msg.input_values["media_update_task"]
     download_artwork = msg.input_values["download_artwork"]
+    disable_keyboard_map = msg.input_values["disable_keyboard_map"]
 
     if ssl == "false":
         ssl = False
@@ -849,6 +885,11 @@ async def _handle_device_reconfigure(msg: UserDataResponse) -> SetupComplete | S
     else:
         download_artwork = True
 
+    if disable_keyboard_map == "false":
+        disable_keyboard_map = False
+    else:
+        disable_keyboard_map = True
+
     _LOG.debug("User has changed configuration")
     _reconfigured_device.address = address
     _reconfigured_device.username = username
@@ -860,6 +901,7 @@ async def _handle_device_reconfigure(msg: UserDataResponse) -> SetupComplete | S
     _reconfigured_device.artwork_type_tvshows = artwork_type_tvshows
     _reconfigured_device.media_update_task = media_update_task
     _reconfigured_device.download_artwork = download_artwork
+    _reconfigured_device.disable_keyboard_map = disable_keyboard_map
 
     config.devices.add_or_update(_reconfigured_device)  # triggers ATV instance update
     await asyncio.sleep(1)

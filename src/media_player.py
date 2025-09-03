@@ -14,7 +14,7 @@ from const import (
     KODI_ACTIONS_KEYMAP,
     KODI_BUTTONS_KEYMAP,
     KODI_SIMPLE_COMMANDS,
-    KODI_SIMPLE_COMMANDS_DIRECT,
+    KODI_SIMPLE_COMMANDS_DIRECT, KODI_ALTERNATIVE_BUTTONS_KEYMAP,
 )
 from ucapi import EntityTypes, MediaPlayer, StatusCodes
 from ucapi.media_player import Attributes, Commands, DeviceClasses, Options
@@ -93,8 +93,11 @@ class KodiMediaPlayer(MediaPlayer):
         elif cmd_id == Commands.SEEK:
             media_position = params.get("media_position", 0)
             res = await self._device.seek(media_position)
-        elif cmd_id in KODI_BUTTONS_KEYMAP:
+        elif not self._device.device_config.disable_keyboard_map and cmd_id in KODI_BUTTONS_KEYMAP:
             res = await self._device.command_button(KODI_BUTTONS_KEYMAP[cmd_id])
+        elif self._device.device_config.disable_keyboard_map and cmd_id in KODI_ALTERNATIVE_BUTTONS_KEYMAP:
+            command = KODI_ALTERNATIVE_BUTTONS_KEYMAP[cmd_id]
+            res = await self._device.call_command(command["method"], **command["params"])
         elif cmd_id in KODI_ACTIONS_KEYMAP:
             res = await self._device.command_action(KODI_ACTIONS_KEYMAP[cmd_id])
         elif cmd_id in self.options[Options.SIMPLE_COMMANDS]:

@@ -11,6 +11,9 @@ import sys
 from typing import Any
 
 from rich import print_json
+from ucapi.media_player import Commands
+
+from const import KODI_ALTERNATIVE_BUTTONS_KEYMAP
 from kodi import KodiDevice
 from config import KodiConfigDevice
 import kodi
@@ -47,6 +50,7 @@ async def main():
             artwork_type_tvshows="season.banner",
             media_update_task=True,
             download_artwork=False,
+            disable_keyboard_map=True
         )
     )
     # await client.power_on()
@@ -60,16 +64,15 @@ async def main():
     # await client.play_pause()
     # await asyncio.sleep(4)
     # await client.play_pause()
-    # power_state = await client._tv.get_power_state()
-    # _LOG.debug("Power state %s", power_state)
-    tv_info = client._tv.tv_info
-    _LOG.debug("TV Info %s", tv_info)
 
-    # Validate pairing key (77)
-    # await client.button("ENTER")
+    # Examples :
+    await client._kodi.call_method("Input.Down")
+    #await client._kodi._server.Input.Down()
+    # command = KODI_ALTERNATIVE_BUTTONS_KEYMAP[Commands.CURSOR_DOWN]
+    # await client.call_command(command["method"], **command["params"])
 
-    # Validate pairing key (55)
-
+    # command = KODI_ALTERNATIVE_BUTTONS_KEYMAP[Commands.CHANNEL_DOWN]
+    # await client.call_command(command["method"], **command["params"])
 
 if __name__ == "__main__":
     _LOG = logging.getLogger(__name__)
