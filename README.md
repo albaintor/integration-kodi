@@ -42,6 +42,7 @@ Note : this release requires remote firmware `>= 1.7.10`
 Example : type in `togglefullscreen` in the command field of the remote entity to toggle full screen 
 - Send command sequence (same commands as above)
 - Support for the repeat, hold, delay parameters
+- See [how to set up custom commands](#how-to-set-up-custom-commands)
 - Available commands :
   - Standard commands : see the [list of standard commands](#list-of-standard-commands)
   - Simple commands : see the [list of simple commands](#list-of-simple-commands)
@@ -246,6 +247,14 @@ After startup, the integration is available at `http://localhost:9090` and can b
 ### Docker Hub
 
 Pre-built images are available on Docker Hub with multi-architecture support (x86-64 and ARM64).
+
+## How to set up custom commands
+
+First don't mix up with entities : when registering the integration, you will get 2 entities : `Media Player` and `Remote` entities.
+The media player entity should cover most needs, however if you want to use custom commands and use additional parameters such as repeating the same command, you can use the remote entity.
+This entity exposes 4 commands : `Send command`, `Command sequence`, and switch on/off (which both are exposed by the media player entity too).
+Here is an example of setting a send command from the remote entity :
+<img width="335" height="451" alt="image" src="https://github.com/user-attachments/assets/d3e2e011-7a5d-42fa-bcfe-66e722c6d025" />
 
 
 ## List of simple commands
