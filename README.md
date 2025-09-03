@@ -262,6 +262,7 @@ Here is an example of setting a send command from the remote entity :
 | Simple command             | Description                                   |
 |----------------------------|-----------------------------------------------|
 | MENU_VIDEO                 | Show video menu (showvideomenu)               |
+| MODE_TOGGLE_GUI            | Toggle GUI while playing                      |
 | MODE_FULLSCREEN            | Toggle full screen (togglefullscreen)         |
 | MODE_ZOOM_IN               | Zoom in (zoomin)                              |
 | MODE_ZOOM_OUT              | Zoom out (zoomout)                            |
