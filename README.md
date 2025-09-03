@@ -269,6 +269,7 @@ Here is an example of setting a send command from the remote entity :
 | MODE_SHOW_VIDEO_MENU           | Show video settings menu while playing        |
 | MODE_SHOW_BOOKMARKS_MENU       | Show bookmarks menu while playing             |
 | MODE_SHOW_SUBTITLE_SEARCH_MENU | Show subtitles search menu while playing      |
+| MODE_SCREENSAVER               | Show screensaver                              |
 | MODE_ZOOM_IN                   | Zoom in (zoomin)                              |
 | MODE_ZOOM_OUT                  | Zoom out (zoomout)                            |
 | MODE_INCREASE_PAR              | Increase aspect ratio (increasepar)           |

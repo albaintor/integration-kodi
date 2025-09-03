@@ -191,8 +191,8 @@ KODI_ADVANCED_SIMPLE_COMMANDS: dict[str, MethodCall] = {
     "MODE_SHOW_AUDIO_MENU": {"method" :"GUI.ActivateWindow", "params": {"window": "osdaudiosettings"}, "holdtime": None},
     "MODE_SHOW_VIDEO_MENU": {"method" :"GUI.ActivateWindow", "params": {"window": "osdvideosettings"}, "holdtime": None},
     "MODE_SHOW_BOOKMARKS_MENU": {"method" :"GUI.ActivateWindow", "params": {"window": "videobookmarks"}, "holdtime": None},
-    "MODE_SHOW_SUBTITLE_SEARCH_MENU": {"method": "GUI.ActivateWindow", "params": {"window": "subtitlesearch"},
-                                 "holdtime": None},
+    "MODE_SHOW_SUBTITLE_SEARCH_MENU": {"method": "GUI.ActivateWindow", "params": {"window": "subtitlesearch"}, "holdtime": None},
+    "MODE_SCREENSAVER": {"method": "GUI.ActivateWindow", "params": {"window": "screensaver"}, "holdtime": None},
 }
 
 KODI_ALTERNATIVE_BUTTONS_KEYMAP: dict[str, MethodCall] = {
