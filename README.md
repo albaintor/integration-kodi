@@ -259,33 +259,38 @@ Here is an example of setting a send command from the remote entity :
 
 ## List of simple commands
 
-| Simple command             | Description                                   |
-|----------------------------|-----------------------------------------------|
-| MENU_VIDEO                 | Show video menu (showvideomenu)               |
-| MODE_TOGGLE_GUI            | Toggle GUI while playing                      |
-| MODE_FULLSCREEN            | Toggle full screen (togglefullscreen)         |
-| MODE_ZOOM_IN               | Zoom in (zoomin)                              |
-| MODE_ZOOM_OUT              | Zoom out (zoomout)                            |
-| MODE_INCREASE_PAR          | Increase aspect ratio (increasepar)           |
-| MODE_DECREASE_PAR          | Decrease aspect ratio (decreasepar)           |
-| MODE_SHOW_SUBTITLES        | Toggle subtitles (showsubtitles)              |
-| MODE_SUBTITLES_DELAY_MINUS | Decrease subtitles delay (subtitledelayminus) |
-| MODE_SUBTITLES_DELAY_PLUS  | Increase subtitles delay (subtitledelayplus)  |
-| MODE_AUDIO_DELAY_MINUS     | Decrease audio delay (audiodelayminus)        |
-| MODE_AUDIO_DELAY_PLUS      | Increase audio delay (audiodelayplus)         |
-| MODE_DELETE                | Delete (delete)                               |
-| APP_HIBERNATE              | Hibernate the device (System.Hibernate)       |
-| APP_REBOOT                 | Reboot the device (System.Reboot)             |
-| APP_SHUTDOWN               | Shutdown the device (System.Shutdown)         |
-| APP_SUSPEND                | Suspend the device (System.Suspend)           |
-| ACTION_BLUE                | Blue command                                  |
-| ACTION_GREEN               | Green command                                 |
-| ACTION_RED                 | Red command                                   |
-| ACTION_YELLOW              | Yellow command                                |
-| System.Hibernate           | Hibernate the device                          |
-| System.Reboot              | Reboot the device                             |
-| System.Shutdown            | Shutdown the device                           |
-| System.Suspend             | Suspend the device                            |
+| Simple command                 | Description                                   |
+|--------------------------------|-----------------------------------------------|
+| MENU_VIDEO                     | Show video menu (showvideomenu)               |
+| MODE_TOGGLE_GUI                | Toggle GUI while playing                      |
+| MODE_FULLSCREEN                | Toggle full screen (togglefullscreen)         |
+| MODE_SHOW_AUDIO_MENU           | Show audio context menu while playing         |
+| MODE_SHOW_SUBTITLES_MENU       | Show subtitles context menu while playing     |
+| MODE_SHOW_VIDEO_MENU           | Show video settings menu while playing        |
+| MODE_SHOW_BOOKMARKS_MENU       | Show bookmarks menu while playing             |
+| MODE_SHOW_SUBTITLE_SEARCH_MENU | Show subtitles search menu while playing      |
+| MODE_ZOOM_IN                   | Zoom in (zoomin)                              |
+| MODE_ZOOM_OUT                  | Zoom out (zoomout)                            |
+| MODE_INCREASE_PAR              | Increase aspect ratio (increasepar)           |
+| MODE_DECREASE_PAR              | Decrease aspect ratio (decreasepar)           |
+| MODE_SHOW_SUBTITLES            | Toggle subtitles (showsubtitles)              |
+| MODE_SUBTITLES_DELAY_MINUS     | Decrease subtitles delay (subtitledelayminus) |
+| MODE_SUBTITLES_DELAY_PLUS      | Increase subtitles delay (subtitledelayplus)  |
+| MODE_AUDIO_DELAY_MINUS         | Decrease audio delay (audiodelayminus)        |
+| MODE_AUDIO_DELAY_PLUS          | Increase audio delay (audiodelayplus)         |
+| MODE_DELETE                    | Delete (delete)                               |
+| APP_HIBERNATE                  | Hibernate the device (System.Hibernate)       |
+| APP_REBOOT                     | Reboot the device (System.Reboot)             |
+| APP_SHUTDOWN                   | Shutdown the device (System.Shutdown)         |
+| APP_SUSPEND                    | Suspend the device (System.Suspend)           |
+| ACTION_BLUE                    | Blue command                                  |
+| ACTION_GREEN                   | Green command                                 |
+| ACTION_RED                     | Red command                                   |
+| ACTION_YELLOW                  | Yellow command                                |
+| System.Hibernate               | Hibernate the device                          |
+| System.Reboot                  | Reboot the device                             |
+| System.Shutdown                | Shutdown the device                           |
+| System.Suspend                 | Suspend the device                            |
 
 
 
