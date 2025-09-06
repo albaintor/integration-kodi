@@ -294,7 +294,7 @@ async def on_device_update(device_id: str, update: dict[str, Any] | None) -> Non
         _LOG.info("Update device %s for configured entity %s", device_id, entity_id)
         configured_entity = api.configured_entities.get(entity_id)
         if configured_entity is None:
-            return
+            continue
 
         if isinstance(configured_entity, media_player.KodiMediaPlayer):
             attributes = update
