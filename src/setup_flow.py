@@ -34,6 +34,7 @@ from ucapi import (
 )
 
 from const import KODI_ARTWORK_LABELS, KODI_ARTWORK_TVSHOWS_LABELS, KODI_DEFAULT_ARTWORK, KODI_DEFAULT_TVSHOW_ARTWORK
+from src.config import ConfigImportResult
 
 _LOG = logging.getLogger(__name__)
 
@@ -150,7 +151,7 @@ _user_input_manual = RequestUserInput(
             "label": {
                 "en": "Disable keyboard map : check only if some commands fail (eg arrow keys)",
                 "fr": "Désactiver les commandes clavier : cocher uniquement si certaines commandes échouent "
-                      "(ex : commandes de direction)",
+                "(ex : commandes de direction)",
             },
         },
     ],
@@ -503,7 +504,7 @@ async def handle_configuration_mode(msg: UserDataResponse) -> RequestUserInput |
                         "label": {
                             "en": "Disable keyboard map : check only if some commands fail (eg arrow keys)",
                             "fr": "Désactiver les commandes clavier : cocher uniquement si certaines commandes"
-                                  " échouent (ex : commandes de direction)",
+                            " échouent (ex : commandes de direction)",
                         },
                     },
                 ],
@@ -655,7 +656,7 @@ async def handle_discovery(_msg: UserDataResponse) -> RequestUserInput | SetupEr
                 "label": {
                     "en": "Disable keyboard map : check only if some commands fail (eg arrow keys)",
                     "fr": "Désactiver les commandes clavier : cocher uniquement si certaines commandes échouent "
-                          "(ex : commandes de direction)",
+                    "(ex : commandes de direction)",
                 },
             },
         ],
@@ -758,7 +759,6 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
     else:
         disable_keyboard_map = True
 
-
     if device_choice:
         _LOG.debug("Configure device following discovery : %s %s", device_choice, _discovered_kodis)
         for discovered_kodi in _discovered_kodis:
@@ -832,7 +832,7 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
             artwork_type_tvshows=artwork_type_tvshows,
             media_update_task=media_update_task,
             download_artwork=download_artwork,
-            disable_keyboard_map=disable_keyboard_map
+            disable_keyboard_map=disable_keyboard_map,
         )
     )  # triggers SonyLG TV instance creation
     config.devices.store()
@@ -924,9 +924,12 @@ async def _handle_backup_restore(msg: UserDataResponse) -> SetupComplete | Setup
     _LOG.debug("Handle backup/restore")
     updated_config = msg.input_values["config"]
     _LOG.info("Replacing configuration with : %s", updated_config)
-    if not config.devices.import_config(updated_config):
-        _LOG.error("Setup error : unable to import updated configuration", updated_config)
+    res = config.devices.import_config(updated_config)
+    if res == ConfigImportResult.ERROR:
+        _LOG.error("Setup error, unable to import updated configuration : %s", updated_config)
         return SetupError(error_type=IntegrationSetupError.OTHER)
+    elif res == ConfigImportResult.WARNINGS:
+        _LOG.error("Setup warning, configuration imported with warnings : %s", config.devices)
     _LOG.debug("Configuration imported successfully")
 
     await asyncio.sleep(1)

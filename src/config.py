@@ -9,7 +9,8 @@ import dataclasses
 import json
 import logging
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field, fields
+from enum import Enum
 from typing import Iterator, Callable
 
 from ucapi import EntityTypes
@@ -36,6 +37,14 @@ def device_from_entity_id(entity_id: str) -> str | None:
     return entity_id.split(".", 1)[1]
 
 
+class ConfigImportResult(Enum):
+    """Result of configuration import."""
+
+    SUCCESS = 1
+    WARNINGS = 2
+    ERROR = 3
+
+
 @dataclass
 class KodiConfigDevice:
     """Sony device configuration."""
@@ -43,16 +52,22 @@ class KodiConfigDevice:
     id: str
     name: str
     address: str
-    port: str
-    ws_port: str
-    username: str
-    ssl: bool
-    password: str
-    artwork_type: str
-    artwork_type_tvshows: str
-    media_update_task: bool
-    download_artwork: bool
-    disable_keyboard_map: bool
+    port: str = field(default="8080")
+    ws_port: str = field(default="9090")
+    username: str = field(default="kodi")
+    ssl: bool = field(default=False)
+    password: str = field(default="password")
+    artwork_type: str = field(default="thumb")
+    artwork_type_tvshows: str = field(default="tvshow.poster")
+    media_update_task: bool = field(default=False)
+    download_artwork: bool = field(default=False)
+    disable_keyboard_map: bool = field(default=False)
+
+    def __post_init__(self):
+        for field in fields(self):
+            # If there is a default and the value of the field is none we can assign a value
+            if not isinstance(field.default, dataclasses._MISSING_TYPE) and getattr(self, field.name) is None:
+                setattr(self, field.name, field.default)
 
 
 class _EnhancedJSONEncoder(json.JSONEncoder):
@@ -203,11 +218,12 @@ class Devices:
         """
         return json.dumps(self._config, ensure_ascii=False, cls=_EnhancedJSONEncoder)
 
-    def import_config(self, updated_config: str) -> bool:
+    def import_config(self, updated_config: str) -> ConfigImportResult:
         """
         Import the updated configuration
         """
         config_backup = self._config.copy()
+        result = ConfigImportResult.SUCCESS
         try:
             data = json.loads(updated_config)
             self._config.clear()
@@ -216,6 +232,7 @@ class Devices:
                     self._config.append(KodiConfigDevice(**item))
                 except TypeError as ex:
                     _LOG.warning("Invalid configuration entry will be ignored: %s", ex)
+                    result = ConfigImportResult.WARNINGS
 
             _LOG.debug("Configuration to import : %s", self._config)
 
@@ -241,8 +258,9 @@ class Devices:
 
             with open(self._cfg_file_path, "w+", encoding="utf-8") as f:
                 json.dump(self._config, f, ensure_ascii=False, cls=_EnhancedJSONEncoder)
-            return True
+            return result
         except Exception as ex:
+            result = ConfigImportResult.ERROR
             _LOG.error(
                 "Cannot import the updated configuration %s, keeping existing configuration : %s", updated_config, ex
             )
@@ -252,7 +270,7 @@ class Devices:
                 self.store()
             except Exception:
                 pass
-        return False
+        return result
 
     def load(self) -> bool:
         """
