@@ -34,7 +34,7 @@ from ucapi import (
 )
 
 from const import KODI_ARTWORK_LABELS, KODI_ARTWORK_TVSHOWS_LABELS, KODI_DEFAULT_ARTWORK, KODI_DEFAULT_TVSHOW_ARTWORK
-from src.config import ConfigImportResult
+from config import ConfigImportResult
 
 _LOG = logging.getLogger(__name__)
 
