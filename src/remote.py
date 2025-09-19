@@ -7,25 +7,23 @@ Media-player entity functions.
 
 import asyncio
 import logging
+from asyncio import shield
 from typing import Any
 
 import kodi
 from config import KodiConfigDevice, create_entity_id
 from const import (
-    KODI_ACTIONS_KEYMAP,
-    KODI_BUTTONS_KEYMAP,
     KODI_REMOTE_BUTTONS_MAPPING,
     KODI_REMOTE_SIMPLE_COMMANDS,
     KODI_REMOTE_UI_PAGES,
-    KODI_SIMPLE_COMMANDS,
     key_update_helper,
-    KODI_SIMPLE_COMMANDS_DIRECT, KODI_ALTERNATIVE_BUTTONS_KEYMAP, KODI_ADVANCED_SIMPLE_COMMANDS,
 )
 from ucapi import EntityTypes, Remote, StatusCodes
-from ucapi.media_player import Commands as MediaPlayerCommands
 from ucapi.media_player import States as MediaStates
-from ucapi.remote import Attributes, Commands, Features, Options
+from ucapi.remote import Attributes, Commands, Features
 from ucapi.remote import States as RemoteStates
+
+from media_player import KodiMediaPlayer
 
 _LOG = logging.getLogger(__name__)
 
@@ -39,6 +37,17 @@ KODI_REMOTE_STATE_MAPPING = {
     MediaStates.PLAYING: RemoteStates.ON,
     MediaStates.PAUSED: RemoteStates.ON,
 }
+
+COMMAND_TIMEOUT = 4.5
+
+
+def get_int_param(param: str, params: dict[str, Any], default: int):
+    """Get parameter in integer format."""
+    # TODO bug to be fixed on UC Core : some params are sent as (empty) strings by remote (hold == "")
+    value = params.get(param, default)
+    if isinstance(value, str) and len(value) > 0:
+        return int(float(value))
+    return value
 
 
 class KodiRemote(Remote):
@@ -65,14 +74,6 @@ class KodiRemote(Remote):
             ui_pages=KODI_REMOTE_UI_PAGES,
         )
 
-    def get_int_param(self, param: str, params: dict[str, Any], default: int):
-        """Get parameter in integer format."""
-        # TODO bug to be fixed on UC Core : some params are sent as (empty) strings by remote (hold == "")
-        value = params.get(param, default)
-        if isinstance(value, str) and len(value) > 0:
-            return int(float(value))
-        return default
-
     async def command(self, cmd_id: str, params: dict[str, Any] | None = None) -> StatusCodes:
         """
         Media-player entity command handler.
@@ -89,78 +90,55 @@ class KodiRemote(Remote):
             _LOG.warning("No Kodi instance for entity: %s", self.id)
             return StatusCodes.SERVICE_UNAVAILABLE
 
-        repeat = self.get_int_param("repeat", params, 1)
         res = StatusCodes.OK
-        for _i in range(0, repeat):
-            res = await self.handle_command(cmd_id, params)
-        return res
-
-    async def handle_command(self, cmd_id: str, params: dict[str, Any] | None = None) -> StatusCodes:
-        """Handle command."""
-        hold = self.get_int_param("hold", params, 0)
-        delay = self.get_int_param("delay", params, 0)
-        command = params.get("command", "")
-
-        if command == MediaPlayerCommands.VOLUME:
-            res = await self._device.set_volume_level(params.get("volume"))
-        elif command == MediaPlayerCommands.VOLUME_UP:
-            res = await self._device.volume_up()
-        elif command == MediaPlayerCommands.VOLUME_DOWN:
-            res = await self._device.volume_down()
-        elif command == MediaPlayerCommands.MUTE_TOGGLE:
-            res = await self._device.mute(not self._device.is_volume_muted)
-        elif command == MediaPlayerCommands.MUTE:
-            res = await self._device.mute(True)
-        elif command == MediaPlayerCommands.UNMUTE:
-            res = await self._device.mute(False)
-        elif command == MediaPlayerCommands.ON:
+        if cmd_id == Commands.ON:
             res = await self._device.power_on()
-        elif command == MediaPlayerCommands.OFF:
+        elif cmd_id == Commands.OFF:
             res = await self._device.power_off()
-        elif command == MediaPlayerCommands.NEXT:
-            res = await self._device.next()
-        elif command == MediaPlayerCommands.PREVIOUS:
-            res = await self._device.previous()
-        elif command == MediaPlayerCommands.PLAY_PAUSE:
-            res = await self._device.play_pause()
-        elif command == MediaPlayerCommands.STOP:
-            res = await self._device.stop()
-        elif command == MediaPlayerCommands.HOME:
-            res = await self._device.home()
-        elif command == MediaPlayerCommands.SETTINGS:
-            return StatusCodes.NOT_IMPLEMENTED  # TODO ?
-        elif command == MediaPlayerCommands.CONTEXT_MENU:
-            res = await self._device.context_menu()
-        elif not self._device.device_config.disable_keyboard_map and cmd_id in KODI_BUTTONS_KEYMAP:
-            res = await self._device.command_button(KODI_BUTTONS_KEYMAP[cmd_id])
-        elif self._device.device_config.disable_keyboard_map and cmd_id in KODI_ALTERNATIVE_BUTTONS_KEYMAP:
-            command = KODI_ALTERNATIVE_BUTTONS_KEYMAP[cmd_id]
-            res = await self._device.call_command(command["method"], **command["params"])
-        elif command in KODI_ACTIONS_KEYMAP:
-            res = await self._device.command_action(KODI_ACTIONS_KEYMAP[command])
-        elif command in self.options[Options.SIMPLE_COMMANDS]:
-            if command in KODI_ADVANCED_SIMPLE_COMMANDS:
-                target_command = KODI_ADVANCED_SIMPLE_COMMANDS[command]
-                res = await self._device.call_command(target_command["method"], **target_command["params"])
+        elif cmd_id == Commands.TOGGLE:
+            if self._device.available:
+                res = await self._device.power_off()
             else:
-                target_command = KODI_SIMPLE_COMMANDS[cmd_id]
-                if target_command in KODI_SIMPLE_COMMANDS_DIRECT:
-                    res = await self._device.call_command(target_command)
-                else:
-                    res = await self._device.command_action(target_command)
-        elif cmd_id == Commands.SEND_CMD:
-            res = await self._device.command_button({"button": command, "keymap": "KB", "holdtime": hold})
-        elif cmd_id == Commands.SEND_CMD_SEQUENCE:
-            commands = params.get("sequence", [])  # .split(",")
-            res = StatusCodes.OK
-            for command in commands:
-                res = await self.handle_command(Commands.SEND_CMD, {"command": command, "params": params})
-                if delay > 0:
-                    await asyncio.sleep(delay)
+                res = await self._device.power_on()
+        elif cmd_id in [Commands.SEND_CMD, Commands.SEND_CMD_SEQUENCE]:
+            # If the duration exceeds the remote timeout, keep it running and return immediately
+            try:
+                async with asyncio.timeout(COMMAND_TIMEOUT):
+                    res = await shield(self.send_commands(cmd_id, params))
+            except asyncio.TimeoutError:
+                _LOG.info("[%s] Command request timeout, keep running: %s %s", self.id, cmd_id, params)
         else:
             return StatusCodes.NOT_IMPLEMENTED
-        if delay > 0 and cmd_id != Commands.SEND_CMD_SEQUENCE:
-            await asyncio.sleep(delay)
+        return res
+
+    async def send_commands(self, cmd_id: str, params: dict[str, Any] | None = None) -> StatusCodes:
+        """Handle custom command or commands sequence."""
+        hold = get_int_param("hold", params, 0)
+        delay = get_int_param("delay", params, 0)
+        repeat = get_int_param("repeat", params, 1)
+        command = params.get("command", "")
+        res = StatusCodes.OK
+        for _i in range(0, repeat):
+            if cmd_id == Commands.SEND_CMD:
+                result = await KodiMediaPlayer.mediaplayer_command(self.id, self._device, command, params)
+                if result == StatusCodes.NOT_IMPLEMENTED:
+                    result = await self._device.command_button({"button": command, "keymap": "KB", "holdtime": hold})
+                if result != StatusCodes.OK:
+                    res = result
+                if delay > 0:
+                    await asyncio.sleep(delay / 1000)
+            else:
+                commands = params.get("sequence", [])
+                for command in commands:
+                    result = KodiMediaPlayer.mediaplayer_command(self.id, self._device, command, params)
+                    if result == StatusCodes.NOT_IMPLEMENTED:
+                        result = await self._device.command_button(
+                            {"button": command, "keymap": "KB", "holdtime": hold}
+                        )
+                    if result != StatusCodes.OK:
+                        res = result
+                    if delay > 0:
+                        await asyncio.sleep(delay / 1000)
         return res
 
     def filter_changed_attributes(self, update: dict[str, Any]) -> dict[str, Any]:

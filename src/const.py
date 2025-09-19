@@ -111,7 +111,7 @@ KODI_FEATURES = [
     Features.SUBTITLE,
     Features.RECORD,
     Features.SEEK,
-    # Features.SETTINGS
+    Features.SETTINGS,
 ]
 
 # Taken from https://kodi.wiki/view/JSON-RPC_API/v10#Input.Action
@@ -187,17 +187,45 @@ KODI_BUTTONS_KEYMAP: dict[str, ButtonKeymap] = {
 
 KODI_ADVANCED_SIMPLE_COMMANDS: dict[str, MethodCall] = {
     "MODE_TOGGLE_GUI": {"method": "GUI.SetFullscreen", "params": {"fullscreen": "toggle"}, "holdtime": None},
-    "MODE_SHOW_SUBTITLES_MENU": {"method" :"GUI.ActivateWindow", "params": {"window": "osdsubtitlesettings"}, "holdtime": None},
-    "MODE_SHOW_AUDIO_MENU": {"method" :"GUI.ActivateWindow", "params": {"window": "osdaudiosettings"}, "holdtime": None},
-    "MODE_SHOW_VIDEO_MENU": {"method" :"GUI.ActivateWindow", "params": {"window": "osdvideosettings"}, "holdtime": None},
-    "MODE_SHOW_BOOKMARKS_MENU": {"method" :"GUI.ActivateWindow", "params": {"window": "videobookmarks"}, "holdtime": None},
-    "MODE_SHOW_SUBTITLE_SEARCH_MENU": {"method": "GUI.ActivateWindow", "params": {"window": "subtitlesearch"}, "holdtime": None},
+    "MODE_SHOW_SUBTITLES_MENU": {
+        "method": "GUI.ActivateWindow",
+        "params": {"window": "osdsubtitlesettings"},
+        "holdtime": None,
+    },
+    "MODE_SHOW_AUDIO_MENU": {
+        "method": "GUI.ActivateWindow",
+        "params": {"window": "osdaudiosettings"},
+        "holdtime": None,
+    },
+    "MODE_SHOW_VIDEO_MENU": {
+        "method": "GUI.ActivateWindow",
+        "params": {"window": "osdvideosettings"},
+        "holdtime": None,
+    },
+    "MODE_SHOW_BOOKMARKS_MENU": {
+        "method": "GUI.ActivateWindow",
+        "params": {"window": "videobookmarks"},
+        "holdtime": None,
+    },
+    "MODE_SHOW_SUBTITLE_SEARCH_MENU": {
+        "method": "GUI.ActivateWindow",
+        "params": {"window": "subtitlesearch"},
+        "holdtime": None,
+    },
     "MODE_SCREENSAVER": {"method": "GUI.ActivateWindow", "params": {"window": "screensaver"}, "holdtime": None},
 }
 
 KODI_ALTERNATIVE_BUTTONS_KEYMAP: dict[str, MethodCall] = {
-    Commands.CHANNEL_UP: {"method": "Input.ExecuteAction", "params": {"action": "pageup"}, "holdtime": None},  # channelup or pageup
-    Commands.CHANNEL_DOWN: {"method": "Input.ExecuteAction", "params": {"action": "pagedown"}, "holdtime": None},  # channeldown or pagedown
+    Commands.CHANNEL_UP: {
+        "method": "Input.ExecuteAction",
+        "params": {"action": "pageup"},
+        "holdtime": None,
+    },  # channelup or pageup
+    Commands.CHANNEL_DOWN: {
+        "method": "Input.ExecuteAction",
+        "params": {"action": "pagedown"},
+        "holdtime": None,
+    },  # channeldown or pagedown
     Commands.CURSOR_UP: {"method": "Input.Up", "params": {}, "holdtime": None},
     Commands.CURSOR_DOWN: {"method": "Input.Down", "params": {}, "holdtime": None},
     Commands.CURSOR_LEFT: {"method": "Input.Left", "params": {}, "holdtime": None},
@@ -222,24 +250,28 @@ KODI_ALTERNATIVE_BUTTONS_KEYMAP: dict[str, MethodCall] = {
     # Commands.FUNCTION_YELLOW: {"method": "Input.yellow"},
 }
 
-KODI_REMOTE_BUTTONS_MAPPING: [DeviceButtonMapping] = [
-    {"button": Buttons.BACK, "short_press": {"cmd_id": Commands.BACK}},
-    {"button": Buttons.HOME, "short_press": {"cmd_id": Commands.HOME}},
-    {"button": Buttons.CHANNEL_DOWN, "short_press": {"cmd_id": Commands.CHANNEL_DOWN}},
-    {"button": Buttons.CHANNEL_UP, "short_press": {"cmd_id": Commands.CHANNEL_UP}},
-    {"button": Buttons.DPAD_UP, "short_press": {"cmd_id": Commands.CURSOR_UP}},
-    {"button": Buttons.DPAD_DOWN, "short_press": {"cmd_id": Commands.CURSOR_DOWN}},
-    {"button": Buttons.DPAD_LEFT, "short_press": {"cmd_id": Commands.CURSOR_LEFT}},
-    {"button": Buttons.DPAD_RIGHT, "short_press": {"cmd_id": Commands.CURSOR_RIGHT}},
-    {"button": Buttons.DPAD_MIDDLE, "short_press": {"cmd_id": Commands.CURSOR_ENTER}},
-    {"button": Buttons.PLAY, "short_press": {"cmd_id": Commands.PLAY_PAUSE}},
-    {"button": Buttons.PREV, "short_press": {"cmd_id": Commands.PREVIOUS}},
-    {"button": Buttons.NEXT, "short_press": {"cmd_id": Commands.NEXT}},
-    {"button": Buttons.VOLUME_UP, "short_press": {"cmd_id": Commands.VOLUME_UP}},
-    {"button": Buttons.VOLUME_DOWN, "short_press": {"cmd_id": Commands.VOLUME_DOWN}},
-    {"button": Buttons.MUTE, "short_press": {"cmd_id": Commands.MUTE_TOGGLE}},
-    {"button": "STOP", "short_press": {"cmd_id": Commands.STOP}},  # TODO missing R3 buttons in UCAPI
-    {"button": "MENU", "short_press": {"cmd_id": Commands.CONTEXT_MENU}},  # TODO missing R3 buttons in UCAPI
+KODI_REMOTE_BUTTONS_MAPPING: list[DeviceButtonMapping] = [
+    DeviceButtonMapping(**{"button": Buttons.BACK, "short_press": {"cmd_id": Commands.BACK}}),
+    DeviceButtonMapping(**{"button": Buttons.HOME, "short_press": {"cmd_id": Commands.HOME}}),
+    DeviceButtonMapping(**{"button": Buttons.CHANNEL_DOWN, "short_press": {"cmd_id": Commands.CHANNEL_DOWN}}),
+    DeviceButtonMapping(**{"button": Buttons.CHANNEL_UP, "short_press": {"cmd_id": Commands.CHANNEL_UP}}),
+    DeviceButtonMapping(**{"button": Buttons.DPAD_UP, "short_press": {"cmd_id": Commands.CURSOR_UP}}),
+    DeviceButtonMapping(**{"button": Buttons.DPAD_DOWN, "short_press": {"cmd_id": Commands.CURSOR_DOWN}}),
+    DeviceButtonMapping(**{"button": Buttons.DPAD_LEFT, "short_press": {"cmd_id": Commands.CURSOR_LEFT}}),
+    DeviceButtonMapping(**{"button": Buttons.DPAD_RIGHT, "short_press": {"cmd_id": Commands.CURSOR_RIGHT}}),
+    DeviceButtonMapping(**{"button": Buttons.DPAD_MIDDLE, "short_press": {"cmd_id": Commands.CURSOR_ENTER}}),
+    DeviceButtonMapping(**{"button": Buttons.PLAY, "short_press": {"cmd_id": Commands.PLAY_PAUSE}}),
+    DeviceButtonMapping(**{"button": Buttons.PREV, "short_press": {"cmd_id": Commands.PREVIOUS}}),
+    DeviceButtonMapping(**{"button": Buttons.NEXT, "short_press": {"cmd_id": Commands.NEXT}}),
+    DeviceButtonMapping(**{"button": Buttons.VOLUME_UP, "short_press": {"cmd_id": Commands.VOLUME_UP}}),
+    DeviceButtonMapping(**{"button": Buttons.VOLUME_DOWN, "short_press": {"cmd_id": Commands.VOLUME_DOWN}}),
+    DeviceButtonMapping(**{"button": Buttons.MUTE, "short_press": {"cmd_id": Commands.MUTE_TOGGLE}}),
+    DeviceButtonMapping(
+        **{"button": "STOP", "short_press": {"cmd_id": Commands.STOP}}
+    ),  # TODO missing R3 buttons in UCAPI
+    DeviceButtonMapping(
+        **{"button": "MENU", "short_press": {"cmd_id": Commands.CONTEXT_MENU}}
+    ),  # TODO missing R3 buttons in UCAPI
 ]
 
 # All defined commands for remote entity
@@ -260,7 +292,7 @@ KODI_REMOTE_SIMPLE_COMMANDS = [
     Commands.HOME,
 ]
 
-KODI_REMOTE_UI_PAGES: [UiPage] = [
+KODI_REMOTE_UI_PAGES: list[UiPage] = [
     {
         "page_id": "Kodi commands",
         "name": "Kodi commands",
@@ -270,56 +302,48 @@ KODI_REMOTE_UI_PAGES: [UiPage] = [
                 "command": {"cmd_id": "remote.send", "params": {"command": Commands.INFO, "repeat": 1}},
                 "icon": "uc:info",
                 "location": {"x": 0, "y": 0},
-                "size": {"height": 1, "width": 1},
                 "type": "icon",
             },
             {
                 "command": {"cmd_id": "remote.send", "params": {"command": Commands.AUDIO_TRACK, "repeat": 1}},
                 "icon": "uc:language",
                 "location": {"x": 1, "y": 0},
-                "size": {"height": 1, "width": 1},
                 "type": "icon",
             },
             {
                 "command": {"cmd_id": "remote.send", "params": {"command": Commands.SUBTITLE, "repeat": 1}},
                 "icon": "uc:cc",
                 "location": {"x": 2, "y": 0},
-                "size": {"height": 1, "width": 1},
                 "type": "icon",
             },
             {
                 "command": {"cmd_id": "MODE_SHOW_SUBTITLES"},
                 "text": "Toggle subtitles",
                 "location": {"x": 3, "y": 0},
-                "size": {"height": 1, "width": 1},
                 "type": "text",
             },
             {
                 "command": {"cmd_id": "MODE_FULLSCREEN"},
                 "text": "Full screen",
                 "location": {"x": 0, "y": 1},
-                "size": {"height": 1, "width": 1},
                 "type": "text",
             },
             {
                 "command": {"cmd_id": "MODE_ZOOM_IN"},
                 "text": "Zoom in",
                 "location": {"x": 1, "y": 1},
-                "size": {"height": 1, "width": 1},
                 "type": "text",
             },
             {
                 "command": {"cmd_id": "MODE_ZOOM_OUT"},
                 "text": "Zoom out",
                 "location": {"x": 2, "y": 1},
-                "size": {"height": 1, "width": 1},
                 "type": "text",
             },
             {
                 "command": {"cmd_id": Commands.CONTEXT_MENU},
                 "icon": "uc:menu",
                 "location": {"x": 3, "y": 5},
-                "size": {"height": 1, "width": 1},
                 "type": "icon",
             },
         ],
@@ -332,70 +356,60 @@ KODI_REMOTE_UI_PAGES: [UiPage] = [
             {
                 "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_1, "repeat": 1}},
                 "location": {"x": 0, "y": 0},
-                "size": {"height": 1, "width": 1},
                 "text": "1",
                 "type": "text",
             },
             {
                 "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_2, "repeat": 1}},
                 "location": {"x": 1, "y": 0},
-                "size": {"height": 1, "width": 1},
                 "text": "2",
                 "type": "text",
             },
             {
                 "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_3, "repeat": 1}},
                 "location": {"x": 2, "y": 0},
-                "size": {"height": 1, "width": 1},
                 "text": "3",
                 "type": "text",
             },
             {
                 "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_4, "repeat": 1}},
                 "location": {"x": 0, "y": 1},
-                "size": {"height": 1, "width": 1},
                 "text": "4",
                 "type": "text",
             },
             {
                 "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_5, "repeat": 1}},
                 "location": {"x": 1, "y": 1},
-                "size": {"height": 1, "width": 1},
                 "text": "5",
                 "type": "text",
             },
             {
                 "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_6, "repeat": 1}},
                 "location": {"x": 2, "y": 1},
-                "size": {"height": 1, "width": 1},
                 "text": "6",
                 "type": "text",
             },
             {
                 "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_7, "repeat": 1}},
                 "location": {"x": 0, "y": 2},
-                "size": {"height": 1, "width": 1},
                 "text": "7",
                 "type": "text",
             },
             {
                 "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_8, "repeat": 1}},
                 "location": {"x": 1, "y": 2},
-                "size": {"height": 1, "width": 1},
                 "text": "8",
                 "type": "text",
             },
             {
                 "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_9, "repeat": 1}},
                 "location": {"x": 2, "y": 2},
-                "size": {"height": 1, "width": 1},
                 "text": "9",
                 "type": "text",
             },
             {
                 "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_0, "repeat": 1}},
                 "location": {"x": 1, "y": 3},
-                "size": {"height": 1, "width": 1},
                 "text": "0",
                 "type": "text",
             },
