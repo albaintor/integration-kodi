@@ -9,18 +9,7 @@ import asyncio
 import logging
 from enum import IntEnum
 
-import config
 from aiohttp import ClientSession
-from config import KodiConfigDevice
-from discover import KodiDiscover
-from pykodi.kodi import (
-    CannotConnectError,
-    InvalidAuthError,
-    Kodi,
-    KodiConnection,
-    KodiHTTPConnection,
-    KodiWSConnection,
-)
 from ucapi import (
     AbortDriverSetup,
     DriverSetupRequest,
@@ -33,8 +22,23 @@ from ucapi import (
     UserDataResponse,
 )
 
-from const import KODI_ARTWORK_LABELS, KODI_ARTWORK_TVSHOWS_LABELS, KODI_DEFAULT_ARTWORK, KODI_DEFAULT_TVSHOW_ARTWORK
-from config import ConfigImportResult
+import config
+from config import ConfigImportResult, KodiConfigDevice
+from const import (
+    KODI_ARTWORK_LABELS,
+    KODI_ARTWORK_TVSHOWS_LABELS,
+    KODI_DEFAULT_ARTWORK,
+    KODI_DEFAULT_TVSHOW_ARTWORK,
+)
+from discover import KodiDiscover
+from pykodi.kodi import (
+    CannotConnectError,
+    InvalidAuthError,
+    Kodi,
+    KodiConnection,
+    KodiHTTPConnection,
+    KodiWSConnection,
+)
 
 _LOG = logging.getLogger(__name__)
 

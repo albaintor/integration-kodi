@@ -11,7 +11,7 @@ import datetime
 import logging
 import time
 import urllib.parse
-from asyncio import AbstractEventLoop, Lock, shield, Future
+from asyncio import AbstractEventLoop, Future, Lock, shield
 from enum import IntEnum
 from functools import wraps
 from typing import Any, Awaitable, Callable, Concatenate, Coroutine, ParamSpec, TypeVar
@@ -19,18 +19,18 @@ from typing import Any, Awaitable, Callable, Concatenate, Coroutine, ParamSpec, 
 import jsonrpc_base
 import ucapi
 from aiohttp import ClientSession, ServerTimeoutError
-
-from config import KodiConfigDevice
-from const import KODI_FEATURES, KODI_MEDIA_TYPES, ButtonKeymap, MethodCall
 from jsonrpc_base.jsonrpc import (  # pylint: disable = E0401
     ProtocolError,
     TransportError,
 )
 from pyee.asyncio import AsyncIOEventEmitter
-from pykodi.kodi import CannotConnectError, InvalidAuthError, Kodi, KodiWSConnection
 from ucapi.media_player import Attributes as MediaAttr
 from ucapi.media_player import Features, MediaType
 from ucapi.media_player import States as MediaStates
+
+from config import KodiConfigDevice
+from const import KODI_FEATURES, KODI_MEDIA_TYPES, ButtonKeymap
+from pykodi.kodi import CannotConnectError, InvalidAuthError, Kodi, KodiWSConnection
 
 _KodiDeviceT = TypeVar("_KodiDeviceT", bound="KodiDevice")
 _P = ParamSpec("_P")
@@ -639,8 +639,8 @@ class KodiDevice:
                 else:
                     artwork_type = self._device_config.artwork_type
 
-                # Workaround for remote bug : when stopping/playing the same media or another media with the same artwork
-                # it won't be displayed
+                # Workaround for remote bug : when stopping/playing the same media or another media
+                # with the same artwork it won't be displayed
                 current_artwork = self.media_artwork
                 is_starting_media = False
                 # Playback state goes from stop (MediaStates.ON) to play
@@ -812,7 +812,7 @@ class KodiDevice:
         self._update_lock.release()
 
     @property
-    def server(self) -> jsonrpc_base.Server|None:
+    def server(self) -> jsonrpc_base.Server | None:
         if self._kodi is None:
             return None
         return self._kodi.server

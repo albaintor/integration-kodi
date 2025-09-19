@@ -12,12 +12,13 @@ import os
 import sys
 from typing import Any
 
+import ucapi
+
 import config
 import kodi
 import media_player
 import remote
 import setup_flow
-import ucapi
 from config import device_from_entity_id
 
 _LOG = logging.getLogger("driver")  # avoid having __main__ in log messages

@@ -11,12 +11,10 @@ import sys
 from typing import Any
 
 from rich import print_json
-from ucapi.media_player import Commands
 
-from const import KODI_ALTERNATIVE_BUTTONS_KEYMAP, KODI_SIMPLE_COMMANDS
-from kodi import KodiDevice
-from config import KodiConfigDevice
 import kodi
+from config import KodiConfigDevice
+from kodi import KodiDevice
 
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -50,7 +48,7 @@ async def main():
             artwork_type_tvshows="season.banner",
             media_update_task=True,
             download_artwork=False,
-            disable_keyboard_map=True
+            disable_keyboard_map=True,
         )
     )
     # await client.power_on()
@@ -67,18 +65,19 @@ async def main():
 
     # Examples :
     await client._kodi.call_method("Input.Down")
-    #await client._kodi._server.Input.Down()
+    # await client._kodi._server.Input.Down()
     # command = KODI_ALTERNATIVE_BUTTONS_KEYMAP[Commands.CURSOR_DOWN]
     # await client.call_command(command["method"], **command["params"])
 
     # command = KODI_ALTERNATIVE_BUTTONS_KEYMAP[Commands.CHANNEL_DOWN]
     # await client.call_command(command["method"], **command["params"])
 
-    #await client.command_action(KODI_SIMPLE_COMMANDS["MODE_FULLSCREEN"])
-    #await client.call_command("GUI.SetFullscreen", **{"fullscreen": "toggle"})
-    #await client.call_command("GUI.ActivateWindow", **{"window": "osdsubtitlesettings"})
+    # await client.command_action(KODI_SIMPLE_COMMANDS["MODE_FULLSCREEN"])
+    # await client.call_command("GUI.SetFullscreen", **{"fullscreen": "toggle"})
+    # await client.call_command("GUI.ActivateWindow", **{"window": "osdsubtitlesettings"})
 
     exit(0)
+
 
 if __name__ == "__main__":
     _LOG = logging.getLogger(__name__)

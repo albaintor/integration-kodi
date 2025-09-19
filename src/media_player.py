@@ -8,18 +8,19 @@ Media-player entity functions.
 import logging
 from typing import Any
 
+from ucapi import EntityTypes, MediaPlayer, StatusCodes
+from ucapi.media_player import Commands, DeviceClasses, Options
+
 import kodi
 from config import KodiConfigDevice, create_entity_id
 from const import (
     KODI_ACTIONS_KEYMAP,
+    KODI_ADVANCED_SIMPLE_COMMANDS,
+    KODI_ALTERNATIVE_BUTTONS_KEYMAP,
     KODI_BUTTONS_KEYMAP,
     KODI_SIMPLE_COMMANDS,
     KODI_SIMPLE_COMMANDS_DIRECT,
-    KODI_ALTERNATIVE_BUTTONS_KEYMAP,
-    KODI_ADVANCED_SIMPLE_COMMANDS,
 )
-from ucapi import EntityTypes, MediaPlayer, StatusCodes
-from ucapi.media_player import Attributes, Commands, DeviceClasses, Options
 
 _LOG = logging.getLogger(__name__)
 
@@ -93,11 +94,15 @@ class KodiMediaPlayer(MediaPlayer):
         elif cmd_id == Commands.SETTINGS:
             res = await device.call_command("GUI.ActivateWindow", {"window": "screensaver"})
         elif not device.device_config.disable_keyboard_map and cmd_id in KODI_BUTTONS_KEYMAP:
-            command = KODI_BUTTONS_KEYMAP[cmd_id].copy()
-            hold = params.get("hold", 0)
-            if hold != "" and hold > 0:
-                command["holdtime"] = hold
-            res = await device.command_button(command)
+            command = KODI_BUTTONS_KEYMAP[cmd_id]
+            if hasattr(command, "button"):
+                command = command.copy()
+                hold = params.get("hold", 0)
+                if hold != "" and hold > 0:
+                    command["holdtime"] = hold
+                res = await device.command_button(command)
+            else:
+                res = await device.call_command(command["method"], **command["params"])
         elif device.device_config.disable_keyboard_map and cmd_id in KODI_ALTERNATIVE_BUTTONS_KEYMAP:
             command = KODI_ALTERNATIVE_BUTTONS_KEYMAP[cmd_id]
             res = await device.call_command(command["method"], **command["params"])

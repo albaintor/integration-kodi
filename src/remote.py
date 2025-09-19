@@ -10,6 +10,11 @@ import logging
 from asyncio import shield
 from typing import Any
 
+from ucapi import EntityTypes, Remote, StatusCodes
+from ucapi.media_player import States as MediaStates
+from ucapi.remote import Attributes, Commands, Features
+from ucapi.remote import States as RemoteStates
+
 import kodi
 from config import KodiConfigDevice, create_entity_id
 from const import (
@@ -18,11 +23,6 @@ from const import (
     KODI_REMOTE_UI_PAGES,
     key_update_helper,
 )
-from ucapi import EntityTypes, Remote, StatusCodes
-from ucapi.media_player import States as MediaStates
-from ucapi.remote import Attributes, Commands, Features
-from ucapi.remote import States as RemoteStates
-
 from media_player import KodiMediaPlayer
 
 _LOG = logging.getLogger(__name__)

@@ -11,7 +11,7 @@ import logging
 import os
 from dataclasses import dataclass, field, fields
 from enum import Enum
-from typing import Iterator, Callable
+from typing import Callable, Iterator
 
 from ucapi import EntityTypes
 
@@ -64,10 +64,10 @@ class KodiConfigDevice:
     disable_keyboard_map: bool = field(default=False)
 
     def __post_init__(self):
-        for field in fields(self):
+        for attribute in fields(self):
             # If there is a default and the value of the field is none we can assign a value
-            if not isinstance(field.default, dataclasses._MISSING_TYPE) and getattr(self, field.name) is None:
-                setattr(self, field.name, field.default)
+            if not isinstance(attribute.default, dataclasses._MISSING_TYPE) and getattr(self, attribute.name) is None:
+                setattr(self, attribute.name, attribute.default)
 
 
 class _EnhancedJSONEncoder(json.JSONEncoder):

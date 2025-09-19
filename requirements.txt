@@ -1,8 +1,8 @@
 pyee~=13.0.0
-ucapi~=0.3.1
+ucapi~=0.3.2
 httpx~=0.28.1
 defusedxml~=0.7.1
-jsonrpc-async>=2.1.2
-jsonrpc-websocket>=3.1.5
+jsonrpc-async>=2.1.3
+jsonrpc-websocket>=3.1.6
 jsonrpc_base>=2.2.0
-aiohttp~=3.12.14
+aiohttp~=3.12.15

@@ -5,7 +5,7 @@ Constants used for Kodi integration.
 :license: Mozilla Public License Version 2.0, see LICENSE for more details.
 """
 
-from typing import TypedDict
+from typing import Any, TypedDict
 
 from ucapi.media_player import Commands, Features, MediaType
 from ucapi.ui import Buttons, DeviceButtonMapping, UiPage
@@ -23,8 +23,7 @@ class MethodCall(TypedDict):
     """Kodi method call."""
 
     method: str
-    params: dict[str, any]
-    holdtime: int | None
+    params: dict[str, Any]
 
 
 KODI_MEDIA_TYPES = {
@@ -157,32 +156,34 @@ KODI_ACTIONS_KEYMAP = {
 # For remote buttons :
 # see https://github.com/xbmc/xbmc/blob/master/system/keymaps/remote.xml for R1 keymap or
 # see https://github.com/xbmc/xbmc/blob/master/system/keymaps/keyboard.xml for KB keymap
-KODI_BUTTONS_KEYMAP: dict[str, ButtonKeymap] = {
-    Commands.CHANNEL_UP: {"button": "pageplus", "keymap": "R1"},  # channelup or pageup
-    Commands.CHANNEL_DOWN: {"button": "pageminus", "keymap": "R1"},  # channeldown or pagedown
-    Commands.CURSOR_UP: {"button": "up", "keymap": "R1"},
-    Commands.CURSOR_DOWN: {"button": "down", "keymap": "R1"},
-    Commands.CURSOR_LEFT: {"button": "left", "keymap": "R1"},
-    Commands.CURSOR_RIGHT: {"button": "right", "keymap": "R1"},
-    Commands.CURSOR_ENTER: {"button": "enter"},
-    Commands.BACK: {"button": "backspace"},
+KODI_BUTTONS_KEYMAP: dict[str, ButtonKeymap | MethodCall] = {
+    Commands.CHANNEL_UP: ButtonKeymap(**{"button": "pageplus", "keymap": "R1"}),  # channelup or pageup
+    Commands.CHANNEL_DOWN: ButtonKeymap(**{"button": "pageminus", "keymap": "R1"}),  # channeldown or pagedown
+    Commands.CURSOR_UP: ButtonKeymap(**{"button": "up", "keymap": "R1"}),
+    Commands.CURSOR_DOWN: ButtonKeymap(**{"button": "down", "keymap": "R1"}),
+    Commands.CURSOR_LEFT: ButtonKeymap(**{"button": "left", "keymap": "R1"}),
+    Commands.CURSOR_RIGHT: ButtonKeymap(**{"button": "right", "keymap": "R1"}),
+    Commands.CURSOR_ENTER: ButtonKeymap(**{"button": "enter"}),
+    Commands.BACK: ButtonKeymap(**{"button": "backspace"}),
     # Send numbers through "R1" keymap so they can be used for character input (like on old phones)
-    Commands.DIGIT_0: {"button": "zero", "keymap": "R1"},
-    Commands.DIGIT_1: {"button": "one", "keymap": "R1"},
-    Commands.DIGIT_2: {"button": "two", "keymap": "R1"},
-    Commands.DIGIT_3: {"button": "three", "keymap": "R1"},
-    Commands.DIGIT_4: {"button": "four", "keymap": "R1"},
-    Commands.DIGIT_5: {"button": "five", "keymap": "R1"},
-    Commands.DIGIT_6: {"button": "six", "keymap": "R1"},
-    Commands.DIGIT_7: {"button": "seven", "keymap": "R1"},
-    Commands.DIGIT_8: {"button": "eight", "keymap": "R1"},
-    Commands.DIGIT_9: {"button": "nine", "keymap": "R1"},
-    Commands.RECORD: {"button": "record", "keymap": "R1"},
-    Commands.GUIDE: {"button": "guide", "keymap": "R1"},
-    Commands.FUNCTION_GREEN: {"button": "green", "keymap": "R1"},
-    Commands.FUNCTION_BLUE: {"button": "blue", "keymap": "R1"},
-    Commands.FUNCTION_RED: {"button": "red", "keymap": "R1"},
-    Commands.FUNCTION_YELLOW: {"button": "yellow", "keymap": "R1"},
+    Commands.DIGIT_0: ButtonKeymap(**{"button": "zero", "keymap": "R1"}),
+    Commands.DIGIT_1: ButtonKeymap(**{"button": "one", "keymap": "R1"}),
+    Commands.DIGIT_2: ButtonKeymap(**{"button": "two", "keymap": "R1"}),
+    Commands.DIGIT_3: ButtonKeymap(**{"button": "three", "keymap": "R1"}),
+    Commands.DIGIT_4: ButtonKeymap(**{"button": "four", "keymap": "R1"}),
+    Commands.DIGIT_5: ButtonKeymap(**{"button": "five", "keymap": "R1"}),
+    Commands.DIGIT_6: ButtonKeymap(**{"button": "six", "keymap": "R1"}),
+    Commands.DIGIT_7: ButtonKeymap(**{"button": "seven", "keymap": "R1"}),
+    Commands.DIGIT_8: ButtonKeymap(**{"button": "eight", "keymap": "R1"}),
+    Commands.DIGIT_9: ButtonKeymap(**{"button": "nine", "keymap": "R1"}),
+    Commands.RECORD: ButtonKeymap(**{"button": "record", "keymap": "R1"}),
+    Commands.GUIDE: ButtonKeymap(**{"button": "guide", "keymap": "R1"}),
+    Commands.FUNCTION_GREEN: ButtonKeymap(**{"button": "green", "keymap": "R1"}),
+    Commands.FUNCTION_BLUE: ButtonKeymap(**{"button": "blue", "keymap": "R1"}),
+    Commands.FUNCTION_RED: ButtonKeymap(**{"button": "red", "keymap": "R1"}),
+    Commands.FUNCTION_YELLOW: ButtonKeymap(**{"button": "yellow", "keymap": "R1"}),
+    Commands.SETTINGS: MethodCall(method="GUI.ActivateWindow", params={"window": "settings"}),
+    # Commands.STOP: ButtonKeymap(**{"button": "stop", "keymap": "R1"}),
 }
 
 KODI_ADVANCED_SIMPLE_COMMANDS: dict[str, MethodCall] = {
@@ -212,42 +213,24 @@ KODI_ADVANCED_SIMPLE_COMMANDS: dict[str, MethodCall] = {
         "params": {"window": "subtitlesearch"},
         "holdtime": None,
     },
-    "MODE_SCREENSAVER": {"method": "GUI.ActivateWindow", "params": {"window": "screensaver"}, "holdtime": None},
+    "MODE_SCREENSAVER": {"method": "GUI.ActivateWindow", "params": {"window": "screensaver"}},
 }
 
 KODI_ALTERNATIVE_BUTTONS_KEYMAP: dict[str, MethodCall] = {
     Commands.CHANNEL_UP: {
         "method": "Input.ExecuteAction",
         "params": {"action": "pageup"},
-        "holdtime": None,
     },  # channelup or pageup
     Commands.CHANNEL_DOWN: {
         "method": "Input.ExecuteAction",
         "params": {"action": "pagedown"},
-        "holdtime": None,
     },  # channeldown or pagedown
-    Commands.CURSOR_UP: {"method": "Input.Up", "params": {}, "holdtime": None},
-    Commands.CURSOR_DOWN: {"method": "Input.Down", "params": {}, "holdtime": None},
-    Commands.CURSOR_LEFT: {"method": "Input.Left", "params": {}, "holdtime": None},
-    Commands.CURSOR_RIGHT: {"method": "Input.Right", "params": {}, "holdtime": None},
-    Commands.CURSOR_ENTER: {"method": "Input.Select", "params": {}, "holdtime": None},
-    Commands.BACK: {"method": "Input.Back", "params": {}, "holdtime": None},
-    # Commands.DIGIT_0: {"method": "Input.zero"},
-    # Commands.DIGIT_1: {"method": "Input.one"},
-    # Commands.DIGIT_2: {"method": "Input.two"},
-    # Commands.DIGIT_3: {"method": "Input.three"},
-    # Commands.DIGIT_4: {"method": "Input.four"},
-    # Commands.DIGIT_5: {"method": "Input.five"},
-    # Commands.DIGIT_6: {"method": "Input.six"},
-    # Commands.DIGIT_7: {"method": "Input.seven"},
-    # Commands.DIGIT_8: {"method": "Input.eight"},
-    # Commands.DIGIT_9: {"method": "Input.nine"},
-    # Commands.RECORD: {"method": "Input.record"},
-    # Commands.GUIDE: {"method": "Input.guide"},
-    # Commands.FUNCTION_GREEN: {"method": "Input.green"},
-    # Commands.FUNCTION_BLUE: {"method": "Input.blue"},
-    # Commands.FUNCTION_RED: {"method": "Input.red"},
-    # Commands.FUNCTION_YELLOW: {"method": "Input.yellow"},
+    Commands.CURSOR_UP: {"method": "Input.Up", "params": {}},
+    Commands.CURSOR_DOWN: {"method": "Input.Down", "params": {}},
+    Commands.CURSOR_LEFT: {"method": "Input.Left", "params": {}},
+    Commands.CURSOR_RIGHT: {"method": "Input.Right", "params": {}},
+    Commands.CURSOR_ENTER: {"method": "Input.Select", "params": {}},
+    Commands.BACK: {"method": "Input.Back", "params": {}},
 }
 
 KODI_REMOTE_BUTTONS_MAPPING: list[DeviceButtonMapping] = [
@@ -266,12 +249,8 @@ KODI_REMOTE_BUTTONS_MAPPING: list[DeviceButtonMapping] = [
     DeviceButtonMapping(**{"button": Buttons.VOLUME_UP, "short_press": {"cmd_id": Commands.VOLUME_UP}}),
     DeviceButtonMapping(**{"button": Buttons.VOLUME_DOWN, "short_press": {"cmd_id": Commands.VOLUME_DOWN}}),
     DeviceButtonMapping(**{"button": Buttons.MUTE, "short_press": {"cmd_id": Commands.MUTE_TOGGLE}}),
-    DeviceButtonMapping(
-        **{"button": "STOP", "short_press": {"cmd_id": Commands.STOP}}
-    ),  # TODO missing R3 buttons in UCAPI
-    DeviceButtonMapping(
-        **{"button": "MENU", "short_press": {"cmd_id": Commands.CONTEXT_MENU}}
-    ),  # TODO missing R3 buttons in UCAPI
+    DeviceButtonMapping(**{"button": Buttons.STOP, "short_press": {"cmd_id": Commands.STOP}}),
+    DeviceButtonMapping(**{"button": Buttons.MENU, "short_press": {"cmd_id": Commands.CONTEXT_MENU}}),
 ]
 
 # All defined commands for remote entity
@@ -293,128 +272,132 @@ KODI_REMOTE_SIMPLE_COMMANDS = [
 ]
 
 KODI_REMOTE_UI_PAGES: list[UiPage] = [
-    {
-        "page_id": "Kodi commands",
-        "name": "Kodi commands",
-        "grid": {"width": 4, "height": 6},
-        "items": [
-            {
-                "command": {"cmd_id": "remote.send", "params": {"command": Commands.INFO, "repeat": 1}},
-                "icon": "uc:info",
-                "location": {"x": 0, "y": 0},
-                "type": "icon",
-            },
-            {
-                "command": {"cmd_id": "remote.send", "params": {"command": Commands.AUDIO_TRACK, "repeat": 1}},
-                "icon": "uc:language",
-                "location": {"x": 1, "y": 0},
-                "type": "icon",
-            },
-            {
-                "command": {"cmd_id": "remote.send", "params": {"command": Commands.SUBTITLE, "repeat": 1}},
-                "icon": "uc:cc",
-                "location": {"x": 2, "y": 0},
-                "type": "icon",
-            },
-            {
-                "command": {"cmd_id": "MODE_SHOW_SUBTITLES"},
-                "text": "Toggle subtitles",
-                "location": {"x": 3, "y": 0},
-                "type": "text",
-            },
-            {
-                "command": {"cmd_id": "MODE_FULLSCREEN"},
-                "text": "Full screen",
-                "location": {"x": 0, "y": 1},
-                "type": "text",
-            },
-            {
-                "command": {"cmd_id": "MODE_ZOOM_IN"},
-                "text": "Zoom in",
-                "location": {"x": 1, "y": 1},
-                "type": "text",
-            },
-            {
-                "command": {"cmd_id": "MODE_ZOOM_OUT"},
-                "text": "Zoom out",
-                "location": {"x": 2, "y": 1},
-                "type": "text",
-            },
-            {
-                "command": {"cmd_id": Commands.CONTEXT_MENU},
-                "icon": "uc:menu",
-                "location": {"x": 3, "y": 5},
-                "type": "icon",
-            },
-        ],
-    },
-    {
-        "page_id": "Kodi numbers",
-        "name": "Kodi numbers",
-        "grid": {"height": 4, "width": 3},
-        "items": [
-            {
-                "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_1, "repeat": 1}},
-                "location": {"x": 0, "y": 0},
-                "text": "1",
-                "type": "text",
-            },
-            {
-                "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_2, "repeat": 1}},
-                "location": {"x": 1, "y": 0},
-                "text": "2",
-                "type": "text",
-            },
-            {
-                "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_3, "repeat": 1}},
-                "location": {"x": 2, "y": 0},
-                "text": "3",
-                "type": "text",
-            },
-            {
-                "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_4, "repeat": 1}},
-                "location": {"x": 0, "y": 1},
-                "text": "4",
-                "type": "text",
-            },
-            {
-                "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_5, "repeat": 1}},
-                "location": {"x": 1, "y": 1},
-                "text": "5",
-                "type": "text",
-            },
-            {
-                "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_6, "repeat": 1}},
-                "location": {"x": 2, "y": 1},
-                "text": "6",
-                "type": "text",
-            },
-            {
-                "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_7, "repeat": 1}},
-                "location": {"x": 0, "y": 2},
-                "text": "7",
-                "type": "text",
-            },
-            {
-                "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_8, "repeat": 1}},
-                "location": {"x": 1, "y": 2},
-                "text": "8",
-                "type": "text",
-            },
-            {
-                "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_9, "repeat": 1}},
-                "location": {"x": 2, "y": 2},
-                "text": "9",
-                "type": "text",
-            },
-            {
-                "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_0, "repeat": 1}},
-                "location": {"x": 1, "y": 3},
-                "text": "0",
-                "type": "text",
-            },
-        ],
-    },
+    UiPage(
+        **{
+            "page_id": "Kodi commands",
+            "name": "Kodi commands",
+            "grid": {"width": 4, "height": 6},
+            "items": [
+                {
+                    "command": {"cmd_id": "remote.send", "params": {"command": Commands.INFO, "repeat": 1}},
+                    "icon": "uc:info",
+                    "location": {"x": 0, "y": 0},
+                    "type": "icon",
+                },
+                {
+                    "command": {"cmd_id": "remote.send", "params": {"command": Commands.AUDIO_TRACK, "repeat": 1}},
+                    "icon": "uc:language",
+                    "location": {"x": 1, "y": 0},
+                    "type": "icon",
+                },
+                {
+                    "command": {"cmd_id": "remote.send", "params": {"command": Commands.SUBTITLE, "repeat": 1}},
+                    "icon": "uc:cc",
+                    "location": {"x": 2, "y": 0},
+                    "type": "icon",
+                },
+                {
+                    "command": {"cmd_id": "MODE_SHOW_SUBTITLES"},
+                    "text": "Toggle subtitles",
+                    "location": {"x": 3, "y": 0},
+                    "type": "text",
+                },
+                {
+                    "command": {"cmd_id": "MODE_FULLSCREEN"},
+                    "text": "Full screen",
+                    "location": {"x": 0, "y": 1},
+                    "type": "text",
+                },
+                {
+                    "command": {"cmd_id": "MODE_ZOOM_IN"},
+                    "text": "Zoom in",
+                    "location": {"x": 1, "y": 1},
+                    "type": "text",
+                },
+                {
+                    "command": {"cmd_id": "MODE_ZOOM_OUT"},
+                    "text": "Zoom out",
+                    "location": {"x": 2, "y": 1},
+                    "type": "text",
+                },
+                {
+                    "command": {"cmd_id": Commands.CONTEXT_MENU},
+                    "icon": "uc:menu",
+                    "location": {"x": 3, "y": 5},
+                    "type": "icon",
+                },
+            ],
+        }
+    ),
+    UiPage(
+        **{
+            "page_id": "Kodi numbers",
+            "name": "Kodi numbers",
+            "grid": {"height": 4, "width": 3},
+            "items": [
+                {
+                    "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_1, "repeat": 1}},
+                    "location": {"x": 0, "y": 0},
+                    "text": "1",
+                    "type": "text",
+                },
+                {
+                    "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_2, "repeat": 1}},
+                    "location": {"x": 1, "y": 0},
+                    "text": "2",
+                    "type": "text",
+                },
+                {
+                    "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_3, "repeat": 1}},
+                    "location": {"x": 2, "y": 0},
+                    "text": "3",
+                    "type": "text",
+                },
+                {
+                    "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_4, "repeat": 1}},
+                    "location": {"x": 0, "y": 1},
+                    "text": "4",
+                    "type": "text",
+                },
+                {
+                    "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_5, "repeat": 1}},
+                    "location": {"x": 1, "y": 1},
+                    "text": "5",
+                    "type": "text",
+                },
+                {
+                    "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_6, "repeat": 1}},
+                    "location": {"x": 2, "y": 1},
+                    "text": "6",
+                    "type": "text",
+                },
+                {
+                    "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_7, "repeat": 1}},
+                    "location": {"x": 0, "y": 2},
+                    "text": "7",
+                    "type": "text",
+                },
+                {
+                    "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_8, "repeat": 1}},
+                    "location": {"x": 1, "y": 2},
+                    "text": "8",
+                    "type": "text",
+                },
+                {
+                    "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_9, "repeat": 1}},
+                    "location": {"x": 2, "y": 2},
+                    "text": "9",
+                    "type": "text",
+                },
+                {
+                    "command": {"cmd_id": "remote.send", "params": {"command": Commands.DIGIT_0, "repeat": 1}},
+                    "location": {"x": 1, "y": 3},
+                    "text": "0",
+                    "type": "text",
+                },
+            ],
+        }
+    ),
 ]
 
 

@@ -73,7 +73,7 @@ class KodiConnection:
         """Can subscribe."""
         return False
 
-    def thumbnail_url(self, thumbnail) -> str|None:
+    def thumbnail_url(self, thumbnail) -> str | None:
         """Get the URL for a thumbnail."""
         if thumbnail is None:
             return None
