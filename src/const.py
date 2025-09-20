@@ -188,6 +188,16 @@ KODI_BUTTONS_KEYMAP: dict[str, ButtonKeymap | MethodCall] = {
 
 KODI_ADVANCED_SIMPLE_COMMANDS: dict[str, MethodCall] = {
     "MODE_TOGGLE_GUI": {"method": "GUI.SetFullscreen", "params": {"fullscreen": "toggle"}, "holdtime": None},
+    "MODE_SHOW_SUBTITLES_STREAM": {
+        "method": "GUI.ActivateWindow",
+        "params": {"window": "dialogselectsubtitle"},
+        "holdtime": None,
+    },
+    "MODE_SHOW_AUDIO_STREAM": {
+        "method": "GUI.ActivateWindow",
+        "params": {"window": "dialogselectaudio"},
+        "holdtime": None,
+    },
     "MODE_SHOW_SUBTITLES_MENU": {
         "method": "GUI.ActivateWindow",
         "params": {"window": "osdsubtitlesettings"},

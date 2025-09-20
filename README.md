@@ -251,8 +251,11 @@ Pre-built images are available on Docker Hub with multi-architecture support (x8
 ## How to set up custom commands
 
 First don't mix up with entities : when registering the integration, you will get 2 entities : `Media Player` and `Remote` entities.
+
 The media player entity should cover most needs, however if you want to use custom commands and use additional parameters such as repeating the same command, you can use the remote entity.
+
 This entity exposes 4 commands : `Send command`, `Command sequence`, and switch on/off (which both are exposed by the media player entity too).
+
 Here is an example of setting a send command from the remote entity :
 <img width="335" height="451" alt="image" src="https://github.com/user-attachments/assets/d3e2e011-7a5d-42fa-bcfe-66e722c6d025" />
 
@@ -264,6 +267,8 @@ Here is an example of setting a send command from the remote entity :
 | MENU_VIDEO                     | Show video menu (showvideomenu)               |
 | MODE_TOGGLE_GUI                | Toggle GUI while playing                      |
 | MODE_FULLSCREEN                | Toggle full screen (togglefullscreen)         |
+| MODE_SHOW_AUDIO_STREAM         | Show audio streams menu while playing         |
+| MODE_SHOW_SUBTITLES_STREAM     | Show subtitles streams menu while playing     |
 | MODE_SHOW_AUDIO_MENU           | Show audio context menu while playing         |
 | MODE_SHOW_SUBTITLES_MENU       | Show subtitles context menu while playing     |
 | MODE_SHOW_VIDEO_MENU           | Show video settings menu while playing        |
@@ -300,6 +305,20 @@ Here is an example of setting a send command from the remote entity :
 The following commands are standard commands available for the remote entity in addition of simple commands :
 
 `on, off, toggle, play_pause, stop, previous, next, fast_forward, rewind, seek, volume, volume_up, volume_down, mute_toggle, mute, unmute, repeat, shuffle, channel_up, channel_down, cursor_up, cursor_down, cursor_left, cursor_right, cursor_enter, digit_0, digit_1, digit_2, digit_3, digit_4, digit_5, digit_6, digit_7, digit_8, digit_9, function_red, function_green, function_yellow, function_blue, home, menu, context_menu, guide, info, back, select_source, select_sound_mode, record, my_recordings, live, eject, open_close, audio_track, subtitle, settings, search`
+
+## List of custom commands (for remote entity)
+
+Additionally, the following custom commands can be set in the `Send command` or `Command sequence` commands of the `Remote` entity.
+Some can have parameters
+
+
+| Custom command            | Description                                                                                                      | Example                            |
+|---------------------------|------------------------------------------------------------------------------------------------------------------|------------------------------------|
+| activatewindow `windowId` | Show the given window ID, [see this link](https://kodi.wiki/view/Window_IDs)                                     | `activatewindow movieinformation`  |
+| stereoscopimode `mode`    | Set the given stereoscopic mode, [see here](https://kodi.wiki/view/JSON-RPC_API/v13#GUI.SetStereoscopicMode)     | `stereoscopimode split_horizontal` |
+| viewmode `mode`           | Set view mode : normal,zoom,stretch4x3,widezoom,stretch16x9,original,stretch16x9nonlin,zoom120width,zoom110width | `viewmode stretch16x9`             |
+| zoom `mode`               | Set zoom to given mode : in, out or level from 1 to 10                                                           | `zoom in`                          |
+| speed `speed`             | Set playback speed : increment, decrement or integer from -32, -16, -8,... to 32                                 | `speed 32`                         |
 
 ## Versioning
 

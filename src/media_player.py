@@ -86,7 +86,7 @@ class KodiMediaPlayer(MediaPlayer):
         elif cmd_id == Commands.HOME:
             res = await device.home()
         elif cmd_id == Commands.SETTINGS:
-            return StatusCodes.NOT_IMPLEMENTED  # TODO ?
+            res = await device.call_command("GUI.ActivateWindow", {"window": "settings"})
         elif cmd_id == Commands.CONTEXT_MENU:
             res = await device.context_menu()
         elif cmd_id == Commands.SEEK:
@@ -118,8 +118,36 @@ class KodiMediaPlayer(MediaPlayer):
             command = KODI_ADVANCED_SIMPLE_COMMANDS[cmd_id]
             res = await device.call_command(command["method"], **command["params"])
         else:
-            return StatusCodes.NOT_IMPLEMENTED
+            return await KodiMediaPlayer.custom_command(device, cmd_id)
         return res
+
+    @staticmethod
+    async def custom_command(device: kodi.KodiDevice, command: str) -> StatusCodes:
+        arguments = command.split(" ")
+        command_key = command[0].lower()
+        if command_key == "activatewindow" and len(arguments) == 2:
+            return await device.call_command("GUI.ActivateWindow", {"window": arguments[1]})
+        if command_key == "stereoscopimode" and len(arguments) == 2:
+            return await device.call_command("GUI.SetStereoscopicMode", {"mode": arguments[1]})
+        if command_key == "viewmode" and len(arguments) == 2:
+            return await device.view_mode(arguments[1])
+        if command_key == "zoom" and len(arguments) == 2:
+            mode = arguments[1]
+            if mode not in ["in", "out"]:
+                try:
+                    mode = int(mode)
+                except Exception:
+                    pass
+            return await device.zoom(mode)
+        if command_key == "speed" and len(arguments) == 2:
+            value = arguments[1]
+            if value not in ["increment", "decrement"]:
+                try:
+                    value = int(value)
+                except Exception:
+                    pass
+            return await device.speed(value)
+        return StatusCodes.NOT_IMPLEMENTED
 
     async def command(self, cmd_id: str, params: dict[str, Any] | None = None) -> StatusCodes:
         """

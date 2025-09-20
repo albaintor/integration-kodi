@@ -14,7 +14,16 @@ import urllib.parse
 from asyncio import AbstractEventLoop, Future, Lock, shield
 from enum import IntEnum
 from functools import wraps
-from typing import Any, Awaitable, Callable, Concatenate, Coroutine, ParamSpec, TypeVar
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Concatenate,
+    Coroutine,
+    Literal,
+    ParamSpec,
+    TypeVar,
+)
 
 import jsonrpc_base
 import ucapi
@@ -1068,6 +1077,28 @@ class KodiDevice:
             "Player.Seek",
             **{"playerid": player_id, "value": {"time": {"hours": h, "minutes": m, "seconds": s, "milliseconds": 0}}},
         )
+
+    @retry()
+    async def zoom(self, mode: Literal["in", "out"] | int):
+        """Zoom in/out or to a given level 1-10."""
+        if self._no_active_players:
+            return
+        player_id = self._players[0]["playerid"]
+        await self._kodi.call_method("Player.Zoom", **{"playerid": player_id, "zoom": mode})
+
+    @retry()
+    async def view_mode(self, mode: str):
+        """Set view mode to one of normal,zoom,stretch4x3,widezoom,stretch16x9,original,stretch16x9nonlin,
+        zoom120width,zoom110width."""
+        await self._kodi.call_method("Player.SetViewMode", **{"viewmode": mode})
+
+    @retry()
+    async def speed(self, value: Literal["increment", "decrement"] | int):
+        """Set playback speed."""
+        if self._no_active_players:
+            return
+        player_id = self._players[0]["playerid"]
+        await self._kodi.call_method("Player.SetSpeed", **{"playerid": player_id, "speed": value})
 
     async def is_fullscreen_video(self) -> bool:
         """Check if Kodi is in fullscreen (playing video)."""
