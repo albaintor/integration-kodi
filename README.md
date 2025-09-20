@@ -99,9 +99,9 @@ The media player entity should cover most needs, however if you want to use cust
 This entity exposes 2 specific commands : `Send command` and `Command sequence`
 
 Here is an example of setting a `Send command` command from the remote entity :
+
 <img width="335" height="451" alt="image" src="https://github.com/user-attachments/assets/d3e2e011-7a5d-42fa-bcfe-66e722c6d025" />
 
-In the 
 
 ### List of simple commands
 
