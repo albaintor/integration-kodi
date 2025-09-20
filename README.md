@@ -42,10 +42,7 @@ Note : this release requires remote firmware `>= 1.7.10`
 Example : type in `togglefullscreen` in the command field of the remote entity to toggle full screen 
 - Send command sequence (same commands as above)
 - Support for the repeat, hold, delay parameters
-- See [how to set up custom commands](#how-to-set-up-custom-commands)
-- Available commands :
-  - Standard commands : see the [list of standard commands](#list-of-standard-commands)
-  - Simple commands : see the [list of simple commands](#list-of-simple-commands)
+- List of commands (simple or custom) : see [the list here](#additional-commands)
 
 
 ## Installation
@@ -60,13 +57,15 @@ Example : type in `togglefullscreen` in the command field of the remote entity t
 - Port numbers shouldn't be modified normally (8080 for HTTP and 9090 for websocket) : websocket port is not configurable from the GUI (in advanced settings file)
 - There is no turn on command : Kodi has to be started some other way
 - Change these Kodi settings to get full control working : within Kodi, click settings, then go to `Apps`/`Add-on Browser`, `My Add-ons` and scroll down and click on `Peripheral Libraries` : click on `Joystick Support` and click `Disable`. THEN : kill and restart Kodi in order to take effect and then all the remote commands will work fine
+  - This step may not work on Kodi >= 22 : one may have to keep Joystick support enabled and Joystick addon too.
 
 
-### Important hint
+### Hint for saving battery life
 
-To spare battery life, the integration will stop reconnecting if Kodi is off (which is the case on most devices when you switch from Kodi to another app). 
+To save battery life, the integration will stop reconnecting if Kodi is off (which is the case on most devices when you switch from Kodi to another app).
 But if any Kodi command is sent (cursor pad, turn on, play/pause...), a reconnection will be automatically triggered.
-So if you start Kodi from for example your Nvidia Shield but you mapped all cursors pad and enter to Nvidia Shield device (through AndroidTV integration or bluetooth), Kodi reconnection won't be triggered.
+
+So if you start Kodi (ex : from  Nvidia Shield), but you mapped all cursors pad and enter to Nvidia Shield device (through AndroidTV integration or bluetooth), Kodi reconnection won't be triggered.
 So here is the trick to make Kodi integration reconnect : create a macro with your devices (e.g. Nvidia Shield, and Kodi media player) with the following commands :
 1. Nvidia Shield : `Input Source` command to start app `Kodi`
 2. Kodi media player : `Switch On` command (which does nothing except triggering reconnection)
@@ -74,13 +73,13 @@ So here is the trick to make Kodi integration reconnect : create a macro with yo
 And add the macro to your activity, mapped to the screen or to a button. In that way, it will both launch Kodi and trigger the reconnection.
 
 
-### Installation on the Remote (recommended)
+### Installation on the Remote
 
 - Download the release from the release section : file ending with `.tar.gz`
 - Navigate into the Web Configurator of the remote, go into the `Integrations` tab, click on `Add new` and select : `Install custom`
 - Select the downloaded `.tar.gz` file and click on upload
 - Once uploaded, the new integration should appear in the list : click on it and select `Start setup`
-- Your TV must be running and connected to the network before proceed
+- Your Kodi instance must be running and connected to the network before proceed
 
 ### Backup or restore configuration
 
@@ -91,7 +90,82 @@ To use this functionality, select the "Backup or restore" option in the setup fl
 If the format is not recognized, the import will be aborted and existing configuration will remain unchanged.
 
 
-### Installation as external integration
+## Additional commands
+
+First don't mix up with entities : when registering the integration, you will get 2 entities : `Media Player` and `Remote` entities.
+
+The media player entity should cover most needs, however if you want to use custom commands and use additional parameters such as repeating the same command, you can use the remote entity.
+
+This entity exposes 2 specific commands : `Send command` and `Command sequence`
+
+Here is an example of setting a `Send command` command from the remote entity :
+<img width="335" height="451" alt="image" src="https://github.com/user-attachments/assets/d3e2e011-7a5d-42fa-bcfe-66e722c6d025" />
+
+In the 
+
+### List of simple commands
+
+These are exposed by both media & remote entities :
+
+| Simple command                 | Description                                            |
+|--------------------------------|--------------------------------------------------------|
+| MENU_VIDEO                     | Show video menu (showvideomenu)                        |
+| MODE_TOGGLE_GUI                | Toggle GUI while playing                               |
+| MODE_FULLSCREEN                | Toggle full screen (togglefullscreen)                  |
+| MODE_SHOW_AUDIO_STREAM         | Show audio streams menu while playing (Kodi >=22)      |
+| MODE_SHOW_SUBTITLES_STREAM     | Show subtitles streams menu while playing (Kodi >=22)  |
+| MODE_SHOW_AUDIO_MENU           | Show audio context menu while playing                  |
+| MODE_SHOW_SUBTITLES_MENU       | Show subtitles context menu while playing              |
+| MODE_SHOW_VIDEO_MENU           | Show video settings menu while playing                 |
+| MODE_SHOW_BOOKMARKS_MENU       | Show bookmarks menu while playing                      |
+| MODE_SHOW_SUBTITLE_SEARCH_MENU | Show subtitles search menu while playing               |
+| MODE_SCREENSAVER               | Show screensaver                                       |
+| MODE_ZOOM_IN                   | Zoom in (zoomin)                                       |
+| MODE_ZOOM_OUT                  | Zoom out (zoomout)                                     |
+| MODE_INCREASE_PAR              | Increase aspect ratio (increasepar)                    |
+| MODE_DECREASE_PAR              | Decrease aspect ratio (decreasepar)                    |
+| MODE_SHOW_SUBTITLES            | Toggle subtitles (showsubtitles)                       |
+| MODE_SUBTITLES_DELAY_MINUS     | Decrease subtitles delay (subtitledelayminus)          |
+| MODE_SUBTITLES_DELAY_PLUS      | Increase subtitles delay (subtitledelayplus)           |
+| MODE_AUDIO_DELAY_MINUS         | Decrease audio delay (audiodelayminus)                 |
+| MODE_AUDIO_DELAY_PLUS          | Increase audio delay (audiodelayplus)                  |
+| MODE_DELETE                    | Delete (delete)                                        |
+| APP_HIBERNATE                  | Hibernate the device (System.Hibernate)                |
+| APP_REBOOT                     | Reboot the device (System.Reboot)                      |
+| APP_SHUTDOWN                   | Shutdown the device (System.Shutdown)                  |
+| APP_SUSPEND                    | Suspend the device (System.Suspend)                    |
+| ACTION_BLUE                    | Blue command                                           |
+| ACTION_GREEN                   | Green command                                          |
+| ACTION_RED                     | Red command                                            |
+| ACTION_YELLOW                  | Yellow command                                         |
+| System.Hibernate               | Hibernate the device                                   |
+| System.Reboot                  | Reboot the device                                      |
+| System.Shutdown                | Shutdown the device                                    |
+| System.Suspend                 | Suspend the device                                     |
+
+
+
+### List of standard commands (remote entity only)
+
+The following commands are standard commands available for the remote entity in addition of simple commands. These are already exposed by the `Media Player` entity through a predefined mappping but can also be used in the remote entity (to build commands sequence for example) :
+
+`on, off, toggle, play_pause, stop, previous, next, fast_forward, rewind, seek, volume, volume_up, volume_down, mute_toggle, mute, unmute, repeat, shuffle, channel_up, channel_down, cursor_up, cursor_down, cursor_left, cursor_right, cursor_enter, digit_0, digit_1, digit_2, digit_3, digit_4, digit_5, digit_6, digit_7, digit_8, digit_9, function_red, function_green, function_yellow, function_blue, home, menu, context_menu, guide, info, back, select_source, select_sound_mode, record, my_recordings, live, eject, open_close, audio_track, subtitle, settings, search`
+
+### List of custom commands (remote entity only)
+
+Additionally, the following custom commands can be set in the `Send command` or `Command sequence` commands of the `Remote` entity.
+Some can have parameters
+
+
+| Custom command            | Description                                                                                                       | Example                            |
+|---------------------------|-------------------------------------------------------------------------------------------------------------------|------------------------------------|
+| activatewindow `windowId` | Show the given window ID, [see this link](https://kodi.wiki/view/Window_IDs)                                      | `activatewindow movieinformation`  |
+| stereoscopimode `mode`    | Set the given stereoscopic mode, [see here](https://kodi.wiki/view/JSON-RPC_API/v13#GUI.SetStereoscopicMode)      | `stereoscopimode split_horizontal` |
+| viewmode `mode`           | Set view mode : normal,zoom,stretch4x3,widezoom,stretch16x9,original, stretch16x9nonlin,zoom120width,zoom110width | `viewmode stretch16x9`             |
+| zoom `mode`               | Set zoom to given mode : in, out or level from 1 to 10                                                            | `zoom in`                          |
+| speed `speed`             | Set playback speed : increment, decrement or integer from -32, -16, -8,... to 32                                  | `speed 32`                         |
+
+## Installation as external integration
 
 - Requires Python 3.11
 - Under a virtual environment : the driver has to be run in host mode and not bridge mode, otherwise the turn on function won't work (a magic packet has to be sent through network and it won't reach it under bridge mode)
@@ -112,7 +186,7 @@ For running a separate integration driver on your network for Remote Two, the co
     - Default port: `9090`
     - Also overrideable with environment variable `UC_INTEGRATION_HTTP_PORT`
 
-### Run
+### Custom installation
 
 ```shell
 python3 src/driver.py
@@ -247,78 +321,6 @@ After startup, the integration is available at `http://localhost:9090` and can b
 ### Docker Hub
 
 Pre-built images are available on Docker Hub with multi-architecture support (x86-64 and ARM64).
-
-## How to set up custom commands
-
-First don't mix up with entities : when registering the integration, you will get 2 entities : `Media Player` and `Remote` entities.
-
-The media player entity should cover most needs, however if you want to use custom commands and use additional parameters such as repeating the same command, you can use the remote entity.
-
-This entity exposes 4 commands : `Send command`, `Command sequence`, and switch on/off (which both are exposed by the media player entity too).
-
-Here is an example of setting a send command from the remote entity :
-<img width="335" height="451" alt="image" src="https://github.com/user-attachments/assets/d3e2e011-7a5d-42fa-bcfe-66e722c6d025" />
-
-
-## List of simple commands
-
-| Simple command                 | Description                                            |
-|--------------------------------|--------------------------------------------------------|
-| MENU_VIDEO                     | Show video menu (showvideomenu)                        |
-| MODE_TOGGLE_GUI                | Toggle GUI while playing                               |
-| MODE_FULLSCREEN                | Toggle full screen (togglefullscreen)                  |
-| MODE_SHOW_AUDIO_STREAM         | Show audio streams menu while playing (Kodi >=22)      |
-| MODE_SHOW_SUBTITLES_STREAM     | Show subtitles streams menu while playing (Kodi >=22)  |
-| MODE_SHOW_AUDIO_MENU           | Show audio context menu while playing                  |
-| MODE_SHOW_SUBTITLES_MENU       | Show subtitles context menu while playing              |
-| MODE_SHOW_VIDEO_MENU           | Show video settings menu while playing                 |
-| MODE_SHOW_BOOKMARKS_MENU       | Show bookmarks menu while playing                      |
-| MODE_SHOW_SUBTITLE_SEARCH_MENU | Show subtitles search menu while playing               |
-| MODE_SCREENSAVER               | Show screensaver                                       |
-| MODE_ZOOM_IN                   | Zoom in (zoomin)                                       |
-| MODE_ZOOM_OUT                  | Zoom out (zoomout)                                     |
-| MODE_INCREASE_PAR              | Increase aspect ratio (increasepar)                    |
-| MODE_DECREASE_PAR              | Decrease aspect ratio (decreasepar)                    |
-| MODE_SHOW_SUBTITLES            | Toggle subtitles (showsubtitles)                       |
-| MODE_SUBTITLES_DELAY_MINUS     | Decrease subtitles delay (subtitledelayminus)          |
-| MODE_SUBTITLES_DELAY_PLUS      | Increase subtitles delay (subtitledelayplus)           |
-| MODE_AUDIO_DELAY_MINUS         | Decrease audio delay (audiodelayminus)                 |
-| MODE_AUDIO_DELAY_PLUS          | Increase audio delay (audiodelayplus)                  |
-| MODE_DELETE                    | Delete (delete)                                        |
-| APP_HIBERNATE                  | Hibernate the device (System.Hibernate)                |
-| APP_REBOOT                     | Reboot the device (System.Reboot)                      |
-| APP_SHUTDOWN                   | Shutdown the device (System.Shutdown)                  |
-| APP_SUSPEND                    | Suspend the device (System.Suspend)                    |
-| ACTION_BLUE                    | Blue command                                           |
-| ACTION_GREEN                   | Green command                                          |
-| ACTION_RED                     | Red command                                            |
-| ACTION_YELLOW                  | Yellow command                                         |
-| System.Hibernate               | Hibernate the device                                   |
-| System.Reboot                  | Reboot the device                                      |
-| System.Shutdown                | Shutdown the device                                    |
-| System.Suspend                 | Suspend the device                                     |
-
-
-
-## List of standard commands
-
-The following commands are standard commands available for the remote entity in addition of simple commands :
-
-`on, off, toggle, play_pause, stop, previous, next, fast_forward, rewind, seek, volume, volume_up, volume_down, mute_toggle, mute, unmute, repeat, shuffle, channel_up, channel_down, cursor_up, cursor_down, cursor_left, cursor_right, cursor_enter, digit_0, digit_1, digit_2, digit_3, digit_4, digit_5, digit_6, digit_7, digit_8, digit_9, function_red, function_green, function_yellow, function_blue, home, menu, context_menu, guide, info, back, select_source, select_sound_mode, record, my_recordings, live, eject, open_close, audio_track, subtitle, settings, search`
-
-## List of custom commands (for remote entity)
-
-Additionally, the following custom commands can be set in the `Send command` or `Command sequence` commands of the `Remote` entity.
-Some can have parameters
-
-
-| Custom command            | Description                                                                                                      | Example                            |
-|---------------------------|------------------------------------------------------------------------------------------------------------------|------------------------------------|
-| activatewindow `windowId` | Show the given window ID, [see this link](https://kodi.wiki/view/Window_IDs)                                     | `activatewindow movieinformation`  |
-| stereoscopimode `mode`    | Set the given stereoscopic mode, [see here](https://kodi.wiki/view/JSON-RPC_API/v13#GUI.SetStereoscopicMode)     | `stereoscopimode split_horizontal` |
-| viewmode `mode`           | Set view mode : normal,zoom,stretch4x3,widezoom,stretch16x9,original,stretch16x9nonlin,zoom120width,zoom110width | `viewmode stretch16x9`             |
-| zoom `mode`               | Set zoom to given mode : in, out or level from 1 to 10                                                           | `zoom in`                          |
-| speed `speed`             | Set playback speed : increment, decrement or integer from -32, -16, -8,... to 32                                 | `speed 32`                         |
 
 ## Versioning
 
