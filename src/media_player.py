@@ -19,7 +19,7 @@ from const import (
     KODI_ALTERNATIVE_BUTTONS_KEYMAP,
     KODI_BUTTONS_KEYMAP,
     KODI_SIMPLE_COMMANDS,
-    KODI_SIMPLE_COMMANDS_DIRECT,
+    KODI_SIMPLE_COMMANDS_DIRECT, MethodCall, ButtonKeymap,
 )
 
 _LOG = logging.getLogger(__name__)
@@ -94,17 +94,18 @@ class KodiMediaPlayer(MediaPlayer):
         elif cmd_id == Commands.SETTINGS:
             res = await device.call_command("GUI.ActivateWindow", {"window": "screensaver"})
         elif not device.device_config.disable_keyboard_map and cmd_id in KODI_BUTTONS_KEYMAP:
-            command = KODI_BUTTONS_KEYMAP[cmd_id]
-            if hasattr(command, "button"):
-                command = command.copy()
+            command: ButtonKeymap|MethodCall = KODI_BUTTONS_KEYMAP[cmd_id]
+            if "button" in command.keys():
+                command: ButtonKeymap = command.copy()
                 hold = params.get("hold", 0)
                 if hold != "" and hold > 0:
                     command["holdtime"] = hold
                 res = await device.command_button(command)
             else:
+                command: MethodCall = command
                 res = await device.call_command(command["method"], **command["params"])
         elif device.device_config.disable_keyboard_map and cmd_id in KODI_ALTERNATIVE_BUTTONS_KEYMAP:
-            command = KODI_ALTERNATIVE_BUTTONS_KEYMAP[cmd_id]
+            command: MethodCall = KODI_ALTERNATIVE_BUTTONS_KEYMAP[cmd_id]
             res = await device.call_command(command["method"], **command["params"])
         elif cmd_id in KODI_ACTIONS_KEYMAP:
             res = await device.command_action(KODI_ACTIONS_KEYMAP[cmd_id])
@@ -115,7 +116,7 @@ class KodiMediaPlayer(MediaPlayer):
             else:
                 res = await device.command_action(command)
         elif cmd_id in KODI_ADVANCED_SIMPLE_COMMANDS.keys():
-            command = KODI_ADVANCED_SIMPLE_COMMANDS[cmd_id]
+            command: MethodCall = KODI_ADVANCED_SIMPLE_COMMANDS[cmd_id]
             res = await device.call_command(command["method"], **command["params"])
         else:
             return await KodiMediaPlayer.custom_command(device, cmd_id)
