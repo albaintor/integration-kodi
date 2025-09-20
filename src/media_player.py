@@ -116,8 +116,13 @@ class KodiMediaPlayer(MediaPlayer):
             else:
                 res = await device.command_action(command)
         elif cmd_id in KODI_ADVANCED_SIMPLE_COMMANDS.keys():
-            command: MethodCall = KODI_ADVANCED_SIMPLE_COMMANDS[cmd_id]
-            res = await device.call_command(command["method"], **command["params"])
+            command: MethodCall|str = KODI_ADVANCED_SIMPLE_COMMANDS[cmd_id]
+            if isinstance(command, str):
+                command: str = command
+                res = await device.command_action(command)
+            else:
+                command: MethodCall = command
+                res = await device.call_command(command["method"], **command["params"])
         else:
             return await KodiMediaPlayer.custom_command(device, cmd_id)
         return res
