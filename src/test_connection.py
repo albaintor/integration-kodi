@@ -21,6 +21,7 @@ if sys.platform == "win32":
 _LOOP = asyncio.new_event_loop()
 asyncio.set_event_loop(_LOOP)
 
+#address = "192.168.1.54"
 address = "192.168.1.20"
 username = "kodi"
 password = "ludi"
@@ -59,6 +60,10 @@ async def main():
     properties = client._item
     print("Properties :")
     print_json(data=properties)
+    await client.command_action("dialogselectsubtitle")
+    #await client.command_action("dialogselectaudio")
+    # await client.call_command("GUI.ActivateWindow", **{"window": "dialogselectaudio"})
+    #await client.call_command("GUI.ActivateWindow", **{"window": "dialogselectaudio"})
     # await client.play_pause()
     # await asyncio.sleep(4)
     # await client.play_pause()
