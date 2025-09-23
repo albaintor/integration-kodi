@@ -1107,7 +1107,7 @@ class KodiDevice:
     async def view_mode(self, mode: str):
         """Set view mode.
 
-         :param mode: normal,zoom,stretch4x3,widezoom,stretch16x9,original,stretch16x9nonlin, zoom120width,zoom110width.
+        :param mode: normal,zoom,stretch4x3,widezoom,stretch16x9,original,stretch16x9nonlin, zoom120width,zoom110width
         """
         arguments = {"viewmode": mode}
         _LOG.debug("[%s] View modePlayer.SetViewMode %s", self.device_config.address, arguments)
