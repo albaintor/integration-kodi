@@ -86,13 +86,13 @@ class KodiMediaPlayer(MediaPlayer):
         elif cmd_id == Commands.HOME:
             res = await device.home()
         elif cmd_id == Commands.SETTINGS:
-            res = await device.call_command("GUI.ActivateWindow", {"window": "settings"})
+            res = await device.call_command("GUI.ActivateWindow", **{"window": "settings"})
         elif cmd_id == Commands.CONTEXT_MENU:
             res = await device.context_menu()
         elif cmd_id == Commands.SEEK:
             res = await device.seek(params.get("media_position", 0))
         elif cmd_id == Commands.SETTINGS:
-            res = await device.call_command("GUI.ActivateWindow", {"window": "screensaver"})
+            res = await device.call_command("GUI.ActivateWindow", **{"window": "screensaver"})
         elif not device.device_config.disable_keyboard_map and cmd_id in KODI_BUTTONS_KEYMAP:
             command: ButtonKeymap|MethodCall = KODI_BUTTONS_KEYMAP[cmd_id]
             if "button" in command.keys():
@@ -130,11 +130,17 @@ class KodiMediaPlayer(MediaPlayer):
     @staticmethod
     async def custom_command(device: kodi.KodiDevice, command: str) -> StatusCodes:
         arguments = command.split(" ")
-        command_key = command[0].lower()
+        command_key = arguments[0].lower()
         if command_key == "activatewindow" and len(arguments) == 2:
-            return await device.call_command("GUI.ActivateWindow", {"window": arguments[1]})
+            arguments = {"window": arguments[1]}
+            _LOG.debug("[%s] Custom command GUI.ActivateWindow %s",
+                       device.device_config.address, arguments)
+            return await device.call_command("GUI.ActivateWindow", **arguments)
         if command_key == "stereoscopimode" and len(arguments) == 2:
-            return await device.call_command("GUI.SetStereoscopicMode", {"mode": arguments[1]})
+            arguments = {"mode": arguments[1]}
+            _LOG.debug("[%s] Custom command GUI.SetStereoscopicMode %s",
+                       device.device_config.address, arguments)
+            return await device.call_command("GUI.SetStereoscopicMode", **arguments)
         if command_key == "viewmode" and len(arguments) == 2:
             return await device.view_mode(arguments[1])
         if command_key == "zoom" and len(arguments) == 2:
@@ -153,6 +159,8 @@ class KodiMediaPlayer(MediaPlayer):
                 except Exception:
                     pass
             return await device.speed(value)
+        _LOG.debug("[%s] Unknown custom command : %s",
+                   device.device_config.address, command)
         return StatusCodes.NOT_IMPLEMENTED
 
     async def command(self, cmd_id: str, params: dict[str, Any] | None = None) -> StatusCodes:

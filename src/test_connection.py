@@ -15,14 +15,15 @@ from rich import print_json
 import kodi
 from config import KodiConfigDevice
 from kodi import KodiDevice
+from media_player import KodiMediaPlayer
 
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 _LOOP = asyncio.new_event_loop()
 asyncio.set_event_loop(_LOOP)
 
-#address = "192.168.1.54"
-address = "192.168.1.20"
+address = "192.168.1.3"
+#address = "192.168.1.20"
 username = "kodi"
 password = "ludi"
 
@@ -60,7 +61,9 @@ async def main():
     properties = client._item
     print("Properties :")
     print_json(data=properties)
-    await client.command_action("dialogselectsubtitle")
+    await KodiMediaPlayer.mediaplayer_command("entity.media_player", client, "activatewindow shutdownmenu")
+    #await client.call_command("GUI.ActivateWindow", **{"window": "settings"})
+    #await client.command_action("dialogselectsubtitle")
     #await client.command_action("dialogselectaudio")
     # await client.call_command("GUI.ActivateWindow", **{"window": "dialogselectaudio"})
     #await client.call_command("GUI.ActivateWindow", **{"window": "dialogselectaudio"})
@@ -91,6 +94,8 @@ if __name__ == "__main__":
     ch.setFormatter(formatter)
     logging.basicConfig(handlers=[ch])
     logging.getLogger("client").setLevel(logging.DEBUG)
+    logging.getLogger("media_player").setLevel(logging.DEBUG)
+    logging.getLogger("remote").setLevel(logging.DEBUG)
     logging.getLogger("kodi").setLevel(logging.DEBUG)
     logging.getLogger("pykodi.kodi").setLevel(logging.DEBUG)
     logging.getLogger(__name__).setLevel(logging.DEBUG)

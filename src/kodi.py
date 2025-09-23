@@ -1084,13 +1084,17 @@ class KodiDevice:
         if self._no_active_players:
             return
         player_id = self._players[0]["playerid"]
-        await self._kodi.call_method("Player.Zoom", **{"playerid": player_id, "zoom": mode})
+        arguments = {"playerid": player_id, "zoom": mode}
+        _LOG.debug("[%s] Set zoom Player.Zoom %s", self.device_config.address, arguments)
+        await self._kodi.call_method("Player.Zoom", **arguments)
 
     @retry()
     async def view_mode(self, mode: str):
         """Set view mode to one of normal,zoom,stretch4x3,widezoom,stretch16x9,original,stretch16x9nonlin,
         zoom120width,zoom110width."""
-        await self._kodi.call_method("Player.SetViewMode", **{"viewmode": mode})
+        arguments = {"viewmode": mode}
+        _LOG.debug("[%s] View modePlayer.SetViewMode %s",self.device_config.address, arguments)
+        await self._kodi.call_method("Player.SetViewMode", **arguments)
 
     @retry()
     async def speed(self, value: Literal["increment", "decrement"] | int):
@@ -1098,7 +1102,9 @@ class KodiDevice:
         if self._no_active_players:
             return
         player_id = self._players[0]["playerid"]
-        await self._kodi.call_method("Player.SetSpeed", **{"playerid": player_id, "speed": value})
+        arguments = {"playerid": player_id, "speed": value}
+        _LOG.debug("[%s] Set speed Player.SetSpeed %s", self.device_config.address, arguments)
+        await self._kodi.call_method("Player.SetSpeed", **arguments)
 
     async def is_fullscreen_video(self) -> bool:
         """Check if Kodi is in fullscreen (playing video)."""
