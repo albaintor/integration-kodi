@@ -186,7 +186,7 @@ KODI_BUTTONS_KEYMAP: dict[str, ButtonKeymap | MethodCall] = {
     # Commands.STOP: ButtonKeymap(**{"button": "stop", "keymap": "R1"}),
 }
 
-KODI_ADVANCED_SIMPLE_COMMANDS: dict[str, MethodCall|str] = {
+KODI_ADVANCED_SIMPLE_COMMANDS: dict[str, MethodCall | str] = {
     "MODE_TOGGLE_GUI": {"method": "GUI.SetFullscreen", "params": {"fullscreen": "toggle"}, "holdtime": None},
     "MODE_SHOW_SUBTITLES_STREAM": "dialogselectsubtitle",
     "MODE_SHOW_AUDIO_STREAM": "dialogselectaudio",

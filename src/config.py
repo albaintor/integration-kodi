@@ -66,7 +66,10 @@ class KodiConfigDevice:
     def __post_init__(self):
         for attribute in fields(self):
             # If there is a default and the value of the field is none we can assign a value
-            if not isinstance(attribute.default, dataclasses._MISSING_TYPE) and getattr(self, attribute.name) is None:
+            if (
+                not isinstance(attribute.default, dataclasses.MISSING.__class__)
+                and getattr(self, attribute.name) is None
+            ):
                 setattr(self, attribute.name, attribute.default)
 
 
@@ -259,6 +262,7 @@ class Devices:
             with open(self._cfg_file_path, "w+", encoding="utf-8") as f:
                 json.dump(self._config, f, ensure_ascii=False, cls=_EnhancedJSONEncoder)
             return result
+        # pylint: disable = W0718
         except Exception as ex:
             result = ConfigImportResult.ERROR
             _LOG.error(
@@ -268,6 +272,7 @@ class Devices:
                 # Restore current configuration
                 self._config = config_backup
                 self.store()
+            # pylint: disable = W0718
             except Exception:
                 pass
         return result

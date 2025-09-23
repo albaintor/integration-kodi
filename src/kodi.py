@@ -41,6 +41,7 @@ from config import KodiConfigDevice
 from const import KODI_FEATURES, KODI_MEDIA_TYPES, ButtonKeymap
 from pykodi.kodi import CannotConnectError, InvalidAuthError, Kodi, KodiWSConnection
 
+# pylint: disable=C0302
 _KodiDeviceT = TypeVar("_KodiDeviceT", bound="KodiDevice")
 _P = ParamSpec("_P")
 
@@ -66,6 +67,8 @@ class Events(IntEnum):
 
 
 class ArtworkType(IntEnum):
+    """Artwork types."""
+
     THUMBNAIL = 0
     FANART = 1
     POSTER = 2
@@ -87,6 +90,7 @@ async def retry_call_command(
     **kwargs: _P.kwargs,
 ) -> ucapi.StatusCodes:
     """Retry call command when failed"""
+    # pylint: disable=W0212
     # Launch reconnection task if not active
     if not obj._connection_status:
         obj._connection_status = obj.event_loop.create_future()
@@ -119,13 +123,15 @@ def retry(*, timeout: float = 5, bufferize=False) -> Callable[
     [Callable[_P, Awaitable[ucapi.StatusCodes]]],
     Callable[Concatenate[_KodiDeviceT, _P], Coroutine[Any, Any, ucapi.StatusCodes | None]],
 ]:
+    """Retry call to given command."""
+
     def decorator(
         func: Callable[Concatenate[_KodiDeviceT, _P], Awaitable[ucapi.StatusCodes | None]],
     ) -> Callable[Concatenate[_KodiDeviceT, _P], Coroutine[Any, Any, ucapi.StatusCodes | None]]:
         @wraps(func)
         async def wrapper(obj: _KodiDeviceT, *args: _P.args, **kwargs: _P.kwargs) -> ucapi.StatusCodes:
             """Wrap all command methods."""
-            # pylint: disable = W0212
+            # pylint: disable = W0212, W0718
             try:
                 if obj._kodi_connection and obj._kodi_connection.connected:
                     await func(obj, *args, **kwargs)
@@ -145,13 +151,13 @@ def retry(*, timeout: float = 5, bufferize=False) -> Callable[
                 )
                 try:
                     return await retry_call_command(timeout, bufferize, func, obj, *args, **kwargs)
-                except (TransportError, ProtocolError, ServerTimeoutError) as ex:
+                except (TransportError, ProtocolError, ServerTimeoutError) as ex2:
                     log_function(
                         "[%s] Error calling %s on (%s): %r",
                         obj.device_config.address,
                         func.__name__,
                         obj._name,
-                        ex,
+                        ex2,
                     )
                     return ucapi.StatusCodes.BAD_REQUEST
             # pylint: disable = W0718
@@ -342,6 +348,7 @@ class KodiDevice:
         if close:
             try:
                 await self._kodi_connection.close()
+            # pylint: disable = W0718
             except Exception:
                 pass
 
@@ -408,11 +415,13 @@ class KodiDevice:
                     _LOG.debug("[%s] Stop watchdog", self.device_config.address)
                     self._websocket_task = None
                     break
+            # pylint: disable = W0718
             except Exception as ex:
                 _LOG.error("[%s] Unknown exception %s", self.device_config.address, ex)
 
     async def connect(self) -> bool:
         """Connect to Kodi via websocket protocol."""
+        # pylint: disable = R0915
         try:
             if self._connect_lock.locked():
                 _LOG.debug("[%s] Connect already in progress, returns", self.device_config.address)
@@ -442,10 +451,10 @@ class KodiDevice:
             elif not self._device_config.media_update_task and self._update_position_task is not None:
                 try:
                     self._update_position_task.cancel()
+                # pylint: disable = W0718
                 except Exception as ex:
                     _LOG.error("[%s] Failed to cancel update task %s", self.device_config.address, ex)
                 self._update_position_task = None
-            return True
         except (TransportError, CannotConnectError, ServerTimeoutError) as ex:
             _LOG.debug("[%s] Connection error : %s", self.device_config.address, ex)
             if not self._connection_status or self._connection_status.done():
@@ -455,9 +464,11 @@ class KodiDevice:
                 _LOG.warning("[%s] Unable to connect to Kodi via websocket", self.device_config.address)
                 # , ex, stack_info=True, exc_info=True)
             await self._clear_connection(False)
+            return False
         # pylint: disable = W0718
         except Exception as ex:
             _LOG.error("[%s] Unknown exception connect : %s", self.device_config.address, ex)
+            return False
         finally:
             # After 10 retries, reconnection delay will go from 10 to 30s and stop logging
             if self._reconnect_retry >= CONNECTION_RETRIES and self._connect_error:
@@ -477,7 +488,7 @@ class KodiDevice:
                     self._connect_lock.release()
             except Exception:
                 pass
-            return False
+        return True
 
     async def disconnect(self):
         """Disconnect from TV."""
@@ -518,6 +529,7 @@ class KodiDevice:
             await asyncio.sleep(UPDATE_POSITION_INTERVAL)
             try:
                 await self._update_position()
+            # pylint: disable = W0718
             except Exception as ex:
                 _LOG.error("[%s] Unknown exception %s", self.device_config.address, ex)
 
@@ -543,22 +555,17 @@ class KodiDevice:
 
     async def _reset_media_artwork(self):
         """Emit artwork data only."""
-        # updated_data = {
-        #     MediaAttr.MEDIA_IMAGE_URL: ""
-        # }
-        # self.events.emit(Events.UPDATE, self.id, updated_data)
-        # await asyncio.sleep(0)
         updated_data = {MediaAttr.MEDIA_IMAGE_URL: self.media_artwork}
         _LOG.debug("[%s] Emit of artwork %s", self.device_config.address, updated_data)
         self.events.emit(Events.UPDATE, self.id, updated_data)
         await asyncio.sleep(0)
 
+    # pylint: disable = R0914,R0915
     async def _update_states(self, deferred=0) -> None:
         """Update entity state attributes."""
         if deferred > 0:
             await asyncio.sleep(deferred)
 
-        # pylint: disable = R0914,R0915
         if not self._kodi_connection.connected:
             _LOG.debug("[%s] Update states requested but not connected", self.device_config.address)
             self._reset_state()
@@ -567,11 +574,11 @@ class KodiDevice:
         if self._update_lock.locked():
             _LOG.debug("[%s] Update states already locked", self.device_config.address)
             return
-        else:
-            _LOG.debug("[%s] Update states in progress", self.device_config.address)
+        _LOG.debug("[%s] Update states in progress", self.device_config.address)
         await self._update_lock.acquire()
         updated_data = {}
 
+        # pylint: disable = R1702
         try:
             self._players = await self._kodi.get_players()
             if self._kodi_is_off:
@@ -642,7 +649,7 @@ class KodiDevice:
                     self._media_type = item_type
                     updated_data[MediaAttr.MEDIA_TYPE] = self.media_type
 
-                art = self._item.get("art", dict())
+                art = self._item.get("art", {})
                 if self.media_type == MediaType.TVSHOW:
                     artwork_type = self._device_config.artwork_type_tvshows
                 else:
@@ -700,7 +707,7 @@ class KodiDevice:
                             async with ClientSession() as session:
                                 async with session.get(self._media_image_url, timeout=ARTWORK_TIMEOUT) as response:
                                     buffer = b""
-                                    async for data, end_of_http_chunk in response.content.iter_chunks():
+                                    async for data, _ in response.content.iter_chunks():
                                         buffer += data
                                     self._media_image_data = (
                                         "data:"
@@ -708,6 +715,7 @@ class KodiDevice:
                                         + ";base64,"
                                         + base64.b64encode(buffer).decode("utf-8")
                                     )
+                        # pylint: disable = W0718
                         except Exception as ex:
                             _LOG.warning("[%s] Failed to download artwork : %s", self.device_config.address, ex)
                             self._media_image_data = ""
@@ -794,24 +802,25 @@ class KodiDevice:
             if updated_data:
                 self.events.emit(Events.UPDATE, self.id, updated_data)
             self._update_state_retry = 0
-        except TimeoutError as timeoutError:
+        except TimeoutError as timeout_error:
             if self._update_state_retry < UPDATE_STATE_RETRY:
                 self._update_state_retry += 1
                 _LOG.info(
                     "[%s] Update states : timeout error, retry %s : %s",
                     self.device_config.address,
                     self._update_state_retry,
-                    timeoutError,
+                    timeout_error,
                 )
                 asyncio.create_task(self._update_states(deferred=1))
             else:
                 _LOG.info(
-                    "[%s] Update states : timeout error : %s",
+                    "[%s] Update states : timeout error : %s %s",
                     self.device_config.address,
                     self._update_state_retry,
-                    timeoutError,
+                    timeout_error,
                 )
                 self._update_state_retry = 0
+        # pylint: disable = W0718
         except Exception as ex:
             _LOG.info(
                 "[%s] Update states : unknown error : %s",
@@ -822,6 +831,7 @@ class KodiDevice:
 
     @property
     def server(self) -> jsonrpc_base.Server | None:
+        """Return Kodi server."""
         if self._kodi is None:
             return None
         return self._kodi.server
@@ -871,6 +881,11 @@ class KodiDevice:
     def state(self) -> MediaStates:
         """Return the cached state of the device."""
         return self.get_state()
+
+    @property
+    def connection_status(self) -> Future | None:
+        """Return the connection status."""
+        return self._connection_status
 
     @property
     def supported_features(self) -> list[Features]:
@@ -924,8 +939,7 @@ class KodiDevice:
         """Media artwork depending on device configuration."""
         if self._device_config.download_artwork:
             return self._media_image_data
-        else:
-            return self.media_image_url
+        return self.media_image_url
 
     @property
     def media_title(self) -> str:
@@ -1093,7 +1107,7 @@ class KodiDevice:
         """Set view mode to one of normal,zoom,stretch4x3,widezoom,stretch16x9,original,stretch16x9nonlin,
         zoom120width,zoom110width."""
         arguments = {"viewmode": mode}
-        _LOG.debug("[%s] View modePlayer.SetViewMode %s",self.device_config.address, arguments)
+        _LOG.debug("[%s] View modePlayer.SetViewMode %s", self.device_config.address, arguments)
         await self._kodi.call_method("Player.SetViewMode", **arguments)
 
     @retry()

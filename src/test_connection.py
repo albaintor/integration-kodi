@@ -5,6 +5,8 @@ Test connection script for Kodi integration driver.
 :license: Mozilla Public License Version 2.0, see LICENSE for more details.
 """
 
+# pylint: disable=all
+
 import asyncio
 import logging
 import sys
@@ -23,7 +25,7 @@ _LOOP = asyncio.new_event_loop()
 asyncio.set_event_loop(_LOOP)
 
 address = "192.168.1.3"
-#address = "192.168.1.20"
+# address = "192.168.1.20"
 username = "kodi"
 password = "ludi"
 
@@ -62,11 +64,11 @@ async def main():
     print("Properties :")
     print_json(data=properties)
     await KodiMediaPlayer.mediaplayer_command("entity.media_player", client, "activatewindow shutdownmenu")
-    #await client.call_command("GUI.ActivateWindow", **{"window": "settings"})
-    #await client.command_action("dialogselectsubtitle")
-    #await client.command_action("dialogselectaudio")
+    # await client.call_command("GUI.ActivateWindow", **{"window": "settings"})
+    # await client.command_action("dialogselectsubtitle")
+    # await client.command_action("dialogselectaudio")
     # await client.call_command("GUI.ActivateWindow", **{"window": "dialogselectaudio"})
-    #await client.call_command("GUI.ActivateWindow", **{"window": "dialogselectaudio"})
+    # await client.call_command("GUI.ActivateWindow", **{"window": "dialogselectaudio"})
     # await client.play_pause()
     # await asyncio.sleep(4)
     # await client.play_pause()

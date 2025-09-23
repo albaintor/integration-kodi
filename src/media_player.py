@@ -19,7 +19,9 @@ from const import (
     KODI_ALTERNATIVE_BUTTONS_KEYMAP,
     KODI_BUTTONS_KEYMAP,
     KODI_SIMPLE_COMMANDS,
-    KODI_SIMPLE_COMMANDS_DIRECT, MethodCall, ButtonKeymap,
+    KODI_SIMPLE_COMMANDS_DIRECT,
+    ButtonKeymap,
+    MethodCall,
 )
 
 _LOG = logging.getLogger(__name__)
@@ -53,6 +55,8 @@ class KodiMediaPlayer(MediaPlayer):
     async def mediaplayer_command(
         entity_id: str, device: kodi.KodiDevice, cmd_id: str, params: dict[str, Any] | None = None
     ) -> StatusCodes:
+        """Handle any command for Media Player and Remote entities."""
+        # pylint: disable=R0915
         if device is None:
             _LOG.warning("No Kodi instance for entity: %s", entity_id)
             return StatusCodes.SERVICE_UNAVAILABLE
@@ -94,7 +98,7 @@ class KodiMediaPlayer(MediaPlayer):
         elif cmd_id == Commands.SETTINGS:
             res = await device.call_command("GUI.ActivateWindow", **{"window": "screensaver"})
         elif not device.device_config.disable_keyboard_map and cmd_id in KODI_BUTTONS_KEYMAP:
-            command: ButtonKeymap|MethodCall = KODI_BUTTONS_KEYMAP[cmd_id]
+            command: ButtonKeymap | MethodCall = KODI_BUTTONS_KEYMAP[cmd_id]
             if "button" in command.keys():
                 command: ButtonKeymap = command.copy()
                 hold = params.get("hold", 0)
@@ -109,14 +113,14 @@ class KodiMediaPlayer(MediaPlayer):
             res = await device.call_command(command["method"], **command["params"])
         elif cmd_id in KODI_ACTIONS_KEYMAP:
             res = await device.command_action(KODI_ACTIONS_KEYMAP[cmd_id])
-        elif cmd_id in KODI_SIMPLE_COMMANDS.keys():
+        elif cmd_id in KODI_SIMPLE_COMMANDS:
             command = KODI_SIMPLE_COMMANDS[cmd_id]
             if command in KODI_SIMPLE_COMMANDS_DIRECT:
                 res = await device.call_command(command)
             else:
                 res = await device.command_action(command)
-        elif cmd_id in KODI_ADVANCED_SIMPLE_COMMANDS.keys():
-            command: MethodCall|str = KODI_ADVANCED_SIMPLE_COMMANDS[cmd_id]
+        elif cmd_id in KODI_ADVANCED_SIMPLE_COMMANDS:
+            command: MethodCall | str = KODI_ADVANCED_SIMPLE_COMMANDS[cmd_id]
             if isinstance(command, str):
                 command: str = command
                 res = await device.command_action(command)
@@ -129,17 +133,16 @@ class KodiMediaPlayer(MediaPlayer):
 
     @staticmethod
     async def custom_command(device: kodi.KodiDevice, command: str) -> StatusCodes:
+        """Handle custom commands for Media Player and Remote entities."""
         arguments = command.split(" ")
         command_key = arguments[0].lower()
         if command_key == "activatewindow" and len(arguments) == 2:
             arguments = {"window": arguments[1]}
-            _LOG.debug("[%s] Custom command GUI.ActivateWindow %s",
-                       device.device_config.address, arguments)
+            _LOG.debug("[%s] Custom command GUI.ActivateWindow %s", device.device_config.address, arguments)
             return await device.call_command("GUI.ActivateWindow", **arguments)
         if command_key == "stereoscopimode" and len(arguments) == 2:
             arguments = {"mode": arguments[1]}
-            _LOG.debug("[%s] Custom command GUI.SetStereoscopicMode %s",
-                       device.device_config.address, arguments)
+            _LOG.debug("[%s] Custom command GUI.SetStereoscopicMode %s", device.device_config.address, arguments)
             return await device.call_command("GUI.SetStereoscopicMode", **arguments)
         if command_key == "viewmode" and len(arguments) == 2:
             return await device.view_mode(arguments[1])
@@ -148,7 +151,7 @@ class KodiMediaPlayer(MediaPlayer):
             if mode not in ["in", "out"]:
                 try:
                     mode = int(mode)
-                except Exception:
+                except ValueError:
                     pass
             return await device.zoom(mode)
         if command_key == "speed" and len(arguments) == 2:
@@ -156,11 +159,10 @@ class KodiMediaPlayer(MediaPlayer):
             if value not in ["increment", "decrement"]:
                 try:
                     value = int(value)
-                except Exception:
+                except ValueError:
                     pass
             return await device.speed(value)
-        _LOG.debug("[%s] Unknown custom command : %s",
-                   device.device_config.address, command)
+        _LOG.error("[%s] Unknown custom command : %s", device.device_config.address, command)
         return StatusCodes.NOT_IMPLEMENTED
 
     async def command(self, cmd_id: str, params: dict[str, Any] | None = None) -> StatusCodes:

@@ -18,6 +18,7 @@ from aiohttp import ServerTimeoutError
 _LOG = logging.getLogger(__name__)
 
 
+# pylint: disable=R0917
 def get_kodi_connection(host, port, ws_port, username, password, ssl=False, timeout=5, session=None):
     """Return a Kodi connection."""
     if ws_port is None:
@@ -146,6 +147,7 @@ class KodiWSConnection(KodiConnection):
                 try:
                     self._connect_task.cancel()
                     await self.close()
+                # pylint: disable = W0718
                 except Exception:
                     pass
                 self._connect_task = None
@@ -176,6 +178,7 @@ class Kodi:
 
     @property
     def server(self) -> jsonrpc_base.Server | None:
+        """Return Kodi server."""
         return self._server
 
     async def ping(self):

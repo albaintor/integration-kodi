@@ -190,22 +190,20 @@ async def driver_setup_handler(msg: SetupDriver) -> SetupAction:
                 _setup_step = SetupSteps.DEVICE_CONFIGURATION_MODE
                 _LOG.debug("Starting normal setup workflow")
                 return _user_input_manual
-            else:
-                _LOG.debug("User requested backup/restore of configuration")
-                return await _handle_backup_restore_step()
+            _LOG.debug("User requested backup/restore of configuration")
+            return await _handle_backup_restore_step()
         if "address" in msg.input_values and len(msg.input_values["address"]) > 0:
             manual_config = True
         if _setup_step == SetupSteps.DEVICE_CONFIGURATION_MODE:
             if "action" in msg.input_values:
                 _LOG.debug("Setup flow starts with existing configuration")
                 return await handle_configuration_mode(msg)
-            elif not manual_config:
+            if not manual_config:
                 _LOG.debug("Setup flow in discovery mode")
                 _setup_step = SetupSteps.DISCOVER
                 return await handle_discovery(msg)
-            else:
-                _LOG.debug("Setup flow configuration mode")
-                return await _handle_configuration(msg)
+            _LOG.debug("Setup flow configuration mode")
+            return await _handle_configuration(msg)
         # When user types an address at start (manual configuration)
         if _setup_step == SetupSteps.DISCOVER and manual_config:
             return await _handle_configuration(msg)
@@ -235,10 +233,6 @@ async def driver_setup_handler(msg: SetupDriver) -> SetupAction:
                 pass
             _pairing_device_ws = None
         _setup_step = SetupSteps.INIT
-
-    # user confirmation not used in setup process
-    # if isinstance(msg, UserConfirmationResponse):
-    #     return handle_user_confirmation(msg)
 
     return SetupError()
 
@@ -349,43 +343,43 @@ async def handle_driver_setup(msg: DriverSetupRequest) -> RequestUserInput | Set
                 },
             ],
         )
-    else:
-        # Initial setup, make sure we have a clean configuration
-        config.devices.clear()  # triggers device instance removal
-        _setup_step = SetupSteps.WORKFLOW_MODE
-        return RequestUserInput(
-            {"en": "Configuration mode", "de": "Konfigurations-Modus"},
-            [
-                {
-                    "field": {
-                        "dropdown": {
-                            "value": "normal",
-                            "items": [
-                                {
-                                    "id": "normal",
-                                    "label": {
-                                        "en": "Start the configuration of the integration",
-                                        "fr": "Démarrer la configuration de l'intégration",
-                                    },
+
+    # Initial setup, make sure we have a clean configuration
+    config.devices.clear()  # triggers device instance removal
+    _setup_step = SetupSteps.WORKFLOW_MODE
+    return RequestUserInput(
+        {"en": "Configuration mode", "de": "Konfigurations-Modus"},
+        [
+            {
+                "field": {
+                    "dropdown": {
+                        "value": "normal",
+                        "items": [
+                            {
+                                "id": "normal",
+                                "label": {
+                                    "en": "Start the configuration of the integration",
+                                    "fr": "Démarrer la configuration de l'intégration",
                                 },
-                                {
-                                    "id": "backup_restore",
-                                    "label": {
-                                        "en": "Backup or restore devices configuration",
-                                        "fr": "Sauvegarder ou restaurer la configuration des appareils",
-                                    },
+                            },
+                            {
+                                "id": "backup_restore",
+                                "label": {
+                                    "en": "Backup or restore devices configuration",
+                                    "fr": "Sauvegarder ou restaurer la configuration des appareils",
                                 },
-                            ],
-                        }
-                    },
-                    "id": "configuration_mode",
-                    "label": {
-                        "en": "Configuration mode",
-                        "fr": "Mode de configuration",
-                    },
-                }
-            ],
-        )
+                            },
+                        ],
+                    }
+                },
+                "id": "configuration_mode",
+                "label": {
+                    "en": "Configuration mode",
+                    "fr": "Mode de configuration",
+                },
+            }
+        ],
+    )
 
 
 async def handle_configuration_mode(msg: UserDataResponse) -> RequestUserInput | SetupComplete | SetupError:
@@ -546,6 +540,7 @@ async def handle_discovery(_msg: UserDataResponse) -> RequestUserInput | SetupEr
         discovery = KodiDiscover()
         _discovered_kodis = await discovery.discover()
         _LOG.debug("Discovered Kodi devices : %s", _discovered_kodis)
+    # pylint: disable = W0718
     except Exception as ex:
         _LOG.error("Error during devices discovery %s", ex)
         return SetupError(error_type=IntegrationSetupError.NOT_FOUND)
@@ -707,7 +702,7 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
     :param msg: response data from the requested user data
     :return: the setup action on how to continue
     """
-    # pylint: disable = W0602,W0718,R0915
+    # pylint: disable=W0602,W0718,R0915,R0914
     global _pairing_device
     global _pairing_device_ws
     global _setup_step
@@ -932,7 +927,7 @@ async def _handle_backup_restore(msg: UserDataResponse) -> SetupComplete | Setup
     if res == ConfigImportResult.ERROR:
         _LOG.error("Setup error, unable to import updated configuration : %s", updated_config)
         return SetupError(error_type=IntegrationSetupError.OTHER)
-    elif res == ConfigImportResult.WARNINGS:
+    if res == ConfigImportResult.WARNINGS:
         _LOG.error("Setup warning, configuration imported with warnings : %s", config.devices)
     _LOG.debug("Configuration imported successfully")
 
