@@ -214,17 +214,14 @@ class Devices:
         return False
 
     def export(self) -> str:
-        """
-        Export the configuration file to a string
+        """Export the configuration file to a string.
 
         :return: JSON formatted string of the current configuration
         """
         return json.dumps(self._config, ensure_ascii=False, cls=_EnhancedJSONEncoder)
 
     def import_config(self, updated_config: str) -> ConfigImportResult:
-        """
-        Import the updated configuration
-        """
+        """Import the updated configuration."""
         config_backup = self._config.copy()
         result = ConfigImportResult.SUCCESS
         try:
@@ -278,8 +275,7 @@ class Devices:
         return result
 
     def load(self) -> bool:
-        """
-        Load the config into the config global variable.
+        """Load the config into the config global variable.
 
         :return: True if the configuration could be loaded.
         """
@@ -300,8 +296,7 @@ class Devices:
         return False
 
     def get_by_id_or_address(self, unique_id: str, address: str) -> KodiConfigDevice | None:
-        """
-        Get device configuration for a matching id or address.
+        """Get device configuration for a matching id or address.
 
         :return: A copy of the device configuration or None if not found.
         """

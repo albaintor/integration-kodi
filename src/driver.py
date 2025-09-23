@@ -65,8 +65,7 @@ async def on_r2_disconnect_cmd():
 
 @api.listens_to(ucapi.Events.ENTER_STANDBY)
 async def on_r2_enter_standby() -> None:
-    """
-    Enter standby notification from Remote Two.
+    """Enter standby notification from Remote Two.
 
     Disconnect every Kodi instances.
     """
@@ -79,7 +78,7 @@ async def on_r2_enter_standby() -> None:
 
 
 async def connect_device(device: kodi.KodiDevice):
-    """Connect device and send state"""
+    """Connect device and send state."""
     try:
         _LOG.debug("Connecting device %s...", device.id)
         await device.connect()
@@ -274,8 +273,7 @@ async def handle_device_address_change(device_id: str, address: str) -> None:
 
 
 async def on_device_update(device_id: str, update: dict[str, Any] | None) -> None:
-    """
-    Update attributes of configured media-player entity if device properties changed.
+    """Update attributes of configured media-player entity if device properties changed.
 
     :param device_id: device identifier
     :param update: dictionary containing the updated properties or None if

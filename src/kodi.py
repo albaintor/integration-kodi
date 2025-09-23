@@ -89,7 +89,7 @@ async def retry_call_command(
     *args: _P.args,
     **kwargs: _P.kwargs,
 ) -> ucapi.StatusCodes:
-    """Retry call command when failed"""
+    """Retry call command when failed."""
     # pylint: disable=W0212
     # Launch reconnection task if not active
     if not obj._connection_status:
@@ -344,6 +344,7 @@ class KodiDevice:
         # f"{version['major']}.{version['minor']}"
 
     async def _clear_connection(self, close=True):
+        """Close connection and reset state."""
         self._reset_state()
         if close:
             try:
@@ -353,7 +354,7 @@ class KodiDevice:
                 pass
 
     async def _ping(self):
-        """Sends websocket ping."""
+        """Send websocket ping."""
         try:
             await self._kodi.ping()
         except (TransportError, CannotConnectError, ServerTimeoutError):
@@ -1104,15 +1105,18 @@ class KodiDevice:
 
     @retry()
     async def view_mode(self, mode: str):
-        """Set view mode to one of normal,zoom,stretch4x3,widezoom,stretch16x9,original,stretch16x9nonlin,
-        zoom120width,zoom110width."""
+        """Set view mode.
+         :param mode: normal,zoom,stretch4x3,widezoom,stretch16x9,original,stretch16x9nonlin, zoom120width,zoom110width.
+        """
         arguments = {"viewmode": mode}
         _LOG.debug("[%s] View modePlayer.SetViewMode %s", self.device_config.address, arguments)
         await self._kodi.call_method("Player.SetViewMode", **arguments)
 
     @retry()
     async def speed(self, value: Literal["increment", "decrement"] | int):
-        """Set playback speed."""
+        """Set playback speed.
+        :param value: Speed int value to set or "increment","decrement" values
+        """
         if self._no_active_players:
             return
         player_id = self._players[0]["playerid"]

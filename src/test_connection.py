@@ -6,6 +6,7 @@ Test connection script for Kodi integration driver.
 """
 
 # pylint: disable=all
+# flake8: noqa
 
 import asyncio
 import logging
