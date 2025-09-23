@@ -1106,6 +1106,7 @@ class KodiDevice:
     @retry()
     async def view_mode(self, mode: str):
         """Set view mode.
+
          :param mode: normal,zoom,stretch4x3,widezoom,stretch16x9,original,stretch16x9nonlin, zoom120width,zoom110width.
         """
         arguments = {"viewmode": mode}
@@ -1115,6 +1116,7 @@ class KodiDevice:
     @retry()
     async def speed(self, value: Literal["increment", "decrement"] | int):
         """Set playback speed.
+
         :param value: Speed int value to set or "increment","decrement" values
         """
         if self._no_active_players:

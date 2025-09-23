@@ -64,6 +64,7 @@ class KodiConfigDevice:
     disable_keyboard_map: bool = field(default=False)
 
     def __post_init__(self):
+        """Apply default values on missing fields."""
         for attribute in fields(self):
             # If there is a default and the value of the field is none we can assign a value
             if (
