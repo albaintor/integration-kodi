@@ -962,6 +962,11 @@ class KodiDevice:
         """Return current media type."""
         return self._media_type
 
+    @property
+    def player_id(self) -> int:
+        """Return current player ID."""
+        return self._players[0]["playerid"]
+
     @retry()
     async def set_volume_level(self, volume: float | None):
         """Set volume level, range 0..100."""
@@ -999,9 +1004,8 @@ class KodiDevice:
         """Send toggle-play-pause command to Kodi."""
         self._position_timestamp = None
         try:
-            players = await self._kodi.get_players()
-            player_id = players[0]["playerid"]
-            await self._kodi.call_method("Player.PlayPause", **{"playerid": player_id})
+            self._players = await self._kodi.get_players()
+            await self._kodi.call_method("Player.PlayPause", **{"playerid": self.player_id})
         # pylint: disable = W0718
         except Exception:
             if self._properties.get("speed", 0) == 0:
@@ -1085,12 +1089,14 @@ class KodiDevice:
         """Seek to given position in seconds."""
         if self._no_active_players or media_position is None:
             return
-        player_id = self._players[0]["playerid"]
         m, s = divmod(media_position, 60)
         h, m = divmod(m, 60)
         await self._kodi.call_method(
             "Player.Seek",
-            **{"playerid": player_id, "value": {"time": {"hours": h, "minutes": m, "seconds": s, "milliseconds": 0}}},
+            **{
+                "playerid": self.player_id,
+                "value": {"time": {"hours": h, "minutes": m, "seconds": s, "milliseconds": 0}},
+            },
         )
 
     @retry()
@@ -1098,8 +1104,7 @@ class KodiDevice:
         """Zoom in/out or to a given level 1-10."""
         if self._no_active_players:
             return
-        player_id = self._players[0]["playerid"]
-        arguments = {"playerid": player_id, "zoom": mode}
+        arguments = {"playerid": self.player_id, "zoom": mode}
         _LOG.debug("[%s] Set zoom Player.Zoom %s", self.device_config.address, arguments)
         await self._kodi.call_method("Player.Zoom", **arguments)
 
@@ -1121,10 +1126,26 @@ class KodiDevice:
         """
         if self._no_active_players:
             return
-        player_id = self._players[0]["playerid"]
-        arguments = {"playerid": player_id, "speed": value}
+        arguments = {"playerid": self.player_id, "speed": value}
         _LOG.debug("[%s] Set speed Player.SetSpeed %s", self.device_config.address, arguments)
         await self._kodi.call_method("Player.SetSpeed", **arguments)
+
+    @retry()
+    async def audio_delay(self, offset: float):
+        """Set audio delay relatively.
+
+        :param offset: Offset delay in seconds.
+        """
+        if self._no_active_players:
+            return
+        current_delay = await self._kodi.call_method("Player.GetAudioDelay")
+        try:
+            current_delay = float(current_delay.get("offset", 0))
+        except ValueError:
+            pass
+        arguments = {"playerid": self.player_id, "offset": offset+current_delay}
+        _LOG.debug("[%s] Set audio delay Player.SetAudioDelay %s", self.device_config.address, arguments)
+        await self._kodi.call_method("Player.SetAudioDelay", **arguments)
 
     async def is_fullscreen_video(self) -> bool:
         """Check if Kodi is in fullscreen (playing video)."""

@@ -38,7 +38,7 @@ Note : this release requires remote firmware `>= 1.7.10`
 
 
 ### Supported commands for Remote entity
-- Send command : commands are sent as KB keymap commands in JSON RPC (see [Kodi keyboard map](https://github.com/xbmc/xbmc/blob/master/system/keymaps/keyboard.xml) and more specifically [Action Ids](https://kodi.wiki/view/Action_IDs) for the list of available commands)
+- Send command : custom commands or keyboard commands which sent as KB keymap commands in JSON RPC (see [Kodi keyboard map](https://github.com/xbmc/xbmc/blob/master/system/keymaps/keyboard.xml) and more specifically [Action Ids](https://kodi.wiki/view/Action_IDs) for the list of available keyboard commands)
 Example : type in `togglefullscreen` in the command field of the remote entity to toggle full screen 
 - Send command sequence (same commands as above)
 - Support for the repeat, hold, delay parameters
@@ -157,13 +157,42 @@ Additionally, the following custom commands can be set in the `Send command` or 
 Some can have parameters
 
 
-| Custom command            | Description                                                                                                       | Example                            |
-|---------------------------|-------------------------------------------------------------------------------------------------------------------|------------------------------------|
-| activatewindow `windowId` | Show the given window ID, [see this link](https://kodi.wiki/view/Window_IDs)                                      | `activatewindow movieinformation`  |
-| stereoscopimode `mode`    | Set the given stereoscopic mode, [see here](https://kodi.wiki/view/JSON-RPC_API/v13#GUI.SetStereoscopicMode)      | `stereoscopimode split_horizontal` |
-| viewmode `mode`           | Set view mode : normal,zoom,stretch4x3,widezoom,stretch16x9,original, stretch16x9nonlin,zoom120width,zoom110width | `viewmode stretch16x9`             |
-| zoom `mode`               | Set zoom to given mode : in, out or level from 1 to 10                                                            | `zoom in`                          |
-| speed `speed`             | Set playback speed : increment, decrement or integer from -32, -16, -8,... to 32                                  | `speed 32`                         |
+| Custom command                            | Description                                                                                                                | Example                            |
+|-------------------------------------------|----------------------------------------------------------------------------------------------------------------------------|------------------------------------|
+| activatewindow `windowId`                 | Show the given window ID, [see this link](https://kodi.wiki/view/Window_IDs)                                               | `activatewindow movieinformation`  |
+| stereoscopimode `mode`                    | Set the given stereoscopic mode, [see here](https://kodi.wiki/view/JSON-RPC_API/v13#GUI.SetStereoscopicMode)               | `stereoscopimode split_horizontal` |
+| viewmode `mode`                           | Set view mode : normal,zoom,stretch4x3,widezoom,stretch16x9,original, stretch16x9nonlin,zoom120width,zoom110width          | `viewmode stretch16x9`             |
+| zoom `mode`                               | Set zoom to given mode : in, out or level from 1 to 10                                                                     | `zoom in`                          |
+| speed `speed`                             | Set playback speed : increment, decrement or integer from -32, -16, -8,... to 32                                           | `speed 32`                         |
+| audiodelay `offset`                       | Set audio delay in seconds relatively                                                                                      | `audiodelay -0.1`                  |
+| _&lt;JSON RPC Command&gt; `{parameters}`_ | Any JSON RPC command [complete list here](https://kodi.wiki/view/JSON-RPC_API/v13)<br>_Length is limited to 64 characters_ | _See examples below_               |
+
+#### **Examples of custom commands**
+
+**Execute action : [list of actions here](https://kodi.wiki/view/JSON-RPC_API/v13#Input.Action)**
+- Show video menu : `Input.ExecuteAction {"action":"showvideomenu"}`
+- Increase subtitles delay : `Input.ExecuteAction {"action":"subtitledelayplus"}`
+- Decrease subtitles delay : `Input.ExecuteAction {"action":"subtitledelayminus"}`
+
+**Shutdown the system :**
+`System.Shutdown`
+
+**Restart the system :**
+`System.Restart`
+
+**Increase audio delay :**
+`Player.SetAudioDelay {"playerid":PID,"offset":"increment"}`
+
+**Decrease audio delay :**
+`Player.SetAudioDelay {"playerid":PID,"offset":"decrement"}`
+
+**Set audio delay to +0.5 seconds :**
+`Player.SetAudioDelay {"playerid":PID,"offset":0.5}`
+
+
+Notes :
+- Some commands require a player Id parameter, just submit `PID` value that will be evaluated on runtime
+- Commands length if limited to 64 characters
 
 ## Installation as external integration
 

@@ -134,7 +134,7 @@ class KodiMediaPlayer(MediaPlayer):
     @staticmethod
     async def custom_command(device: kodi.KodiDevice, command: str) -> StatusCodes:
         """Handle custom commands for Media Player and Remote entities."""
-        arguments = command.split(" ")
+        arguments = command.split(" ", 1)
         command_key = arguments[0].lower()
         if command_key == "activatewindow" and len(arguments) == 2:
             arguments = {"window": arguments[1]}
@@ -162,8 +162,28 @@ class KodiMediaPlayer(MediaPlayer):
                 except ValueError:
                     pass
             return await device.speed(value)
-        _LOG.error("[%s] Unknown custom command : %s", device.device_config.address, command)
-        return StatusCodes.NOT_IMPLEMENTED
+        if command_key == "audiodelay" and len(arguments) == 2:
+            value = arguments[1]
+            try:
+                value = float(value)
+            except ValueError:
+                pass
+
+            return await device.audio_delay(value)
+        params = {}
+        try:
+            # Evaluate arguments from custom command and create necessary variables (PID)
+            if len(arguments) == 2:
+                # pylint: disable=C0103,W0123,W0612
+                PID = 1  # noqa: F841
+                if "PID" in arguments[1]:
+                    PID = device.player_id  # noqa: F841
+                params = eval(arguments[1])
+        # pylint: disable = W0718
+        except Exception as ex:
+            _LOG.error("[%s] Custom command bad arguments : %s %s", device.device_config.address, arguments[1], ex)
+        _LOG.debug("[%s] Custom command : %s %s", device.device_config.address, command, params)
+        return await device.call_command(command_key, **params)
 
     async def command(self, cmd_id: str, params: dict[str, Any] | None = None) -> StatusCodes:
         """

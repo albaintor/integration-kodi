@@ -64,7 +64,13 @@ async def main():
     properties = client._item
     print("Properties :")
     print_json(data=properties)
-    await KodiMediaPlayer.mediaplayer_command("entity.media_player", client, "activatewindow shutdownmenu")
+    #await KodiMediaPlayer.mediaplayer_command("entityid", client, "System.Shutdown")
+    #await KodiMediaPlayer.mediaplayer_command("entityid", client, "Input.ExecuteAction {\"action\":\"subtitledelayminus\"}")
+    #await KodiMediaPlayer.mediaplayer_command("entityid", client, "audiodelay 0.1")
+    # await KodiMediaPlayer.mediaplayer_command(
+    #     "entityid", client, 'Player.SetAudioDelay {"playerid":PID,"offset":"increment"}'
+    # )
+    # await KodiMediaPlayer.mediaplayer_command("entity.media_player", client, "activatewindow shutdownmenu")
     # await client.call_command("GUI.ActivateWindow", **{"window": "settings"})
     # await client.command_action("dialogselectsubtitle")
     # await client.command_action("dialogselectaudio")

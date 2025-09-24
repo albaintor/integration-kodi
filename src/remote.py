@@ -45,6 +45,8 @@ def get_int_param(param: str, params: dict[str, Any], default: int):
     """Get parameter in integer format."""
     # TODO bug to be fixed on UC Core : some params are sent as (empty) strings by remote (hold == "")
     value = params.get(param, default)
+    if isinstance(value, str) and value == "":
+        return default
     if isinstance(value, str) and len(value) > 0:
         return int(float(value))
     return value
