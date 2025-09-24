@@ -1143,7 +1143,7 @@ class KodiDevice:
             current_delay = float(current_delay.get("offset", 0))
         except ValueError:
             pass
-        arguments = {"playerid": self.player_id, "offset": offset+current_delay}
+        arguments = {"playerid": self.player_id, "offset": offset + current_delay}
         _LOG.debug("[%s] Set audio delay Player.SetAudioDelay %s", self.device_config.address, arguments)
         await self._kodi.call_method("Player.SetAudioDelay", **arguments)
 
