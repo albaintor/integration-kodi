@@ -134,6 +134,7 @@ class KodiMediaPlayer(MediaPlayer):
     @staticmethod
     async def custom_command(device: kodi.KodiDevice, command: str) -> StatusCodes:
         """Handle custom commands for Media Player and Remote entities."""
+        # pylint: disable=R0911
         arguments = command.split(" ", 1)
         command_key = arguments[0].lower()
         if command_key == "activatewindow" and len(arguments) == 2:
