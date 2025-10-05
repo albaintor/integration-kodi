@@ -1085,6 +1085,11 @@ class KodiDevice:
         await self._kodi.call_method(command, **kwargs)
 
     @retry()
+    async def call_command_args(self, command: str, *args):
+        """Send custom command."""
+        await self._kodi.call_method_args(command, *args)
+
+    @retry()
     async def seek(self, media_position: int):
         """Seek to given position in seconds."""
         if self._no_active_players or media_position is None:

@@ -134,7 +134,7 @@ class KodiMediaPlayer(MediaPlayer):
     @staticmethod
     async def custom_command(device: kodi.KodiDevice, command: str) -> StatusCodes:
         """Handle custom commands for Media Player and Remote entities."""
-        # pylint: disable=R0911
+        # pylint: disable=R0911,R0915
         arguments = command.split(" ", 1)
         command_key = arguments[0].lower()
         if command_key == "activatewindow" and len(arguments) == 2:
@@ -193,7 +193,8 @@ class KodiMediaPlayer(MediaPlayer):
         if command_key == "action" and len(arguments) == 2:
             value = arguments[1]
             _LOG.debug("[%s] Action command Input.ExecuteAction %s", device.device_config.address, value)
-            return await device._kodi.call_method_args("Input.ExecuteAction", value)
+            return await device.call_command_args("Input.ExecuteAction", value)
+        params = {}
         try:
             # Evaluate arguments from custom command and create necessary variables (PID)
             if len(arguments) == 2:
