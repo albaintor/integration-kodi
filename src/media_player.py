@@ -171,7 +171,29 @@ class KodiMediaPlayer(MediaPlayer):
                 pass
 
             return await device.audio_delay(value)
-        params = {}
+        if command_key == "key" and len(arguments) == 2:
+            value = arguments[1]
+            value = value.split(" ")
+            button: ButtonKeymap = ButtonKeymap(button=value[0], keymap="KB", holdtime=0)
+            if len(value) >= 2:
+                button["keymap"] = value[1]
+            if len(value) == 3:
+                try:
+                    button["holdtime"] = int(value[2])
+                except ValueError:
+                    pass
+            _LOG.debug(
+                "[%s] Keyboard command Input.ButtonEvent %s %s %s",
+                device.device_config.address,
+                button["button"],
+                button["keymap"],
+                button["holdtime"],
+            )
+            return await device.command_button(button)
+        if command_key == "action" and len(arguments) == 2:
+            value = arguments[1]
+            _LOG.debug("[%s] Action command Input.ExecuteAction %s", device.device_config.address, value)
+            return await device._kodi.call_method_args("Input.ExecuteAction", value)
         try:
             # Evaluate arguments from custom command and create necessary variables (PID)
             if len(arguments) == 2:

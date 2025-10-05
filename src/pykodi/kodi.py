@@ -314,6 +314,12 @@ class Kodi:
             raise ValueError(f"Invalid method: {method}")
         return await getattr(self._server, method)(**kwargs)
 
+    async def call_method_args(self, method, *args):
+        """Run Kodi JSONRPC API method with params."""
+        if "." not in method or len(method.split(".")) != 2:
+            raise ValueError(f"Invalid method: {method}")
+        return await getattr(self._server, method)(*args)
+
     async def _add_item_to_playlist(self, item):
         await self._server.Playlist.Add(**{"playlistid": 0, "item": item})
 

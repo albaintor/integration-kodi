@@ -157,15 +157,17 @@ Additionally, the following custom commands can be set in the `Send command` or 
 Some can have parameters
 
 
-| Custom command                            | Description                                                                                                                | Example                            |
-|-------------------------------------------|----------------------------------------------------------------------------------------------------------------------------|------------------------------------|
-| activatewindow `windowId`                 | Show the given window ID, [see this link](https://kodi.wiki/view/Window_IDs)                                               | `activatewindow movieinformation`  |
-| stereoscopimode `mode`                    | Set the given stereoscopic mode, [see here](https://kodi.wiki/view/JSON-RPC_API/v13#GUI.SetStereoscopicMode)               | `stereoscopimode split_horizontal` |
-| viewmode `mode`                           | Set view mode : normal,zoom,stretch4x3,widezoom,stretch16x9,original, stretch16x9nonlin,zoom120width,zoom110width          | `viewmode stretch16x9`             |
-| zoom `mode`                               | Set zoom to given mode : in, out or level from 1 to 10                                                                     | `zoom in`                          |
-| speed `speed`                             | Set playback speed : increment, decrement or integer from -32, -16, -8,... to 32                                           | `speed 32`                         |
-| audiodelay `offset`                       | Set audio delay in seconds relatively                                                                                      | `audiodelay -0.1`                  |
-| _&lt;JSON RPC Command&gt; `{parameters}`_ | Any JSON RPC command [complete list here](https://kodi.wiki/view/JSON-RPC_API/v13)<br>_Length is limited to 64 characters_ | _See examples below_               |
+| Custom command                                                 | Description                                                                                                                | Example                                    |
+|----------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------|--------------------------------------------|
+| key `button` `[keymap (default KB)]` `[hold time (default 0)]` | Trigger keyboard command                                                                                                   | `key f KB 0`<br>`key a`<br>`key livetv R1` |
+| activatewindow `windowId`                                      | Show the given window ID, [see this link](https://kodi.wiki/view/Window_IDs)                                               | `activatewindow movieinformation`          |
+| action `action name`                                           | Execute given action [see the list here](https://kodi.wiki/view/JSON-RPC_API/v13#Input.Action)                             | `action fastforward`                       |
+| stereoscopimode `mode`                                         | Set the given stereoscopic mode, [see here](https://kodi.wiki/view/JSON-RPC_API/v13#GUI.SetStereoscopicMode)               | `stereoscopimode split_horizontal`         |
+| viewmode `mode`                                                | Set view mode : normal,zoom,stretch4x3,widezoom,stretch16x9,original, stretch16x9nonlin,zoom120width,zoom110width          | `viewmode stretch16x9`                     |
+| zoom `mode`                                                    | Set zoom to given mode : in, out or level from 1 to 10                                                                     | `zoom in`                                  |
+| speed `speed`                                                  | Set playback speed : increment, decrement or integer from -32, -16, -8,... to 32                                           | `speed 32`                                 |
+| audiodelay `offset`                                            | Set audio delay in seconds relatively                                                                                      | `audiodelay -0.1`                          |
+| _&lt;JSON RPC Command&gt; `{parameters}`_                      | Any JSON RPC command [complete list here](https://kodi.wiki/view/JSON-RPC_API/v13)<br>_Length is limited to 64 characters_ | _See examples below_                       |
 
 #### **Examples of custom commands**
 

@@ -25,8 +25,8 @@ if sys.platform == "win32":
 _LOOP = asyncio.new_event_loop()
 asyncio.set_event_loop(_LOOP)
 
-address = "192.168.1.3"
-# address = "192.168.1.20"
+# address = "192.168.1.3"
+address = "192.168.1.20"
 username = "kodi"
 password = "ludi"
 
@@ -64,6 +64,9 @@ async def main():
     properties = client._item
     print("Properties :")
     print_json(data=properties)
+
+    # await KodiMediaPlayer.mediaplayer_command("entityid", client, "key yellow KB 0")
+    # await KodiMediaPlayer.mediaplayer_command("entityid", client, "action back")
     # await KodiMediaPlayer.mediaplayer_command("entityid", client, "System.Shutdown")
     # await KodiMediaPlayer.mediaplayer_command("entityid", client, "Input.ExecuteAction {\"action\":\"subtitledelayminus\"}")
     # await KodiMediaPlayer.mediaplayer_command("entityid", client, "audiodelay 0.1")
