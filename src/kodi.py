@@ -53,7 +53,7 @@ WEBSOCKET_WATCHDOG_INTERVAL = 10
 CONNECTION_RETRIES = 10
 UPDATE_POSITION_INTERVAL = 300
 UPDATE_STATE_RETRY = 2
-
+UPDATE_LOCK_TIMEOUT = 10.0
 
 class Events(IntEnum):
     """Internal driver events."""
@@ -220,6 +220,7 @@ class KodiDevice:
         self._connection_status: Future | None = None
         self._buffered_callbacks = {}
         self._update_lock = Lock()
+        self._update_lock_time: float = 0
         self._position_timestamp: float | None = None
         self._update_position_task = None
         self._update_state_retry = 0
@@ -487,7 +488,7 @@ class KodiDevice:
             try:
                 if self._connect_lock.locked():
                     self._connect_lock.release()
-            except Exception:
+            except RuntimeError:
                 pass
         return True
 
@@ -514,6 +515,10 @@ class KodiDevice:
         finally:
             self._available = False
             self._websocket_task = None
+            try:
+                self._update_lock.release()
+            except RuntimeError:
+                pass
 
     def _reset_state(self, players=None):
         # pylint: disable = R0915
@@ -523,6 +528,10 @@ class KodiDevice:
         self._app_properties = {}
         self._media_position = None
         self._media_position_updated_at = None
+        try:
+            self._update_lock.release()
+        except RuntimeError:
+            pass
 
     async def start_update_position_task(self):
         """Start websocket watchdog."""
@@ -574,9 +583,18 @@ class KodiDevice:
 
         if self._update_lock.locked():
             _LOG.debug("[%s] Update states already locked", self.device_config.address)
-            return
+            if time.time() - self._update_lock_time > UPDATE_LOCK_TIMEOUT:
+                _LOG.warning("[%s] Update is locked since a too long time, unlock it anyway",
+                             self._device_config.address)
+                try:
+                    self._update_lock.release()
+                except RuntimeError:
+                    pass
+            else:
+                return
         _LOG.debug("[%s] Update states in progress", self.device_config.address)
         await self._update_lock.acquire()
+        self._update_lock_time = time.time()
         updated_data = {}
 
         # pylint: disable = R1702
@@ -587,7 +605,10 @@ class KodiDevice:
                 self._reset_state()
                 if current_state != self.state:
                     self.events.emit(Events.UPDATE, self.id, {MediaAttr.STATE: self.state})
-                self._update_lock.release()
+                try:
+                    self._update_lock.release()
+                except RuntimeError:
+                    pass
                 return
 
             if self._players and len(self._players) > 0:
@@ -828,7 +849,10 @@ class KodiDevice:
                 self.device_config.address,
                 ex,
             )
-        self._update_lock.release()
+        try:
+            self._update_lock.release()
+        except RuntimeError:
+            pass
 
     @property
     def server(self) -> jsonrpc_base.Server | None:
