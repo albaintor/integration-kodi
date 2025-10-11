@@ -585,8 +585,9 @@ class KodiDevice:
         if self._update_lock.locked():
             _LOG.debug("[%s] Update states already locked", self.device_config.address)
             if time.time() - self._update_lock_time > UPDATE_LOCK_TIMEOUT:
-                _LOG.warning("[%s] Update is locked since a too long time, unlock it anyway",
-                             self._device_config.address)
+                _LOG.warning(
+                    "[%s] Update is locked since a too long time, unlock it anyway", self._device_config.address
+                )
                 try:
                     self._update_lock.release()
                 except RuntimeError:
