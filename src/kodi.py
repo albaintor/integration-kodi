@@ -55,6 +55,7 @@ UPDATE_POSITION_INTERVAL = 300
 UPDATE_STATE_RETRY = 2
 UPDATE_LOCK_TIMEOUT = 10.0
 
+
 class Events(IntEnum):
     """Internal driver events."""
 
