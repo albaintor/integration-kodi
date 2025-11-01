@@ -11,7 +11,7 @@ import datetime
 import logging
 import time
 import urllib.parse
-from asyncio import AbstractEventLoop, Future, Lock, shield
+from asyncio import AbstractEventLoop, Future, Lock, Task, shield
 from enum import IntEnum
 from functools import wraps
 from typing import (
@@ -80,6 +80,31 @@ class ArtworkType(IntEnum):
     CLEARLOGO = 7
     DISCART = 8
     ICON = 9
+
+
+def debounce(wait):
+    """Debounce function."""
+
+    def decorator(func):
+        task: Task | None = None
+
+        @wraps(func)
+        async def debounced(*args, **kwargs):
+            nonlocal task
+
+            async def call_func():
+                """Call wrapped function."""
+                await asyncio.sleep(wait)
+                await func(*args, **kwargs)
+
+            if task and not task.done():
+                task.cancel()
+            task = asyncio.create_task(call_func())
+            return task
+
+        return debounced
+
+    return decorator
 
 
 async def retry_call_command(
@@ -544,11 +569,8 @@ class KodiDevice:
             except Exception as ex:
                 _LOG.error("[%s] Unknown exception %s", self.device_config.address, ex)
 
-    async def _update_position(self, deferred=0) -> None:
-        if deferred > 0:
-            await asyncio.sleep(deferred)
-            self._position_timestamp = None
-
+    @debounce(2)
+    async def _update_position(self) -> None:
         if (
             self._position_timestamp is not None
             and self._position_timestamp + float(UPDATE_POSITION_INTERVAL - 10) > time.time()
@@ -1038,7 +1060,7 @@ class KodiDevice:
                 await self.async_media_play()
             else:
                 await self.async_media_pause()
-        asyncio.create_task(self._update_position(deferred=2))
+        await self._update_position()
 
     @retry()
     async def stop(self):
