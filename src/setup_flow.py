@@ -492,6 +492,14 @@ async def handle_configuration_mode(msg: UserDataResponse) -> RequestUserInput |
                         },
                     },
                     {
+                        "field": {"checkbox": {"value": _reconfigured_device.show_stream_language_name}},
+                        "id": "show_stream_language_name",
+                        "label": {
+                            "en": "Show language name instead of track name",
+                            "fr": "Afficher le nom de la langue au lieu du nom de la piste",
+                        },
+                    },
+                    {
                         "field": {"checkbox": {"value": _reconfigured_device.media_update_task}},
                         "id": "media_update_task",
                         "label": {"en": "Enable media update task", "fr": "Activer la tâche de mise à jour du média"},
@@ -654,6 +662,14 @@ async def handle_discovery(_msg: UserDataResponse) -> RequestUserInput | SetupEr
             },
             {
                 "field": {"checkbox": {"value": True}},
+                "id": "show_stream_language_name",
+                "label": {
+                    "en": "Show language name instead of track name",
+                    "fr": "Afficher le nom de la langue au lieu du nom de la piste",
+                },
+            },
+            {
+                "field": {"checkbox": {"value": True}},
                 "id": "media_update_task",
                 "label": {"en": "Enable media update task", "fr": "Activer la tâche de mise à jour du média"},
             },
@@ -754,6 +770,7 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
     download_artwork = msg.input_values["download_artwork"]
     disable_keyboard_map = msg.input_values["disable_keyboard_map"]
     show_stream_name = msg.input_values["show_stream_name"]
+    show_stream_language_name = msg.input_values["show_stream_language_name"]
 
     if ssl == "false":
         ssl = False
@@ -779,6 +796,11 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
         show_stream_name = False
     else:
         show_stream_name = True
+
+    if show_stream_language_name == "false":
+        show_stream_language_name = False
+    else:
+        show_stream_language_name = True
 
     if device_choice:
         _LOG.debug("Configure device following discovery : %s %s", device_choice, _discovered_kodis)
@@ -855,6 +877,7 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
             download_artwork=download_artwork,
             disable_keyboard_map=disable_keyboard_map,
             show_stream_name=show_stream_name,
+            show_stream_language_name=show_stream_language_name
         )
     )  # triggers SonyLG TV instance creation
     config.devices.store()
@@ -892,6 +915,7 @@ async def _handle_device_reconfigure(msg: UserDataResponse) -> SetupComplete | S
     download_artwork = msg.input_values["download_artwork"]
     disable_keyboard_map = msg.input_values["disable_keyboard_map"]
     show_stream_name = msg.input_values["show_stream_name"]
+    show_stream_language_name = msg.input_values["show_stream_language_name"]
 
     if ssl == "false":
         ssl = False
@@ -918,6 +942,11 @@ async def _handle_device_reconfigure(msg: UserDataResponse) -> SetupComplete | S
     else:
         show_stream_name = True
 
+    if show_stream_language_name == "false":
+        show_stream_language_name = False
+    else:
+        show_stream_language_name = True
+
     _LOG.debug("User has changed configuration")
     _reconfigured_device.address = address
     _reconfigured_device.username = username
@@ -931,6 +960,7 @@ async def _handle_device_reconfigure(msg: UserDataResponse) -> SetupComplete | S
     _reconfigured_device.download_artwork = download_artwork
     _reconfigured_device.disable_keyboard_map = disable_keyboard_map
     _reconfigured_device.show_stream_name = show_stream_name
+    _reconfigured_device.show_stream_language_name = show_stream_language_name
 
     config.devices.add_or_update(_reconfigured_device)  # triggers ATV instance update
     await asyncio.sleep(1)

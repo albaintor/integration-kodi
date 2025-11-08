@@ -63,6 +63,7 @@ class KodiConfigDevice:
     download_artwork: bool = field(default=False)
     disable_keyboard_map: bool = field(default=False)
     show_stream_name: bool = field(default=True)
+    show_stream_language_name: bool = field(default=True)
 
     def __post_init__(self):
         """Apply default values on missing fields."""
@@ -174,6 +175,7 @@ class Devices:
                 item.download_artwork = device.download_artwork
                 item.disable_keyboard_map = device.disable_keyboard_map
                 item.show_stream_name = device.show_stream_name
+                item.show_stream_language_name = device.show_stream_language_name
                 return self.store()
         return False
 

@@ -808,8 +808,21 @@ class KodiDevice:
                 if media_artist == "":
                     currentaudiostream: dict[str, any] = self._properties.get("currentaudiostream", {})
                     currentsubtitle: dict[str, any] = self._properties.get("currentsubtitle", {})
-                    audio_stream = currentaudiostream.get("name", currentaudiostream.get("language", ""))
-                    subtitle_stream = currentsubtitle.get("name", currentaudiostream.get("language", ""))
+                    if self.device_config.show_stream_language_name:
+                        audio_stream = currentaudiostream.get("language", currentaudiostream.get("name", ""))
+                        subtitle_stream = currentsubtitle.get("language", currentsubtitle.get("name", ""))
+                        if audio_stream == "":
+                            audio_stream = currentaudiostream.get("name", "")
+                        if subtitle_stream == "":
+                            subtitle_stream = currentsubtitle.get("name", "")
+                    else:
+                        audio_stream = currentaudiostream.get("name", currentaudiostream.get("language", ""))
+                        subtitle_stream = currentsubtitle.get("name", currentsubtitle.get("language", ""))
+                        if audio_stream == "":
+                            audio_stream = currentaudiostream.get("language", "")
+                        if subtitle_stream == "":
+                            subtitle_stream = currentsubtitle.get("language", "")
+
                     info: [str] = []
                     if audio_stream != "":
                         info.append(audio_stream)
