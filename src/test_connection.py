@@ -13,6 +13,7 @@ import logging
 import sys
 from typing import Any
 
+import jsonrpc_base
 from rich import print_json
 
 import kodi
@@ -64,6 +65,7 @@ async def main():
     properties = client._item
     print("Properties :")
     print_json(data=properties)
+    await asyncio.sleep(60)
 
     # await KodiMediaPlayer.mediaplayer_command("entityid", client, "key yellow KB 0")
     # await KodiMediaPlayer.mediaplayer_command("entityid", client, "action nextchannelgroup")
@@ -99,6 +101,9 @@ async def main():
 
     exit(0)
 
+def register_rpc(self, method_name, callback):
+    _LOG.debug("Register %s", method_name)
+    self._server_request_handlers[method_name] = callback
 
 if __name__ == "__main__":
     _LOG = logging.getLogger(__name__)
@@ -106,11 +111,14 @@ if __name__ == "__main__":
     ch = logging.StreamHandler()
     ch.setFormatter(formatter)
     logging.basicConfig(handlers=[ch])
+    logging.getLogger(__name__).setLevel(logging.DEBUG)
     logging.getLogger("client").setLevel(logging.DEBUG)
     logging.getLogger("media_player").setLevel(logging.DEBUG)
     logging.getLogger("remote").setLevel(logging.DEBUG)
     logging.getLogger("kodi").setLevel(logging.DEBUG)
     logging.getLogger("pykodi.kodi").setLevel(logging.DEBUG)
+    jsonrpc_base.Server.__register = register_rpc
+
     logging.getLogger(__name__).setLevel(logging.DEBUG)
     _LOOP.run_until_complete(main())
     _LOOP.run_forever()

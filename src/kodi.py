@@ -300,14 +300,15 @@ class KodiDevice:
         return MediaStates.PLAYING
 
     # pylint: disable = W0613
-    def on_speed_event(self, sender, data):
+    def on_speed_event(self, sender: str, data: dict[str, any]):
         """Handle player changes between playing and paused."""
         _LOG.debug("[%s] Kodi playback changed %s", self.device_config.address, data)
-        self._properties["speed"] = data["player"]["speed"]
+        if "speed" in data.get("player", {}):
+            self._properties["speed"] = data["player"]["speed"]
         self.event_loop.create_task(self._update_states())
 
     # pylint: disable = W0613
-    def on_stop(self, sender, data):
+    def on_stop(self, sender: str, data: dict[str, any]):
         """Handle the stop of the player playback."""
         # Prevent stop notifications which are sent after quit notification
         _LOG.debug("[%s] Kodi stopped", self.device_config.address)
@@ -320,7 +321,7 @@ class KodiDevice:
             self.events.emit(Events.UPDATE, self.id, {MediaAttr.STATE: self.state})
 
     # pylint: disable = W0613
-    def on_volume_changed(self, sender, data):
+    def on_volume_changed(self, sender: any, data: dict[str, any]):
         """Handle the volume changes."""
         _LOG.debug("[%s] Kodi volume changed %s", self.device_config.address, data)
         volume = self._volume
@@ -338,14 +339,20 @@ class KodiDevice:
             self.events.emit(Events.UPDATE, self.id, updated_data)
 
     # pylint: disable = W0613
-    def on_key_press(self, sender, data):
+    def on_key_press(self, sender: str, data: dict[str, any]):
         """Handle a incoming key press notification."""
         _LOG.debug("[%s] Keypress %s %s", self.device_config.address, sender, data)
 
     # pylint: disable = W0613
-    async def on_quit(self, sender, data):
+    async def on_quit(self, sender: str, data: dict[str, any]):
         """Reset the player state on quit action."""
         await self._clear_connection()
+
+    def on_property_changed(self, sender: str, data: dict[str, any]):
+        """Handle player property change."""
+        _LOG.debug("[%s] Kodi property changed %s", self.device_config.address, data)
+        if ("currentaudiostream" and "currentsubtitle") in set(data.get("property", {}).keys()):
+            self.event_loop.create_task(self._update_states())
 
     def _register_ws_callbacks(self):
         _LOG.debug("[%s] Kodi register callbacks", self.device_config.address)
@@ -356,6 +363,7 @@ class KodiDevice:
         self._kodi_connection.server.Player.OnResume = self.on_speed_event
         self._kodi_connection.server.Player.OnSpeedChanged = self.on_speed_event
         self._kodi_connection.server.Player.OnSeek = self.on_speed_event
+        # self._kodi_connection.server.Player.OnPropertyChanged = self.on_property_changed
         self._kodi_connection.server.Player.OnStop = self.on_stop
         self._kodi_connection.server.Application.OnVolumeChanged = self.on_volume_changed
         # self._kodi_connection.server.Other.OnKeyPress = self.on_key_press
@@ -647,7 +655,7 @@ class KodiDevice:
                     updated_data[MediaAttr.MUTED] = muted
 
                 self._properties = await self._kodi.get_player_properties(
-                    self._players[0], ["time", "totaltime", "speed", "live"]
+                    self._players[0], ["time", "totaltime", "speed", "live", "currentaudiostream", "currentsubtitle"]
                 )
                 position = self._properties["time"]
                 if position:
@@ -796,10 +804,24 @@ class KodiDevice:
                         media_artist += "E" + str(episode)
                 else:
                     media_artist = ""
+
+                if media_artist == "":
+                    currentaudiostream: dict[str, any] = self._properties.get("currentaudiostream", {})
+                    currentsubtitle: dict[str, any] = self._properties.get("currentsubtitle", {})
+                    audio_stream = currentaudiostream.get("name", currentaudiostream.get("language", ""))
+                    subtitle_stream = currentsubtitle.get("name", currentaudiostream.get("language", ""))
+                    info: [str] = []
+                    if audio_stream != "":
+                        info.append(audio_stream)
+                    if subtitle_stream != "":
+                        info.append(subtitle_stream)
+                    media_artist = " - ".join(info)
+
                 if media_artist != self._media_artist:
                     self._media_artist = media_artist
                     updated_data[MediaAttr.MEDIA_ARTIST] = self._media_artist
                     changed_media = True
+
                 media_album = self._item.get("album")
                 if media_album != self._media_album:
                     self._media_album = media_album
