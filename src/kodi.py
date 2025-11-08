@@ -823,6 +823,11 @@ class KodiDevice:
                         if subtitle_stream == "":
                             subtitle_stream = currentsubtitle.get("language", "").title()
 
+                    if currentsubtitle.get("isforced", False):
+                        subtitle_stream += " (forced)"
+                    if currentsubtitle.get("isimpaired", False):
+                        subtitle_stream += " (impaired)"
+
                     info: [str] = []
                     if audio_stream != "":
                         info.append(audio_stream)
