@@ -351,7 +351,7 @@ class KodiDevice:
     def on_property_changed(self, sender: str, data: dict[str, any]):
         """Handle player property change."""
         _LOG.debug("[%s] Kodi property changed %s", self.device_config.address, data)
-        if ("currentaudiostream" and "currentsubtitle") in set(data.get("property", {}).keys()):
+        if ("currentaudiostream" or "currentsubtitle" or "subtitleenabled") in set(data.get("property", {}).keys()):
             self.event_loop.create_task(self._update_states())
 
     def _register_ws_callbacks(self):
@@ -655,7 +655,8 @@ class KodiDevice:
                     updated_data[MediaAttr.MUTED] = muted
 
                 self._properties = await self._kodi.get_player_properties(
-                    self._players[0], ["time", "totaltime", "speed", "live", "currentaudiostream", "currentsubtitle"]
+                    self._players[0],
+                    ["time", "totaltime", "speed", "live", "currentaudiostream", "currentsubtitle", "subtitleenabled"],
                 )
                 position = self._properties["time"]
                 if position:
