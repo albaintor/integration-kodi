@@ -809,19 +809,19 @@ class KodiDevice:
                     currentaudiostream: dict[str, any] = self._properties.get("currentaudiostream", {})
                     currentsubtitle: dict[str, any] = self._properties.get("currentsubtitle", {})
                     if self.device_config.show_stream_language_name:
-                        audio_stream = currentaudiostream.get("language", currentaudiostream.get("name", ""))
-                        subtitle_stream = currentsubtitle.get("language", currentsubtitle.get("name", ""))
+                        audio_stream = currentaudiostream.get("language", currentaudiostream.get("name", "")).title()
+                        subtitle_stream = currentsubtitle.get("language", currentsubtitle.get("name", "")).title()
                         if audio_stream == "":
-                            audio_stream = currentaudiostream.get("name", "")
+                            audio_stream = currentaudiostream.get("name", "").title()
                         if subtitle_stream == "":
-                            subtitle_stream = currentsubtitle.get("name", "")
+                            subtitle_stream = currentsubtitle.get("name", "").title()
                     else:
-                        audio_stream = currentaudiostream.get("name", currentaudiostream.get("language", ""))
-                        subtitle_stream = currentsubtitle.get("name", currentsubtitle.get("language", ""))
+                        audio_stream = currentaudiostream.get("name", currentaudiostream.get("language", "")).title()
+                        subtitle_stream = currentsubtitle.get("name", currentsubtitle.get("language", "")).title()
                         if audio_stream == "":
-                            audio_stream = currentaudiostream.get("language", "")
+                            audio_stream = currentaudiostream.get("language", "").title()
                         if subtitle_stream == "":
-                            subtitle_stream = currentsubtitle.get("language", "")
+                            subtitle_stream = currentsubtitle.get("language", "").title()
 
                     info: [str] = []
                     if audio_stream != "":

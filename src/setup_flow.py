@@ -877,7 +877,7 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
             download_artwork=download_artwork,
             disable_keyboard_map=disable_keyboard_map,
             show_stream_name=show_stream_name,
-            show_stream_language_name=show_stream_language_name
+            show_stream_language_name=show_stream_language_name,
         )
     )  # triggers SonyLG TV instance creation
     config.devices.store()
@@ -895,7 +895,7 @@ async def _handle_device_reconfigure(msg: UserDataResponse) -> SetupComplete | S
     :return: the setup action on how to continue: SetupComplete after updating configuration
     """
     # flake8: noqa:F824
-    # pylint: disable=W0602
+    # pylint: disable=W0602, R0915
     global _reconfigured_device
 
     _LOG.debug("Handle device reconfigure")
