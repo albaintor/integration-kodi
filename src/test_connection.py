@@ -101,9 +101,11 @@ async def main():
 
     exit(0)
 
+
 def register_rpc(self, method_name, callback):
     _LOG.debug("Register %s", method_name)
     self._server_request_handlers[method_name] = callback
+
 
 if __name__ == "__main__":
     _LOG = logging.getLogger(__name__)

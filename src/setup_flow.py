@@ -486,8 +486,10 @@ async def handle_configuration_mode(msg: UserDataResponse) -> RequestUserInput |
                     {
                         "field": {"checkbox": {"value": _reconfigured_device.show_stream_name}},
                         "id": "show_stream_name",
-                        "label": {"en": "Show audio/subtitle track name",
-                                  "fr": "Afficher le nom de la piste audio/sous-titres"},
+                        "label": {
+                            "en": "Show audio/subtitle track name",
+                            "fr": "Afficher le nom de la piste audio/sous-titres",
+                        },
                     },
                     {
                         "field": {"checkbox": {"value": _reconfigured_device.media_update_task}},
@@ -645,7 +647,10 @@ async def handle_discovery(_msg: UserDataResponse) -> RequestUserInput | SetupEr
             {
                 "field": {"checkbox": {"value": True}},
                 "id": "show_stream_name",
-                "label": {"en": "Show audio/subtitle track name", "fr": "Afficher le nom de la piste audio/sous-titres"},
+                "label": {
+                    "en": "Show audio/subtitle track name",
+                    "fr": "Afficher le nom de la piste audio/sous-titres",
+                },
             },
             {
                 "field": {"checkbox": {"value": True}},
@@ -849,7 +854,7 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
             media_update_task=media_update_task,
             download_artwork=download_artwork,
             disable_keyboard_map=disable_keyboard_map,
-            show_stream_name=show_stream_name
+            show_stream_name=show_stream_name,
         )
     )  # triggers SonyLG TV instance creation
     config.devices.store()
