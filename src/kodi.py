@@ -363,7 +363,7 @@ class KodiDevice:
         self._kodi_connection.server.Player.OnResume = self.on_speed_event
         self._kodi_connection.server.Player.OnSpeedChanged = self.on_speed_event
         self._kodi_connection.server.Player.OnSeek = self.on_speed_event
-        # self._kodi_connection.server.Player.OnPropertyChanged = self.on_property_changed
+        self._kodi_connection.server.Player.OnPropertyChanged = self.on_property_changed
         self._kodi_connection.server.Player.OnStop = self.on_stop
         self._kodi_connection.server.Application.OnVolumeChanged = self.on_volume_changed
         # self._kodi_connection.server.Other.OnKeyPress = self.on_key_press
@@ -806,28 +806,25 @@ class KodiDevice:
                     media_artist = ""
 
                 if media_artist == "":
-                    currentaudiostream: dict[str, any] = self._properties.get("currentaudiostream", {})
-                    currentsubtitle: dict[str, any] = self._properties.get("currentsubtitle", {})
-                    if self.device_config.show_stream_language_name:
-                        audio_stream = currentaudiostream.get("language", currentaudiostream.get("name", "")).title()
-                        subtitle_stream = currentsubtitle.get("language", currentsubtitle.get("name", "")).title()
-                        if audio_stream == "":
-                            audio_stream = currentaudiostream.get("name", "").title()
+                    current_audio_stream: dict[str, any] = self._properties.get("currentaudiostream", {})
+                    current_subtitle: dict[str, any] = self._properties.get("currentsubtitle", {})
+                    subtitles_enabled: bool = self._properties.get("subtitleenabled", False)
+                    _LOG.debug("Audio/subtitles : %s, %s", current_audio_stream, current_subtitle)
+                    keys = ["language", "name"]
+                    if not self.device_config.show_stream_language_name:
+                        keys = ["name", "language"]
+                    audio_stream = current_audio_stream.get(keys[0], current_audio_stream.get(keys[1], "")).title()
+                    if audio_stream == "":
+                        audio_stream = current_audio_stream.get("name", "").title()
+                    subtitle_stream = ""
+                    if subtitles_enabled:
+                        subtitle_stream = current_subtitle.get(keys[0], current_subtitle.get(keys[1], "")).title()
                         if subtitle_stream == "":
-                            subtitle_stream = currentsubtitle.get("name", "").title()
-                    else:
-                        audio_stream = currentaudiostream.get("name", currentaudiostream.get("language", "")).title()
-                        subtitle_stream = currentsubtitle.get("name", currentsubtitle.get("language", "")).title()
-                        if audio_stream == "":
-                            audio_stream = currentaudiostream.get("language", "").title()
-                        if subtitle_stream == "":
-                            subtitle_stream = currentsubtitle.get("language", "").title()
-
-                    if currentsubtitle.get("isforced", False):
-                        subtitle_stream += " (forced)"
-                    if currentsubtitle.get("isimpaired", False):
-                        subtitle_stream += " (impaired)"
-
+                            subtitle_stream = current_subtitle.get("name", "").title()
+                        if current_subtitle.get("isforced", False):
+                            subtitle_stream += " (forced)"
+                        if current_subtitle.get("isimpaired", False):
+                            subtitle_stream += " (impaired)"
                     info: [str] = []
                     if audio_stream != "":
                         info.append(audio_stream)
