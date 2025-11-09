@@ -332,7 +332,7 @@ def _configure_new_device(device_config: config.KodiConfigDevice, connect: bool 
     else:
         device = kodi.KodiDevice(device_config, loop=_LOOP)
 
-        on_device_connected(device.id)
+        asyncio.create_task(on_device_connected(device.id))
         # asyncio.rundevice.events.on(lg.Events.CONNECTED, on_device_connected)
         # device.events.on(lg.Events.DISCONNECTED, on_device_disconnected)
         device.events.on(kodi.Events.ERROR, on_device_connection_error)
@@ -424,18 +424,7 @@ async def main():
     for device_config in config.devices.all():
         _configure_new_device(device_config, connect=False)
 
-    # _LOOP.create_task(receiver_status_poller())
-    for device in _configured_kodis.values():
-        if not device.available:
-            continue
-
-        # try:
-        #     await _LOOP.create_task(device.connect())
-        # except WEBOSTV_EXCEPTIONS as ex:
-        #     _LOG.debug("Could not connect to device, probably because it is starting with magic packet %s", ex)
-
     await api.init("driver.json", setup_flow.driver_setup_handler)
-
 
 if __name__ == "__main__":
     _LOOP.run_until_complete(main())
