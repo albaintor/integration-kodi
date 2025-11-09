@@ -202,7 +202,8 @@ def _get_language_name(lang: str) -> str:
     try:
         return Lang(lang).name
     # pylint: disable = W0718
-    except Exception:
+    except Exception as ex:
+        _LOG.debug("Error getting language name from %s : %s", lang, ex)
         return lang
 
 
