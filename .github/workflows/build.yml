@@ -68,7 +68,7 @@ jobs:
             bash -c \
             "cd /workspace && \
               python -m pip install -r requirements.txt && \
-              pyinstaller --clean --onedir --name driver src/driver.py"
+              pyinstaller --collect-submodules zeroconf --clean --onedir --name driver src/driver.py"
 
       - name: Build for x86_64
         if: matrix.platform == 'x86_64'
