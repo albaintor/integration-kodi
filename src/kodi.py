@@ -202,7 +202,8 @@ def _get_language_name(lang: str) -> str:
     """Retrieve language name from language code."""
     try:
         return Lang(lang).name
-    except InvalidLanguageValue:
+    # pylint: disable = W0718
+    except Exception:
         return lang
 
 
@@ -633,7 +634,7 @@ class KodiDevice:
         await asyncio.sleep(0)
 
     # pylint: disable = R0914,R0915
-    async def _update_states(self, deferred=0, received_data: dict[str, any]|None = None) -> None:
+    async def _update_states(self, deferred=0, received_data: dict[str, any] | None = None) -> None:
         """Update entity state attributes."""
         if deferred > 0:
             await asyncio.sleep(deferred)
@@ -734,7 +735,7 @@ class KodiDevice:
 
                 _LOG.debug("[%s] Kodi extracted properties : %s", self.device_config.address, self._item)
 
-                item_type = KODI_MEDIA_TYPES.get(self._item.get("type"))
+                item_type = KODI_MEDIA_TYPES.get(self._item.get("type"), MediaType.VIDEO)
                 if item_type != self._media_type:
                     self._media_type = item_type
                     updated_data[MediaAttr.MEDIA_TYPE] = self.media_type
@@ -846,7 +847,6 @@ class KodiDevice:
                     current_subtitle: dict[str, any] = self._properties.get("currentsubtitle", {})
                     subtitles_enabled: bool = received_data.get("subtitleenabled",
                                                                 self._properties.get("subtitleenabled", False))
-
                     audio_stream = _get_language(current_audio_stream, self.device_config.show_stream_language_name)
                     subtitle_stream = ""
                     if subtitles_enabled:
