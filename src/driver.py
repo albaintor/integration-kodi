@@ -426,6 +426,7 @@ async def main():
 
     await api.init("driver.json", setup_flow.driver_setup_handler)
 
+
 if __name__ == "__main__":
     _LOOP.run_until_complete(main())
     _LOOP.run_forever()
