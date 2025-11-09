@@ -138,6 +138,22 @@ _user_input_manual = RequestUserInput(
         },
         {
             "field": {"checkbox": {"value": True}},
+            "id": "show_stream_name",
+            "label": {
+                "en": "Show audio/subtitle track name",
+                "fr": "Afficher le nom de la piste audio/sous-titres",
+            },
+        },
+        {
+            "field": {"checkbox": {"value": True}},
+            "id": "show_stream_language_name",
+            "label": {
+                "en": "Show language name instead of track name",
+                "fr": "Afficher le nom de la langue au lieu du nom de la piste",
+            },
+        },
+        {
+            "field": {"checkbox": {"value": True}},
             "id": "media_update_task",
             "label": {"en": "Enable media update task", "fr": "Activer la tâche de mise à jour du média"},
         },

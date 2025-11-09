@@ -55,6 +55,8 @@ async def main():
             media_update_task=True,
             download_artwork=False,
             disable_keyboard_map=True,
+            show_stream_name=True,
+            show_stream_language_name=True
         )
     )
     # await client.power_on()
@@ -65,7 +67,7 @@ async def main():
     properties = client._item
     print("Properties :")
     print_json(data=properties)
-    await asyncio.sleep(60)
+    await asyncio.sleep(600)
 
     # await KodiMediaPlayer.mediaplayer_command("entityid", client, "key yellow KB 0")
     # await KodiMediaPlayer.mediaplayer_command("entityid", client, "action nextchannelgroup")
