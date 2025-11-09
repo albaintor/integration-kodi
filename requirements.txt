@@ -8,5 +8,5 @@ jsonrpc_base>=2.2.0
 aiohttp~=3.13.2
 iso639-lang~=2.6.3
 iso639~=0.1.4
-zeroconf~=0.147.0
+zeroconf~=0.148.0
 rich~=14.0.0
