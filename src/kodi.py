@@ -14,7 +14,6 @@ import urllib.parse
 from asyncio import AbstractEventLoop, Future, Lock, Task, shield
 from enum import IntEnum
 from functools import wraps
-from iso639 import Lang
 from typing import (
     Any,
     Awaitable,
@@ -29,7 +28,7 @@ from typing import (
 import jsonrpc_base
 import ucapi
 from aiohttp import ClientSession, ServerTimeoutError
-from iso639.exceptions import InvalidLanguageValue
+from iso639 import Lang
 from jsonrpc_base.jsonrpc import (  # pylint: disable = E0401
     ProtocolError,
     TransportError,
@@ -210,15 +209,14 @@ def _get_language_name(lang: str) -> str:
 def _get_language(info: dict[str, Any], language_first: bool) -> str:
     """Retrieve language name."""
     if language_first:
-        language = _get_language_name(info.get("language", ""))
+        language = _get_language_name(info.get("language", "")).title()
         if language != "":
             return language
         return info.get("name", "").title()
-    else:
-        language = info.get("name", "").title()
-        if language != "":
-            return language
-        return _get_language_name(info.get("language", ""))
+    language = info.get("name", "").title()
+    if language != "":
+        return language
+    return _get_language_name(info.get("language", "")).title()
 
 
 class KodiDevice:
@@ -376,11 +374,11 @@ class KodiDevice:
     def on_property_changed(self, sender: str, data: dict[str, any]):
         """Handle player property change."""
         _LOG.debug("[%s] Kodi property changed %s", self.device_config.address, data)
-        if (self.device_config.show_stream_name and
-                all(x in ["currentaudiostream", "currentsubtitle", "subtitleenabled"] for x in
-                    data.get("property", {}).keys())):
+        if self.device_config.show_stream_name and all(
+            x in ["currentaudiostream", "currentsubtitle", "subtitleenabled"] for x in data.get("property", {}).keys()
+        ):
             self.event_loop.create_task(self._update_streams(data))
-            
+
     @debounce(1)
     async def _update_streams(self, data: dict[str, any]):
         """Debounce update stream to get the whole data."""
@@ -691,8 +689,7 @@ class KodiDevice:
 
                 self._properties = await self._kodi.get_player_properties(
                     self._players[0],
-                    ["time", "totaltime", "speed", "live", "currentaudiostream", "currentsubtitle",
-                     "subtitleenabled"],
+                    ["time", "totaltime", "speed", "live", "currentaudiostream", "currentsubtitle", "subtitleenabled"],
                 )
                 position = self._properties["time"]
                 if position:
@@ -845,8 +842,9 @@ class KodiDevice:
                 if self.device_config.show_stream_name and media_artist == "":
                     current_audio_stream: dict[str, any] = self._properties.get("currentaudiostream", {})
                     current_subtitle: dict[str, any] = self._properties.get("currentsubtitle", {})
-                    subtitles_enabled: bool = received_data.get("subtitleenabled",
-                                                                self._properties.get("subtitleenabled", False))
+                    subtitles_enabled: bool = received_data.get(
+                        "subtitleenabled", self._properties.get("subtitleenabled", False)
+                    )
                     audio_stream = _get_language(current_audio_stream, self.device_config.show_stream_language_name)
                     subtitle_stream = ""
                     if subtitles_enabled:
@@ -856,8 +854,12 @@ class KodiDevice:
                         if current_subtitle.get("isimpaired", False):
                             subtitle_stream += " (impaired)"
                     if audio_stream != "" or subtitle_stream != "":
-                        _LOG.debug("Audio/subtitles : %s, %s (enabled : %s)", current_audio_stream,
-                                   current_subtitle, subtitles_enabled)
+                        _LOG.debug(
+                            "Audio/subtitles : %s, %s (enabled : %s)",
+                            current_audio_stream,
+                            current_subtitle,
+                            subtitles_enabled,
+                        )
                     info: [str] = []
                     if audio_stream != "":
                         info.append(audio_stream)

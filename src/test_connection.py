@@ -56,7 +56,7 @@ async def main():
             download_artwork=False,
             disable_keyboard_map=True,
             show_stream_name=True,
-            show_stream_language_name=True
+            show_stream_language_name=True,
         )
     )
     # await client.power_on()
