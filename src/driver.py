@@ -31,7 +31,7 @@ asyncio.set_event_loop(_LOOP)
 api = ucapi.IntegrationAPI(_LOOP)
 # Map of id -> device instance
 _configured_kodis: dict[str, kodi.KodiDevice] = {}
-_R2_IN_STANDBY = False
+_remote_in_standby = False
 
 
 @api.listens_to(ucapi.Events.CONNECT)
@@ -69,9 +69,9 @@ async def on_r2_enter_standby() -> None:
 
     Disconnect every Kodi instances.
     """
-    global _R2_IN_STANDBY
+    global _remote_in_standby
 
-    _R2_IN_STANDBY = True
+    _remote_in_standby = True
     _LOG.debug("Enter standby event: disconnecting device(s)")
     for configured in _configured_kodis.values():
         await configured.disconnect()
@@ -107,9 +107,9 @@ async def on_r2_exit_standby() -> None:
 
     Connect all Kodi instances.
     """
-    global _R2_IN_STANDBY
+    global _remote_in_standby
 
-    _R2_IN_STANDBY = False
+    _remote_in_standby = False
     _LOG.debug("Exit standby event: connecting Kodi device(s) %s", _configured_kodis)
 
     for configured in _configured_kodis.values():
@@ -128,9 +128,9 @@ async def on_subscribe_entities(entity_ids: list[str]) -> None:
 
     :param entity_ids: entity identifiers.
     """
-    global _R2_IN_STANDBY
+    global _remote_in_standby
 
-    _R2_IN_STANDBY = False
+    _remote_in_standby = False
     _LOG.debug("Subscribe entities event: %s", entity_ids)
     for entity_id in entity_ids:
         entity = api.configured_entities.get(entity_id)
