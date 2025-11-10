@@ -274,6 +274,7 @@ class KodiDevice:
         self._position_timestamp: float | None = None
         self._update_position_task = None
         self._update_state_retry = 0
+        self._temporary_title: str | None = None
 
     async def init_connection(self):
         """Initialize connection to device."""
@@ -380,10 +381,80 @@ class KodiDevice:
         ):
             self.event_loop.create_task(self._update_streams(data))
 
+    def get_streams_info(self, properties: dict[str, any]) -> str | None:
+        """Build audio/subtitles stream info."""
+        if self.device_config.show_stream_name:
+            current_audio_stream: dict[str, any] = properties.get("currentaudiostream", {})
+            current_subtitle: dict[str, any] = properties.get("currentsubtitle", {})
+            subtitles_enabled: bool = properties.get(
+                "subtitleenabled", properties.get("subtitleenabled", False)
+            )
+            audio_stream = _get_language(current_audio_stream, self.device_config.show_stream_language_name)
+            subtitle_stream = ""
+            if subtitles_enabled:
+                subtitle_stream = _get_language(current_subtitle, self.device_config.show_stream_language_name)
+                if current_subtitle.get("isforced", False):
+                    subtitle_stream += " (forced)"
+                if current_subtitle.get("isimpaired", False):
+                    subtitle_stream += " (impaired)"
+            if audio_stream != "" or subtitle_stream != "":
+                _LOG.debug(
+                    "Audio/subtitles : %s, %s (enabled : %s)",
+                    current_audio_stream,
+                    current_subtitle,
+                    subtitles_enabled,
+                )
+            info: [str] = []
+            if audio_stream != "":
+                info.append(audio_stream)
+            if subtitle_stream != "":
+                info.append(subtitle_stream)
+            return " - ".join(info)
+        return None
+
+    def get_streams_name(self, properties: dict[str, any]) -> str | None:
+        """Build audio/subtitles stream names."""
+        if self.device_config.show_stream_name:
+            current_audio_stream: dict[str, any] = properties.get("currentaudiostream", {})
+            current_subtitle: dict[str, any] = properties.get("currentsubtitle", {})
+            subtitles_enabled: bool = properties.get(
+                "subtitleenabled", properties.get("subtitleenabled", False)
+            )
+            audio_stream = _get_language(current_audio_stream, False)
+            subtitle_stream = ""
+            if subtitles_enabled:
+                subtitle_stream = _get_language(current_subtitle, False)
+                if current_subtitle.get("isforced", False):
+                    subtitle_stream += " (forced)"
+                if current_subtitle.get("isimpaired", False):
+                    subtitle_stream += " (impaired)"
+            info: [str] = []
+            if audio_stream != "":
+                info.append(audio_stream)
+            if subtitle_stream != "":
+                info.append(subtitle_stream)
+            return " - ".join(info)
+        return None
+
     @debounce(1)
     async def _update_streams(self, data: dict[str, any]):
         """Debounce update stream to get the whole data."""
         await self._update_states(deferred=0, received_data=data)
+
+    async def display_temporary_title(self, temporary_title: str):
+        """Display a temporary title."""
+        self._temporary_title = temporary_title
+        # self.events.emit(Events.UPDATE, self.id, {
+        #     MediaAttr.MEDIA_TITLE: self._temporary_title
+        # })
+        await self._display_temporary_title()
+
+    @debounce(5)
+    async def _display_temporary_title(self):
+        self._temporary_title = None
+        self.events.emit(Events.UPDATE, self.id, {
+            MediaAttr.MEDIA_TITLE: self.media_title
+        })
 
     def _register_ws_callbacks(self):
         _LOG.debug("[%s] Kodi register callbacks", self.device_config.address)
@@ -593,6 +664,8 @@ class KodiDevice:
         self._app_properties = {}
         self._media_position = None
         self._media_position_updated_at = None
+        self._temporary_title = None
+        self._update_state_retry = 0
         try:
             self._update_lock.release()
         except RuntimeError:
@@ -819,12 +892,18 @@ class KodiDevice:
                     updated_data[MediaAttr.MEDIA_IMAGE_URL] = self.media_artwork
 
                 media_title = self._item.get("title") or self._item.get("label") or self._item.get("file")
+                if self.device_config.show_stream_name:
+                    streams_name = self.get_streams_name(self._properties)
+                    if streams_name and streams_name != "":
+                        await self.display_temporary_title(streams_name)
 
                 changed_media = False
                 if media_title != self._media_title:
                     self._media_title = media_title
                     updated_data[MediaAttr.MEDIA_TITLE] = self._media_title
                     changed_media = True
+                elif self._temporary_title:
+                    updated_data[MediaAttr.MEDIA_TITLE] = self._temporary_title
 
                 artists = self._item.get("artist")
                 season: int | None = self._item.get("season")
@@ -840,33 +919,8 @@ class KodiDevice:
                 else:
                     media_artist = ""
 
-                if self.device_config.show_stream_name and media_artist == "":
-                    current_audio_stream: dict[str, any] = self._properties.get("currentaudiostream", {})
-                    current_subtitle: dict[str, any] = self._properties.get("currentsubtitle", {})
-                    subtitles_enabled: bool = received_data.get(
-                        "subtitleenabled", self._properties.get("subtitleenabled", False)
-                    )
-                    audio_stream = _get_language(current_audio_stream, self.device_config.show_stream_language_name)
-                    subtitle_stream = ""
-                    if subtitles_enabled:
-                        subtitle_stream = _get_language(current_subtitle, self.device_config.show_stream_language_name)
-                        if current_subtitle.get("isforced", False):
-                            subtitle_stream += " (forced)"
-                        if current_subtitle.get("isimpaired", False):
-                            subtitle_stream += " (impaired)"
-                    if audio_stream != "" or subtitle_stream != "":
-                        _LOG.debug(
-                            "Audio/subtitles : %s, %s (enabled : %s)",
-                            current_audio_stream,
-                            current_subtitle,
-                            subtitles_enabled,
-                        )
-                    info: [str] = []
-                    if audio_stream != "":
-                        info.append(audio_stream)
-                    if subtitle_stream != "":
-                        info.append(subtitle_stream)
-                    media_artist = " - ".join(info)
+                if media_artist == "":
+                    media_artist = self.get_streams_info(self._properties)
 
                 if media_artist != self._media_artist:
                     self._media_artist = media_artist
