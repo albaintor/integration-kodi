@@ -25,10 +25,10 @@ from typing import (
     TypeVar,
 )
 
+import iso639
 import jsonrpc_base
 import ucapi
 from aiohttp import ClientSession, ServerTimeoutError
-from iso639 import Lang
 from jsonrpc_base.jsonrpc import (  # pylint: disable = E0401
     ProtocolError,
     TransportError,
@@ -200,7 +200,7 @@ def retry(*, timeout: float = 5, bufferize=False) -> Callable[
 def _get_language_name(lang: str) -> str:
     """Retrieve language name from language code."""
     try:
-        return Lang(lang).name
+        return iso639.Language.from_part2b(lang).name
     # pylint: disable = W0718
     except Exception as ex:
         _LOG.debug("Error getting language name from %s : %s", lang, ex)
