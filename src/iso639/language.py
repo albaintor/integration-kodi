@@ -4,27 +4,25 @@ from __future__ import annotations
 
 import datetime
 from dataclasses import dataclass
-
-from typing import Dict, List, NoReturn, Optional, Union, Set
+from typing import Dict, List, NoReturn, Optional, Set, Union
 
 from ._data import (
-    _PART3_TO_CODES,
-    _PART3_TO_NAME_INDEX,
-    _PART3_TO_MACROLANGUAGES,
-    _PART3_TO_RETIREMENTS,
+    _COLUMN_TYPE,
+    _INVERTED_NAME_TO_PART3,
+    _PART1_TO_PART3,
     _PART2B_TO_PART3,
     _PART2T_TO_PART3,
-    _PART1_TO_PART3,
-    _REF_NAME_TO_PART3,
+    _PART3_TO_CODES,
+    _PART3_TO_MACROLANGUAGES,
+    _PART3_TO_NAME_INDEX,
+    _PART3_TO_RETIREMENTS,
     _PRINT_NAME_TO_PART3,
-    _INVERTED_NAME_TO_PART3,
+    _REF_NAME_TO_PART3,
     _CodesColumn,
+    _MacrolanguagesColumn,
     _NameIndexColumn,
     _RetirementsColumn,
-    _MacrolanguagesColumn,
-    _COLUMN_TYPE,
 )
-
 
 _STRING_CLEANING_FUNCS = [
     lambda x: x.strip().lower(),
@@ -155,9 +153,7 @@ class Language:
     @classmethod
     def from_part3(cls, user_input: str, /) -> Language:
         """Return a ``Language`` instance from an ISO 639-3 code."""
-        return _PART3_TO_LANGUAGES[
-            _get_part3_exact(user_input, [_CodesColumn.ID, _RetirementsColumn.ID])
-        ]
+        return _PART3_TO_LANGUAGES[_get_part3_exact(user_input, [_CodesColumn.ID, _RetirementsColumn.ID])]
 
     @classmethod
     def from_part2b(cls, user_input: str, /) -> Language:
@@ -189,9 +185,7 @@ def _raise_language_not_found_error(user_input: str) -> NoReturn:
     raise LanguageNotFoundError(f"{user_input!r} isn't an ISO language code or name")
 
 
-def _get_part3(
-    user_input: str, query_order: List[_COLUMN_TYPE], exact: bool = True
-) -> str:
+def _get_part3(user_input: str, query_order: List[_COLUMN_TYPE], exact: bool = True) -> str:
     """Get the part 3 code of a language.
 
     Parameters
@@ -320,9 +314,7 @@ def _get_language(part3: str) -> Language:
     retire_remedy = (from_retirements or {}).get(_RetirementsColumn.REMEDY)
 
     retire_date = (
-        datetime.datetime.strptime(
-            from_retirements[_RetirementsColumn.EFFECTIVE], "%Y-%m-%d"
-        ).date()
+        datetime.datetime.strptime(from_retirements[_RetirementsColumn.EFFECTIVE], "%Y-%m-%d").date()
         if from_retirements
         else None
     )

@@ -25,7 +25,6 @@ from typing import (
     TypeVar,
 )
 
-import iso639
 import jsonrpc_base
 import ucapi
 from aiohttp import ClientSession, ServerTimeoutError
@@ -38,6 +37,7 @@ from ucapi.media_player import Attributes as MediaAttr
 from ucapi.media_player import Features, MediaType
 from ucapi.media_player import States as MediaStates
 
+import iso639
 from config import KodiConfigDevice
 from const import KODI_FEATURES, KODI_MEDIA_TYPES, ButtonKeymap
 from pykodi.kodi import CannotConnectError, InvalidAuthError, Kodi, KodiWSConnection

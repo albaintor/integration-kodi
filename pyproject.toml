@@ -4,10 +4,10 @@ requires = ["setuptools>=61.2"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "intg-sonyavr"
+name = "intg-kodi"
 version = "0.2.4"
 authors = [
-    { name = "Unfolded Circle ApS", email = "hello@unfoldedcircle.com" }
+    { name = "Albator", email = "albaintor@github.com" }
 ]
 license = { text = "MPL-2.0" }
 description = "Remote Two integration for Sony AVRs"

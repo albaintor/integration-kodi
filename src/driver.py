@@ -31,7 +31,7 @@ asyncio.set_event_loop(_LOOP)
 api = ucapi.IntegrationAPI(_LOOP)
 # Map of id -> device instance
 _configured_kodis: dict[str, kodi.KodiDevice] = {}
-_remote_in_standby = False
+_remote_in_standby = False  # pylint: disable=C0103
 
 
 @api.listens_to(ucapi.Events.CONNECT)

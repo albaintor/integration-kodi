@@ -4,7 +4,6 @@ import csv
 import os
 from collections import defaultdict
 from enum import Enum
-
 from typing import Dict, List, Union
 
 
@@ -40,9 +39,7 @@ class _MacrolanguagesColumn(Enum):
     STATUS = "I_Status"
 
 
-_COLUMN_TYPE = Union[
-    _CodesColumn, _NameIndexColumn, _RetirementsColumn, _MacrolanguagesColumn
-]
+_COLUMN_TYPE = Union[_CodesColumn, _NameIndexColumn, _RetirementsColumn, _MacrolanguagesColumn]
 _ROW_TYPE = Dict[_COLUMN_TYPE, str]
 
 
@@ -69,41 +66,29 @@ def _load_tsv(table: _Table) -> List[_ROW_TYPE]:
         return [{column(k): v for k, v in row.items()} for row in tsv_reader]
 
 
-_PART3_TO_CODES: Dict[str, _ROW_TYPE] = {
-    row[_CodesColumn.ID]: row for row in _load_tsv(_Table.CODES)
-}
+_PART3_TO_CODES: Dict[str, _ROW_TYPE] = {row[_CodesColumn.ID]: row for row in _load_tsv(_Table.CODES)}
 
 _part3_to_name_index: defaultdict[str, List[_ROW_TYPE]] = defaultdict(list)
 for row in _load_tsv(_Table.NAME_INDEX):
     _part3_to_name_index[row[_NameIndexColumn.ID]].append(row)
 _PART3_TO_NAME_INDEX: Dict[str, List[_ROW_TYPE]] = dict(_part3_to_name_index)
 
-_PART3_TO_RETIREMENTS: Dict[str, _ROW_TYPE] = {
-    row[_RetirementsColumn.ID]: row for row in _load_tsv(_Table.RETIREMENTS)
-}
+_PART3_TO_RETIREMENTS: Dict[str, _ROW_TYPE] = {row[_RetirementsColumn.ID]: row for row in _load_tsv(_Table.RETIREMENTS)}
 _PART3_TO_MACROLANGUAGES: Dict[str, _ROW_TYPE] = {
     row[_MacrolanguagesColumn.ID]: row for row in _load_tsv(_Table.MACROLANGUAGES)
 }
 
 _PART2B_TO_PART3: Dict[str, str] = {
-    row[_CodesColumn.PART2B]: part3
-    for part3, row in _PART3_TO_CODES.items()
-    if row[_CodesColumn.PART2B]
+    row[_CodesColumn.PART2B]: part3 for part3, row in _PART3_TO_CODES.items() if row[_CodesColumn.PART2B]
 }
 _PART2T_TO_PART3: Dict[str, str] = {
-    row[_CodesColumn.PART2T]: part3
-    for part3, row in _PART3_TO_CODES.items()
-    if row[_CodesColumn.PART2T]
+    row[_CodesColumn.PART2T]: part3 for part3, row in _PART3_TO_CODES.items() if row[_CodesColumn.PART2T]
 }
 _PART1_TO_PART3: Dict[str, str] = {
-    row[_CodesColumn.PART1]: part3
-    for part3, row in _PART3_TO_CODES.items()
-    if row[_CodesColumn.PART1]
+    row[_CodesColumn.PART1]: part3 for part3, row in _PART3_TO_CODES.items() if row[_CodesColumn.PART1]
 }
 _REF_NAME_TO_PART3: Dict[str, str] = {
-    row[_CodesColumn.REF_NAME]: part3
-    for part3, row in _PART3_TO_CODES.items()
-    if row[_CodesColumn.REF_NAME]
+    row[_CodesColumn.REF_NAME]: part3 for part3, row in _PART3_TO_CODES.items() if row[_CodesColumn.REF_NAME]
 }
 _PRINT_NAME_TO_PART3: Dict[str, str] = {
     row[_NameIndexColumn.PRINT_NAME]: part3
