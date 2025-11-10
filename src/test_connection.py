@@ -84,6 +84,7 @@ async def main():
     # await client.command_action("dialogselectaudio")
     # await client.call_command("GUI.ActivateWindow", **{"window": "dialogselectaudio"})
     # await client.call_command("GUI.ActivateWindow", **{"window": "dialogselectaudio"})
+    # await KodiMediaPlayer.mediaplayer_command("entityid", client, "audio_track")
     # await client.play_pause()
     # await asyncio.sleep(4)
     # await client.play_pause()
