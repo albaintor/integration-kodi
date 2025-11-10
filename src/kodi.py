@@ -39,7 +39,6 @@ from ucapi.media_player import States as MediaStates
 
 from config import KodiConfigDevice
 from const import KODI_FEATURES, KODI_MEDIA_TYPES, ButtonKeymap
-from iso639 import language
 from pykodi.kodi import CannotConnectError, InvalidAuthError, Kodi, KodiWSConnection
 
 # pylint: disable=C0302
@@ -199,12 +198,13 @@ def retry(*, timeout: float = 5, bufferize=False) -> Callable[
 
 def _get_language_name(lang: str) -> str:
     """Retrieve language name from language code."""
-    try:
-        return language.Language.from_part2b(lang).name
-    # pylint: disable = W0718
-    except Exception as ex:
-        _LOG.debug("Error getting language name from %s : %s", lang, ex)
-        return lang
+    return lang
+    # try:
+    #     return language.Language.from_part2b(lang).name
+    # # pylint: disable = W0718
+    # except Exception as ex:
+    #     _LOG.debug("Error getting language name from %s : %s", lang, ex)
+    #     return lang
 
 
 def _get_language(info: dict[str, Any], language_first: bool) -> str:
