@@ -39,7 +39,7 @@ from ucapi.media_player import States as MediaStates
 
 from config import KodiConfigDevice
 from const import KODI_FEATURES, KODI_MEDIA_TYPES, ButtonKeymap
-from convIso639 import language
+from iso639 import language
 from pykodi.kodi import CannotConnectError, InvalidAuthError, Kodi, KodiWSConnection
 
 # pylint: disable=C0302
