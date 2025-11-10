@@ -6,7 +6,7 @@ import datetime
 from dataclasses import dataclass
 from typing import Dict, List, NoReturn, Optional, Set, Union
 
-from ._data import (
+from _data import (
     _COLUMN_TYPE,
     _INVERTED_NAME_TO_PART3,
     _PART1_TO_PART3,

@@ -30,4 +30,4 @@ disable=
 check-quote-consistency=yes
 
 [MASTER]
-ignore=iso639
+ignore=convIso639
