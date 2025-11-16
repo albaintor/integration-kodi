@@ -26,8 +26,8 @@ if sys.platform == "win32":
 _LOOP = asyncio.new_event_loop()
 asyncio.set_event_loop(_LOOP)
 
-# address = "192.168.1.13"
-address = "192.168.1.20"
+address = "192.168.1.13"
+# address = "192.168.1.20"
 username = "kodi"
 password = "ludi"
 
