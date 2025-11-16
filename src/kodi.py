@@ -386,9 +386,7 @@ class KodiDevice:
         if self.device_config.show_stream_name:
             current_audio_stream: dict[str, any] = properties.get("currentaudiostream", {})
             current_subtitle: dict[str, any] = properties.get("currentsubtitle", {})
-            subtitles_enabled: bool = properties.get(
-                "subtitleenabled", properties.get("subtitleenabled", False)
-            )
+            subtitles_enabled: bool = properties.get("subtitleenabled", properties.get("subtitleenabled", False))
             audio_stream = _get_language(current_audio_stream, self.device_config.show_stream_language_name)
             subtitle_stream = ""
             if subtitles_enabled:
@@ -417,9 +415,7 @@ class KodiDevice:
         if self.device_config.show_stream_name:
             current_audio_stream: dict[str, any] = properties.get("currentaudiostream", {})
             current_subtitle: dict[str, any] = properties.get("currentsubtitle", {})
-            subtitles_enabled: bool = properties.get(
-                "subtitleenabled", properties.get("subtitleenabled", False)
-            )
+            subtitles_enabled: bool = properties.get("subtitleenabled", properties.get("subtitleenabled", False))
             audio_stream = _get_language(current_audio_stream, False)
             subtitle_stream = ""
             if subtitles_enabled:
@@ -452,9 +448,7 @@ class KodiDevice:
     @debounce(5)
     async def _display_temporary_title(self):
         self._temporary_title = None
-        self.events.emit(Events.UPDATE, self.id, {
-            MediaAttr.MEDIA_TITLE: self.media_title
-        })
+        self.events.emit(Events.UPDATE, self.id, {MediaAttr.MEDIA_TITLE: self.media_title})
 
     def _register_ws_callbacks(self):
         _LOG.debug("[%s] Kodi register callbacks", self.device_config.address)
@@ -1011,6 +1005,11 @@ class KodiDevice:
         if self._kodi is None:
             return None
         return self._kodi.server
+
+    @property
+    def kodi_connection(self) -> KodiWSConnection | None:
+        """Return current Kodi Websocket connection"""
+        return self._kodi_connection
 
     @property
     def attributes(self) -> dict[str, any]:

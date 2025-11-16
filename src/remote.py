@@ -92,6 +92,11 @@ class KodiRemote(Remote):
             _LOG.warning("No Kodi instance for entity: %s", self.id)
             return StatusCodes.SERVICE_UNAVAILABLE
 
+        # Occurs when the user press a button after wake up from standby and
+        # the driver reconnection is not triggered yet
+        if not self._device.kodi_connection or not self._device.kodi_connection.connected:
+            await self._device.connect()
+
         res = StatusCodes.OK
         if cmd_id == Commands.ON:
             res = await self._device.power_on()

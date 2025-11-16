@@ -63,6 +63,11 @@ class KodiMediaPlayer(MediaPlayer):
         if params is None:
             params = {}
 
+        # Occurs when the user press a button after wake up from standby and
+        # the driver reconnection is not triggered yet
+        if not device.kodi_connection or not device.kodi_connection.connected:
+            await device.connect()
+
         if cmd_id == Commands.VOLUME:
             res = await device.set_volume_level(params.get("volume", 0))
         elif cmd_id == Commands.VOLUME_UP:

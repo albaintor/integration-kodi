@@ -1,6 +1,6 @@
 {
   "driver_id": "kodi_driver",
-  "version": "1.12.3",
+  "version": "1.12.4",
   "min_core_api": "0.20.0",
   "name": {
     "en": "Kodi"
@@ -42,5 +42,5 @@
       }
     ]
   },
-  "release_date": "2025-11-10"
+  "release_date": "2025-11-16"
 }
