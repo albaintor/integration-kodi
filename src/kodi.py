@@ -27,7 +27,7 @@ from typing import (
 
 import jsonrpc_base
 import ucapi
-from aiohttp import ClientSession, ServerTimeoutError
+from aiohttp import ClientSession, ServerTimeoutError, ClientOSError
 from jsonrpc_base.jsonrpc import (  # pylint: disable = E0401
     ProtocolError,
     TransportError,
@@ -54,6 +54,7 @@ CONNECTION_RETRIES = 10
 UPDATE_POSITION_INTERVAL = 300
 UPDATE_STATE_RETRY = 2
 UPDATE_LOCK_TIMEOUT = 10.0
+ERROR_OS_WAIT = 0.5
 
 
 class Events(IntEnum):
@@ -589,6 +590,15 @@ class KodiDevice:
                 self._update_position_task = None
         except (TransportError, CannotConnectError, ServerTimeoutError) as ex:
             _LOG.debug("[%s] Connection error : %s", self.device_config.address, ex)
+            try:
+                # In case of OSError it means that the connection is not ready, let's wait a little bit
+                if len(ex.args) > 1 and isinstance(ex.args[1], ClientOSError):
+                    _LOG.warning("[%s] OS error, waiting %ss", self.device_config.address, ERROR_OS_WAIT)
+                    await asyncio.sleep(ERROR_OS_WAIT)
+            # pylint: disable = W0718
+            except Exception:
+                pass
+
             if not self._connection_status or self._connection_status.done():
                 self._connection_status = self.event_loop.create_future()
             if not self._connect_error:
