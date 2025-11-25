@@ -27,7 +27,7 @@ from typing import (
 
 import jsonrpc_base
 import ucapi
-from aiohttp import ClientSession, ServerTimeoutError, ClientOSError
+from aiohttp import ClientOSError, ClientSession, ServerTimeoutError
 from jsonrpc_base.jsonrpc import (  # pylint: disable = E0401
     ProtocolError,
     TransportError,
@@ -1018,7 +1018,7 @@ class KodiDevice:
 
     @property
     def kodi_connection(self) -> KodiWSConnection | None:
-        """Return current Kodi Websocket connection"""
+        """Return current Kodi Websocket connection."""
         return self._kodi_connection
 
     @property
