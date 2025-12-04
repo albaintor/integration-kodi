@@ -56,8 +56,34 @@ Example : type in `togglefullscreen` in the command field of the remote entity t
 
 - Port numbers shouldn't be modified normally (8080 for HTTP and 9090 for websocket) : websocket port is not configurable from the GUI (in advanced settings file)
 - There is no turn on command : Kodi has to be started some other way
-- Change these Kodi settings to get full control working : within Kodi, click settings, then go to `Apps`/`Add-on Browser`, `My Add-ons` and scroll down and click on `Peripheral Libraries` : click on `Joystick Support` and click `Disable`. THEN : kill and restart Kodi in order to take effect and then all the remote commands will work fine
-  - This step may not work on Kodi >= 22 : one may have to keep Joystick support enabled and Joystick addon too.
+
+### Keymap
+
+General info : if the direction pad doesn't work, enable the Joystick extension in Kodi settings then exit (not just minimize) Kodi and relaunch it.
+
+**On Kodi 22**, while in fullscreen video the OK button will trigger play/pause instead of the default behavior which should trigger OSD menu. I raised a [ticket](https://github.com/xbmc/xbmc/issues/27523) for that.
+In the meantime to restore this default behavior, you will have to create a `joystick.xml` file with the following content :
+```xml
+<keymap>
+    <fullscreenvideo>
+		<joystick profile="game.controller.default">
+			<a>OSD</a>
+		</joystick>
+    </fullscreenvideo>
+</keymap>
+```
+Then you will have to transfer this file through Kodi Settings > File manager into the `Profile directory` then  `keymaps` directory :
+<img width="600" alt="image" src="https://github.com/user-attachments/assets/fd27601d-ef6e-4597-b881-089180e51154" />
+
+See the target path in the bottom like this :
+<img width="150" alt="image" src="https://github.com/user-attachments/assets/498b35a1-aa30-4894-bb7b-bf803ccb4492" />
+
+Then on the right view, from your server (NAS, PC...) right click (or long press OK) to raise context menu and select `Copy` on the `joystick.xml` file to transfer it to the server.
+
+Lastly, exit Kodi (not just minimize) and relaunch it.
+<br><br>
+
+**On Kodi 21 and earlier**, this is easier : within Kodi, click settings, then go to `Apps`/`Add-on Browser`, `My Add-ons` and scroll down and click on `Peripheral Libraries` : click on `Joystick Support` and click `Disable`. THEN : kill and restart Kodi in order to take effect and then all the remote commands will work fine.
 
 
 ### Hint for saving battery life
