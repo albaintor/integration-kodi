@@ -203,6 +203,14 @@ class Kodi:
         """Get value of given properties."""
         return (await self._server.Player.GetItem(player["playerid"], properties))["item"]
 
+    async def get_playlist(self, playlist_id=0):
+        """Get playlist properties."""
+        return await self._server.Playlist.GetItems(playlist_id)
+
+    async def get_player_chapters(self, player):
+        """Get video chapters."""
+        return await self._server.Player.GetChapters(player["playerid"])
+
     async def volume_up(self):
         """Send volume up command."""
         await self._server.Input.ExecuteAction("volumeup")

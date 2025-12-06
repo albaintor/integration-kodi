@@ -805,6 +805,8 @@ class KodiDevice:
                         "album",
                         "season",
                         "episode",
+                        "track",
+                        #"streamdetails"
                     ],
                 )
 
@@ -1335,6 +1337,10 @@ class KodiDevice:
         arguments = {"playerid": self.player_id, "offset": offset + current_delay}
         _LOG.debug("[%s] Set audio delay Player.SetAudioDelay %s", self.device_config.address, arguments)
         await self._kodi.call_method("Player.SetAudioDelay", **arguments)
+
+    async def get_chapters(self) -> Any:
+        """Return chapters."""
+        return await self._kodi.get_player_chapters(self._players[0])
 
     async def is_fullscreen_video(self) -> bool:
         """Check if Kodi is in fullscreen (playing video)."""
