@@ -43,7 +43,7 @@ from pykodi.kodi import (
 _LOG = logging.getLogger(__name__)
 
 
-# pylint: disable = C0301,W1405,C0302
+# pylint: disable = C0301,W1405,C0302,C0103
 # flake8: noqa
 
 
