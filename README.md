@@ -15,6 +15,7 @@ Note : this release requires remote firmware `>= 1.7.10`
 - Artwork
 - Media position / duration
 - Volume (level and up/down) and mute
+- Sources : corresponds to the list of video chapters (Kodi >=22 only) 
 - Remote entity : predefined buttons mapping and interface buttons (to be completed)
 
 
@@ -34,6 +35,7 @@ Note : this release requires remote firmware `>= 1.7.10`
 - Subtitle/audio language switching
 - Fast forward / rewind
 - Stop
+- Source selection : corresponds to chapters selection (Kodi >=22 only)
 - Simple commands (more can be added) : see [list of simple commands](#list-of-simple-commands)
 
 
@@ -65,6 +67,11 @@ General info : if the direction pad doesn't work, enable the Joystick extension 
 In the meantime to restore this default behavior, you will have to create a `joystick.xml` file with the following content :
 ```xml
 <keymap>
+	<global>
+		<joystick profile="game.controller.default">
+			<b>Back</b>
+		</joystick>
+	</global>
     <fullscreenvideo>
 		<joystick profile="game.controller.default">
 			<a>OSD</a>
