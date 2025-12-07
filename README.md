@@ -63,13 +63,16 @@ Example : type in `togglefullscreen` in the command field of the remote entity t
 
 General info : if the direction pad doesn't work, enable the Joystick extension in Kodi settings then exit (not just minimize) Kodi and relaunch it.
 
-**On Kodi 22**, while in fullscreen video the OK button will trigger play/pause instead of the default behavior which should trigger OSD menu. I raised a [ticket](https://github.com/xbmc/xbmc/issues/27523) for that.
+**On Kodi 22** : 
+- in fullscreen video the `OK` button will trigger play/pause instead of the default behavior which should trigger OSD menu
+- in the navigation menus the `Back` button will go back to the home instead of the previous menu
+I raised a [ticket](https://github.com/xbmc/xbmc/issues/27523) for that.
 In the meantime to restore this default behavior, you will have to create a `joystick.xml` file with the following content :
 ```xml
 <keymap>
 	<global>
 		<joystick profile="game.controller.default">
-			<b>Back</b>
+			<back>Back</back>
 		</joystick>
 	</global>
     <fullscreenvideo>
