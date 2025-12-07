@@ -433,6 +433,12 @@ class Kodi:
         """Get the URL for a thumbnail."""
         return self._conn.thumbnail_url(thumbnail)
 
+    async def set_audio_stream(self, stream_index: int):
+        """Set the audio stream of the running player."""
+        players = await self.get_players()
+        if players:
+            await self._server.Player.SetAudioStream(**{"playerid": players[0]["playerid"], "stream": stream_index})
+
 
 def _build_query(**kwargs):
     """Build query."""

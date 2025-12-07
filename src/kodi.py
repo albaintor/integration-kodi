@@ -12,7 +12,7 @@ import logging
 import time
 import urllib.parse
 from asyncio import AbstractEventLoop, Future, Lock, Task, shield
-from datetime import timedelta
+from dataclasses import dataclass
 from enum import IntEnum
 from functools import wraps
 from typing import (
@@ -82,6 +82,14 @@ class ArtworkType(IntEnum):
     CLEARLOGO = 7
     DISCART = 8
     ICON = 9
+
+
+@dataclass
+class Track:
+    """Track name and index."""
+
+    index: int
+    name: str
 
 
 def debounce(wait):
@@ -279,6 +287,7 @@ class KodiDevice:
         self._temporary_title: str | None = None
         self._chapters: list[dict[str, Any]] | None = None
         self._source: str | None = None
+        self._audio_stream: int = 0
 
     async def init_connection(self):
         """Initialize connection to device."""
@@ -675,6 +684,7 @@ class KodiDevice:
         self._update_state_retry = 0
         self._chapters = None
         self._source = None
+        self._audio_stream = 0
         try:
             self._update_lock.release()
         except RuntimeError:
@@ -772,7 +782,17 @@ class KodiDevice:
 
                 self._properties = await self._kodi.get_player_properties(
                     self._players[0],
-                    ["time", "totaltime", "speed", "live", "currentaudiostream", "currentsubtitle", "subtitleenabled"],
+                    [
+                        "time",
+                        "totaltime",
+                        "speed",
+                        "live",
+                        "currentaudiostream",
+                        "currentsubtitle",
+                        "subtitleenabled",
+                        "audiostreams",
+                        "subtitles",
+                    ],
                 )
                 position = self._properties["time"]
                 if position:
@@ -971,6 +991,7 @@ class KodiDevice:
                     if self._temporary_title:
                         updated_data[MediaAttr.MEDIA_TITLE] = self._temporary_title
                     updated_data[MediaAttr.SOURCE_LIST] = self.source_list
+                    updated_data[MediaAttr.SOUND_MODE_LIST] = [track.name for track in self.audio_tracks]
 
                 if self.state == MediaStates.PAUSED and current_chapter:
                     await self.display_temporary_title(current_chapter)
@@ -979,6 +1000,11 @@ class KodiDevice:
                 if self._source != current_chapter:
                     self._source = current_chapter
                     updated_data[MediaAttr.SOURCE] = current_chapter
+
+                current_audio_stream = self._properties.get("currentaudiostream", {})
+                if current_audio_stream.get("index", 0) != self._audio_stream:
+                    self._audio_stream = current_audio_stream.get("index", 0)
+                    updated_data[MediaAttr.SOUND_MODE] = self.current_audio_track
 
                 # If media changed, request a deferred artwork update as it may not be available at this time
                 if changed_media and len(self.media_artwork) == 0:
@@ -1007,6 +1033,7 @@ class KodiDevice:
                 updated_data[MediaAttr.MEDIA_ARTIST] = ""
                 updated_data[MediaAttr.SOURCE] = ""
                 updated_data[MediaAttr.SOURCE_LIST] = []
+                updated_data[MediaAttr.SOUND_MODE_LIST] = []
                 # updated_data[MediaAttr.MEDIA_IMAGE_URL] = ""
 
             self._position_timestamp = time.time()
@@ -1078,6 +1105,8 @@ class KodiDevice:
             ),
             MediaAttr.SOURCE_LIST: self.source_list,
             MediaAttr.SOURCE: self.source if self.source_list else "",
+            MediaAttr.SOUND_MODE_LIST: [track.name for track in self.audio_tracks],
+            MediaAttr.SOUND_MODE: self.current_audio_track,
         }
         return attributes
 
@@ -1153,6 +1182,34 @@ class KodiDevice:
         if self._chapters is None:
             return []
         return [chapter.get("name", "") for chapter in self._chapters]
+
+    @property
+    def audio_tracks(self) -> list[Track]:
+        """Return a list of available audio track names."""
+        track_names: list[Track] = []
+        tracks: list[dict[str, Any]] = self._properties.get("audiostreams", [])
+        duplicates = False
+        for track in tracks:
+            name = track.get("name", track.get("language", ""))
+            index = track.get("index", 0)
+            if name in track_names:
+                duplicates = True
+            track_names.append(Track(name=name, index=index))
+        if duplicates:
+            for track in track_names:
+                track.name = f"{track.index}:{track.name}"
+        return track_names
+
+    @property
+    def current_audio_track(self) -> str:
+        """Return the current audio track name."""
+        current_audio_stream = self._properties.get("currentaudiostream", {})
+        if current_audio_stream is None:
+            return ""
+        for track in self.audio_tracks:
+            if track.index == current_audio_stream.get("index", 0):
+                return track.name
+        return ""
 
     @property
     def source(self) -> str:
@@ -1240,7 +1297,7 @@ class KodiDevice:
     @retry()
     async def mute(self, muted: bool):
         """Send mute command to Kodi."""
-        _LOG.debug("[%s] Sending mute: %s", muted, self.device_config.address)
+        _LOG.debug("[%s] Sending mute: %s", self.device_config.address, muted)
         await self._kodi.mute(muted)
 
     async def async_media_play(self):
@@ -1355,6 +1412,30 @@ class KodiDevice:
                 "value": {"time": {"hours": h, "minutes": m, "seconds": s, "milliseconds": 0}},
             },
         )
+
+    async def select_chapter(self, chapter_name: str):
+        """Skip to given chapter name."""
+        if self._no_active_players or self._chapters is None:
+            return
+        for chapter in self._chapters:
+            if chapter.get("name", "") == chapter_name:
+                position: int = chapter.get("time", 0)
+                _LOG.debug("[%s] Skipping to chapter %s (%s)", self.device_config.address, chapter_name, position)
+                await self.seek(position)
+                return
+        _LOG.warning("[%s] Skipping to chapter %s : not found", self.device_config.address, chapter_name)
+
+    @retry()
+    async def select_audio_track(self, track_name: str):
+        """Skip to given chapter name."""
+        if self._no_active_players:
+            return
+        for track in self.audio_tracks:
+            if track.name == track_name:
+                _LOG.debug("[%s] Switch audio track to %s (%s)", self.device_config.address, track.name, track.index)
+                await self._kodi.set_audio_stream(track.index)
+                return
+        _LOG.warning("[%s] Switch audio track to %s : not found", self.device_config.address, track_name)
 
     @retry()
     async def zoom(self, mode: Literal["in", "out"] | int):

@@ -102,6 +102,10 @@ class KodiMediaPlayer(MediaPlayer):
             res = await device.seek(params.get("media_position", 0))
         elif cmd_id == Commands.SETTINGS:
             res = await device.call_command("GUI.ActivateWindow", **{"window": "screensaver"})
+        elif cmd_id == Commands.SELECT_SOURCE:
+            res = await device.select_chapter(params.get("source"))
+        elif cmd_id == Commands.SELECT_SOUND_MODE:
+            res = await device.select_audio_track(params.get("mode"))
         elif not device.device_config.disable_keyboard_map and cmd_id in KODI_BUTTONS_KEYMAP:
             command: ButtonKeymap | MethodCall = KODI_BUTTONS_KEYMAP[cmd_id]
             if "button" in command.keys():

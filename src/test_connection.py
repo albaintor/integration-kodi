@@ -69,6 +69,8 @@ async def main():
     print("Properties :")
     print_json(data=properties)
 
+    # await asyncio.sleep(4)
+    # await client.select_audio_track("French FR (VFF Remix Surround 5.1 (tonalité correcte), DVD PAL FRA) DTS-HD MA 5.1")
     # properties = await client.get_chapters()
     # print_json(data=properties)
 

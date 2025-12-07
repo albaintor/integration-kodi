@@ -106,6 +106,7 @@ KODI_FEATURES = [
     Features.COLOR_BUTTONS,
     Features.CHANNEL_SWITCHER,
     Features.SELECT_SOURCE,
+    Features.SELECT_SOUND_MODE,
     Features.AUDIO_TRACK,
     Features.SUBTITLE,
     Features.RECORD,
