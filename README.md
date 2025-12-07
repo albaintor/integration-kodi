@@ -7,6 +7,18 @@ The driver lets discover and configure your Kodi instances. A media player and a
 
 Note : this release requires remote firmware `>= 1.7.10`
 
+- [Installation](#installation)
+  * [Kodi Keymap](#kodi-keymap)
+  * [Hint for saving battery life](#hint-for-saving-battery-life)
+  * [Installation on the Remote](#installation-on-the-remote)
+  * [Backup or restore configuration](#backup-or-restore-configuration)
+- [Additional commands](#additional-commands)
+- [Note about Kodi keymap and UC Remotes](#note-about-kodi-keymap-and-uc-remotes)
+- [Installation as external integration](#installation-as-external-integration)
+- [Build self-contained binary for Remote Two](#build-self-contained-binary-for-remote-two)
+
+
+
 ### Supported attributes
 - State (on, off, playing, paused, unknown)
 - Title
@@ -15,6 +27,7 @@ Note : this release requires remote firmware `>= 1.7.10`
 - Artwork
 - Media position / duration
 - Volume (level and up/down) and mute
+- Sources : corresponds to the list of video chapters (Kodi >=22 only) 
 - Remote entity : predefined buttons mapping and interface buttons (to be completed)
 
 
@@ -34,6 +47,7 @@ Note : this release requires remote firmware `>= 1.7.10`
 - Subtitle/audio language switching
 - Fast forward / rewind
 - Stop
+- Source selection : corresponds to chapters selection (Kodi >=22 only)
 - Simple commands (more can be added) : see [list of simple commands](#list-of-simple-commands)
 
 
@@ -57,14 +71,22 @@ Example : type in `togglefullscreen` in the command field of the remote entity t
 - Port numbers shouldn't be modified normally (8080 for HTTP and 9090 for websocket) : websocket port is not configurable from the GUI (in advanced settings file)
 - There is no turn on command : Kodi has to be started some other way
 
-### Keymap
+### Kodi Keymap
 
 General info : if the direction pad doesn't work, enable the Joystick extension in Kodi settings then exit (not just minimize) Kodi and relaunch it.
 
-**On Kodi 22**, while in fullscreen video the OK button will trigger play/pause instead of the default behavior which should trigger OSD menu. I raised a [ticket](https://github.com/xbmc/xbmc/issues/27523) for that.
+**On Kodi 22** : 
+- in fullscreen video the `OK` button will trigger play/pause instead of the default behavior which should trigger OSD menu
+- in the navigation menus the `Back` button will go back to the home instead of the previous menu
+I raised a [ticket](https://github.com/xbmc/xbmc/issues/27523) for that.
 In the meantime to restore this default behavior, you will have to create a `joystick.xml` file with the following content :
 ```xml
 <keymap>
+	<global>
+		<joystick profile="game.controller.default">
+			<back>Back</back>
+		</joystick>
+	</global>
     <fullscreenvideo>
 		<joystick profile="game.controller.default">
 			<a>OSD</a>
@@ -72,7 +94,7 @@ In the meantime to restore this default behavior, you will have to create a `joy
     </fullscreenvideo>
 </keymap>
 ```
-Then you will have to transfer this file through Kodi Settings > File manager into the `Profile directory` then  `keymaps` directory :
+Then you will have to transfer this file through Kodi Settings > File manager into the `Profile directory` then  `keymaps` directory : mount a network share or use a USB stick to grab it
 <img width="600" alt="image" src="https://github.com/user-attachments/assets/fd27601d-ef6e-4597-b881-089180e51154" />
 
 See the target path in the bottom like this :
@@ -221,6 +243,47 @@ Some can have parameters
 Notes :
 - Some commands require a player Id parameter, just submit `PID` value that will be evaluated on runtime
 - Commands length if limited to 64 characters
+
+
+## Note about Kodi keymap and UC Remotes
+
+With the UC remote, the button mapping is not Kodi's default with other devices (eg original AndroidTV remote). This is very obscure but in the meantime it is possible to catch the button IDs and remap them.
+1. First, in Kodi settings, go to System / Logs and enable debug mode
+2. Press the buttons you want to catch from the remote
+3. Disable debug log when finished
+4. Go to Settings / File explorer, go to logpath and you will find `kodi.log`
+5. Transfer `kodi.log` to your external drive (NAS, USB flashdrive...)
+
+You will find lines like these :
+```
+FEATURE [ back ] on game.controller.default pressed (handled)
+FEATURE [ up ] on game.controller.default pressed (handled)
+FEATURE [ a ] on game.controller.default pressed (handled)
+```
+The name between square brackets correspond to the button ID : here `back` for back, `up` for DPAD up, `a` for OK button.
+
+Then you will be able to modify the Keyboard mapping as explained at the beginning of the document : define a custom keymap file `joystick.xml` and upload it to profile folder / keymaps.
+A little explanation of how it works : 
+- `global` section defines the default mapping in navigation
+- `fullscreenvideo` section defines the mapping applied while playing a video in fullscreen
+- Subsections define the device type to apply mapping to : `keyboard`, `mouse`, `gamepad` and `joystick`. Note that the UC remote is detected as a joystick so other types won't be applied
+- Lastly, in the `joystick` subsection, define the custom mapping : the button ID in the tag (eg `<a>...</a>` for OK button), and the command to apply. See [this link](https://kodi.wiki/view/Keymap) to get the list of commands
+```xml
+<keymap>
+	<global>
+		<joystick profile="game.controller.default">
+			<back>Back</back>
+		</joystick>
+	</global>
+    <fullscreenvideo>
+		<joystick profile="game.controller.default">
+			<a>OSD</a>
+		</joystick>
+    </fullscreenvideo>
+</keymap>
+```
+
+
 
 ## Installation as external integration
 
