@@ -1000,6 +1000,8 @@ class KodiDevice:
                 if self._source != current_chapter:
                     self._source = current_chapter
                     updated_data[MediaAttr.SOURCE] = current_chapter
+                    await self.display_temporary_title(current_chapter)
+                    updated_data[MediaAttr.MEDIA_TITLE] = self._temporary_title
 
                 current_audio_stream = self._properties.get("currentaudiostream", {})
                 if current_audio_stream.get("index", 0) != self._audio_stream:
