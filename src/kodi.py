@@ -12,6 +12,7 @@ import logging
 import time
 import urllib.parse
 from asyncio import AbstractEventLoop, Future, Lock, Task, shield
+from datetime import timedelta
 from enum import IntEnum
 from functools import wraps
 from typing import (
@@ -276,6 +277,8 @@ class KodiDevice:
         self._update_position_task = None
         self._update_state_retry = 0
         self._temporary_title: str | None = None
+        self._chapters: list[dict[str, Any]] | None = None
+        self._source: str | None = None
 
     async def init_connection(self):
         """Initialize connection to device."""
@@ -370,11 +373,11 @@ class KodiDevice:
         _LOG.debug("[%s] Keypress %s %s", self.device_config.address, sender, data)
 
     # pylint: disable = W0613
-    async def on_quit(self, sender: str, data: dict[str, any]):
+    async def on_quit(self, sender: str, data: dict[str, Any]):
         """Reset the player state on quit action."""
         await self._clear_connection()
 
-    def on_property_changed(self, sender: str, data: dict[str, any]):
+    def on_property_changed(self, sender: str, data: dict[str, Any]):
         """Handle player property change."""
         _LOG.debug("[%s] Kodi property changed %s", self.device_config.address, data)
         if self.device_config.show_stream_name and all(
@@ -382,11 +385,11 @@ class KodiDevice:
         ):
             self.event_loop.create_task(self._update_streams(data))
 
-    def get_streams_info(self, properties: dict[str, any]) -> str | None:
+    def get_streams_info(self, properties: dict[str, Any]) -> str | None:
         """Build audio/subtitles stream info."""
         if self.device_config.show_stream_name:
-            current_audio_stream: dict[str, any] = properties.get("currentaudiostream", {})
-            current_subtitle: dict[str, any] = properties.get("currentsubtitle", {})
+            current_audio_stream: dict[str, Any] = properties.get("currentaudiostream", {})
+            current_subtitle: dict[str, Any] = properties.get("currentsubtitle", {})
             subtitles_enabled: bool = properties.get("subtitleenabled", properties.get("subtitleenabled", False))
             audio_stream = _get_language(current_audio_stream, self.device_config.show_stream_language_name)
             subtitle_stream = ""
@@ -403,7 +406,7 @@ class KodiDevice:
                     current_subtitle,
                     subtitles_enabled,
                 )
-            info: [str] = []
+            info: list[str] = []
             if audio_stream != "":
                 info.append(audio_stream)
             if subtitle_stream != "":
@@ -411,11 +414,11 @@ class KodiDevice:
             return " - ".join(info)
         return None
 
-    def get_streams_name(self, properties: dict[str, any]) -> str | None:
+    def get_streams_name(self, properties: dict[str, Any]) -> str | None:
         """Build audio/subtitles stream names."""
         if self.device_config.show_stream_name:
-            current_audio_stream: dict[str, any] = properties.get("currentaudiostream", {})
-            current_subtitle: dict[str, any] = properties.get("currentsubtitle", {})
+            current_audio_stream: dict[str, Any] = properties.get("currentaudiostream", {})
+            current_subtitle: dict[str, Any] = properties.get("currentsubtitle", {})
             subtitles_enabled: bool = properties.get("subtitleenabled", properties.get("subtitleenabled", False))
             audio_stream = _get_language(current_audio_stream, False)
             subtitle_stream = ""
@@ -425,7 +428,7 @@ class KodiDevice:
                     subtitle_stream += " (forced)"
                 if current_subtitle.get("isimpaired", False):
                     subtitle_stream += " (impaired)"
-            info: [str] = []
+            info: list[str] = []
             if audio_stream != "":
                 info.append(audio_stream)
             if subtitle_stream != "":
@@ -434,7 +437,7 @@ class KodiDevice:
         return None
 
     @debounce(1)
-    async def _update_streams(self, data: dict[str, any]):
+    async def _update_streams(self, data: dict[str, Any]):
         """Debounce update stream to get the whole data."""
         await self._update_states(deferred=0, received_data=data)
 
@@ -670,6 +673,8 @@ class KodiDevice:
         self._media_position_updated_at = None
         self._temporary_title = None
         self._update_state_retry = 0
+        self._chapters = None
+        self._source = None
         try:
             self._update_lock.release()
         except RuntimeError:
@@ -710,7 +715,7 @@ class KodiDevice:
         await asyncio.sleep(0)
 
     # pylint: disable = R0914,R0915
-    async def _update_states(self, deferred=0, received_data: dict[str, any] | None = None) -> None:
+    async def _update_states(self, deferred=0, received_data: dict[str, Any] | None = None) -> None:
         """Update entity state attributes."""
         if deferred > 0:
             await asyncio.sleep(deferred)
@@ -806,7 +811,7 @@ class KodiDevice:
                         "season",
                         "episode",
                         "track",
-                        #"streamdetails"
+                        # "streamdetails"
                     ],
                 )
 
@@ -908,8 +913,6 @@ class KodiDevice:
                     self._media_title = media_title
                     updated_data[MediaAttr.MEDIA_TITLE] = self._media_title
                     changed_media = True
-                elif self._temporary_title:
-                    updated_data[MediaAttr.MEDIA_TITLE] = self._temporary_title
 
                 artists = self._item.get("artist")
                 season: int | None = self._item.get("season")
@@ -946,6 +949,37 @@ class KodiDevice:
                     )
                     await self._reset_media_artwork()
 
+                # If media changed, update chapters list (Kodi >=22)
+                current_chapter = self.current_chapter
+                if changed_media:
+                    self._chapters = None
+                    try:
+                        data = await self.get_chapters()
+                        if data and (chapters := data.get("chapters", [])):
+                            self._chapters = chapters
+                            current_chapter = self.current_chapter
+                            if current_chapter:
+                                _LOG.debug(
+                                    "[%s] Found chapter name to display %s", self.device_config.address, current_chapter
+                                )
+                                await self.display_temporary_title(current_chapter)
+                    # pylint: disable = W0718
+                    except Exception:
+                        pass
+                        # _LOG.debug("[%s] Could not extract chapters %s", self.device_config.address, ex)
+
+                    if self._temporary_title:
+                        updated_data[MediaAttr.MEDIA_TITLE] = self._temporary_title
+                    updated_data[MediaAttr.SOURCE_LIST] = self.source_list
+
+                if self.state == MediaStates.PAUSED and current_chapter:
+                    await self.display_temporary_title(current_chapter)
+                    updated_data[MediaAttr.MEDIA_TITLE] = self._temporary_title
+
+                if self._source != current_chapter:
+                    self._source = current_chapter
+                    updated_data[MediaAttr.SOURCE] = current_chapter
+
                 # If media changed, request a deferred artwork update as it may not be available at this time
                 if changed_media and len(self.media_artwork) == 0:
                     deferred = 4
@@ -971,6 +1005,8 @@ class KodiDevice:
                 updated_data[MediaAttr.MEDIA_TITLE] = ""
                 updated_data[MediaAttr.MEDIA_ALBUM] = ""
                 updated_data[MediaAttr.MEDIA_ARTIST] = ""
+                updated_data[MediaAttr.SOURCE] = ""
+                updated_data[MediaAttr.SOURCE_LIST] = []
                 # updated_data[MediaAttr.MEDIA_IMAGE_URL] = ""
 
             self._position_timestamp = time.time()
@@ -1024,7 +1060,7 @@ class KodiDevice:
         return self._kodi_connection
 
     @property
-    def attributes(self) -> dict[str, any]:
+    def attributes(self) -> dict[str, Any]:
         """Return the device attributes."""
         attributes = {
             MediaAttr.STATE: self.get_state(),
@@ -1037,7 +1073,11 @@ class KodiDevice:
             MediaAttr.MEDIA_ARTIST: self.media_artist if self.media_artist else "",
             MediaAttr.MEDIA_POSITION: self.media_position,
             MediaAttr.MEDIA_DURATION: self.media_duration,
-            "media_position_updated_at": self.media_position_updated_at if self.media_position_updated_at else "",
+            MediaAttr.MEDIA_POSITION_UPDATED_AT: (
+                self.media_position_updated_at if self.media_position_updated_at else ""
+            ),
+            MediaAttr.SOURCE_LIST: self.source_list,
+            MediaAttr.SOURCE: self.source if self.source_list else "",
         }
         return attributes
 
@@ -1092,19 +1132,32 @@ class KodiDevice:
         return None
 
     @property
+    def current_media_position(self):
+        """Return calculated media position."""
+        if self.state != MediaStates.PLAYING or self._media_position_updated_at is None:
+            return self.media_position
+        elapsed_time = datetime.datetime.now(datetime.timezone.utc) - self._media_position_updated_at
+        position = self.media_position + elapsed_time.seconds
+        if self.media_duration > 0 and position < self.media_duration:
+            return position
+        return self.media_position
+
+    @property
     def media_duration(self):
         """Return current media duration."""
         return self._media_duration
 
-    # @property
-    # def source_list(self) -> list[str]:
-    #     """Return a list of available input sources."""
-    #     return sorted(self._sources)
-    #
-    # @property
-    # def source(self) -> str:
-    #     """Return the current input source."""
-    #     return self._active_source
+    @property
+    def source_list(self) -> list[str]:
+        """Return a list of available input sources."""
+        if self._chapters is None:
+            return []
+        return [chapter.get("name", "") for chapter in self._chapters]
+
+    @property
+    def source(self) -> str:
+        """Return the current input source."""
+        return self.current_chapter
 
     @property
     def is_volume_muted(self) -> bool:
@@ -1152,6 +1205,19 @@ class KodiDevice:
     def player_id(self) -> int:
         """Return current player ID."""
         return self._players[0]["playerid"]
+
+    @property
+    def current_chapter(self) -> str | None:
+        """Current chapter title."""
+        if self._chapters is None or len(self._chapters) == 0:
+            return None
+        position = self.current_media_position
+        found_chapter = self._chapters[0]
+        for chapter in self._chapters:
+            if position <= chapter.get("time", 0):
+                break
+            found_chapter = chapter
+        return found_chapter.get("name", "")
 
     @retry()
     async def set_volume_level(self, volume: float | None):
@@ -1338,8 +1404,9 @@ class KodiDevice:
         _LOG.debug("[%s] Set audio delay Player.SetAudioDelay %s", self.device_config.address, arguments)
         await self._kodi.call_method("Player.SetAudioDelay", **arguments)
 
-    async def get_chapters(self) -> Any:
-        """Return chapters."""
+    async def get_chapters(self) -> dict[str, Any]:
+        """Return chapters of running video."""
+        _LOG.debug("[%s] Extract video chapters", self.device_config.address)
         return await self._kodi.get_player_chapters(self._players[0])
 
     async def is_fullscreen_video(self) -> bool:

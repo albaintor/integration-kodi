@@ -26,8 +26,9 @@ if sys.platform == "win32":
 _LOOP = asyncio.new_event_loop()
 asyncio.set_event_loop(_LOOP)
 
-# address = "192.168.1.13"  # PC
-address = "192.168.1.45"  # Mac
+address = "192.168.1.60"  # PC
+# address = "192.168.1.45"  # Mac
+# address = "192.168.1.20"  # Shield
 username = "kodi"
 password = "ludi"
 
@@ -68,8 +69,8 @@ async def main():
     print("Properties :")
     print_json(data=properties)
 
-    properties = await client.get_chapters()
-    print_json(data=properties)
+    # properties = await client.get_chapters()
+    # print_json(data=properties)
 
     await asyncio.sleep(600)
 
