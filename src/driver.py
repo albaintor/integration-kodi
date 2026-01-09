@@ -22,6 +22,7 @@ import remote
 import sensor
 import setup_flow
 from config import KodiEntity
+from sensor import KodiAudioStream, KodiSubtitleStream, KodiChapter
 
 _LOG = logging.getLogger("driver")  # avoid having __main__ in log messages
 if sys.platform == "win32":
@@ -37,11 +38,11 @@ _remote_in_standby = False  # pylint: disable=C0103
 
 
 @api.listens_to(ucapi.Events.CONNECT)
-async def on_r2_connect_cmd() -> None:
+async def on_connect_cmd() -> None:
     """Connect all configured TVs when the Remote Two sends the connect command."""
     await api.set_device_state(ucapi.DeviceStates.CONNECTED)
     # TODO check if we were in standby and ignore the call? We'll also get an EXIT_STANDBY
-    _LOG.debug("R2 connect command: connecting device(s)")
+    _LOG.debug("Connect command: connecting device(s)")
     for device in _configured_kodis.values():
         # start background task
         # TODO ? what is the connect event for (against exit from standby)
@@ -53,7 +54,7 @@ async def on_r2_connect_cmd() -> None:
 
 
 @api.listens_to(ucapi.Events.DISCONNECT)
-async def on_r2_disconnect_cmd():
+async def on_disconnect_cmd():
     """Disconnect all configured TVs when the Remote Two sends the disconnect command."""
     # pylint: disable = W0212
     if len(api._clients) == 0:
@@ -66,7 +67,7 @@ async def on_r2_disconnect_cmd():
 
 
 @api.listens_to(ucapi.Events.ENTER_STANDBY)
-async def on_r2_enter_standby() -> None:
+async def on_enter_standby() -> None:
     """Enter standby notification from Remote Two.
 
     Disconnect every Kodi instances.
@@ -114,7 +115,7 @@ async def connect_device(device: kodi.KodiDevice):
 
 
 @api.listens_to(ucapi.Events.EXIT_STANDBY)
-async def on_r2_exit_standby() -> None:
+async def on_exit_standby() -> None:
     """
     Exit standby notification from Remote Two.
 
@@ -349,9 +350,9 @@ def _entities_from_device_id(device_id: str) -> list[str]:
     return [
         f"media_player.{device_id}",
         f"remote.{device_id}",
-        f"sensor.{device_id}.audio_stream",
-        f"sensor.{device_id}.subtitle_stream",
-        f"sensor.{device_id}.chapter",
+        f"sensor.{device_id}.{KodiAudioStream.ENTITY_NAME}",
+        f"sensor.{device_id}.{KodiSubtitleStream.ENTITY_NAME}",
+        f"sensor.{device_id}.{KodiChapter.ENTITY_NAME}",
     ]
 
 
