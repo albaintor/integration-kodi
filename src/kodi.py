@@ -39,7 +39,7 @@ from ucapi.media_player import Features, MediaType
 from ucapi.media_player import States as MediaStates
 
 from config import KodiConfigDevice
-from const import KODI_FEATURES, KODI_MEDIA_TYPES, ButtonKeymap
+from const import KODI_FEATURES, KODI_MEDIA_TYPES, ButtonKeymap, KodiSensors
 from pykodi.kodi import CannotConnectError, InvalidAuthError, Kodi, KodiWSConnection
 
 # pylint: disable=C0302
@@ -288,6 +288,7 @@ class KodiDevice:
         self._chapters: list[dict[str, Any]] | None = None
         self._source: str | None = None
         self._audio_stream: int = 0
+        self._subtitle_stream = ""
 
     async def init_connection(self):
         """Initialize connection to device."""
@@ -389,7 +390,7 @@ class KodiDevice:
     def on_property_changed(self, sender: str, data: dict[str, Any]):
         """Handle player property change."""
         _LOG.debug("[%s] Kodi property changed %s", self.device_config.address, data)
-        if self.device_config.show_stream_name and all(
+        if all(
             x in ["currentaudiostream", "currentsubtitle", "subtitleenabled"] for x in data.get("property", {}).keys()
         ):
             self.event_loop.create_task(self._update_streams(data))
@@ -399,7 +400,7 @@ class KodiDevice:
         if self.device_config.show_stream_name:
             current_audio_stream: dict[str, Any] = properties.get("currentaudiostream", {})
             current_subtitle: dict[str, Any] = properties.get("currentsubtitle", {})
-            subtitles_enabled: bool = properties.get("subtitleenabled", properties.get("subtitleenabled", False))
+            subtitles_enabled: bool = properties.get("subtitleenabled", False)
             audio_stream = _get_language(current_audio_stream, self.device_config.show_stream_language_name)
             subtitle_stream = ""
             if subtitles_enabled:
@@ -685,6 +686,7 @@ class KodiDevice:
         self._chapters = None
         self._source = None
         self._audio_stream = 0
+        self._subtitle_stream = ""
         try:
             self._update_lock.release()
         except RuntimeError:
@@ -1002,11 +1004,17 @@ class KodiDevice:
                     updated_data[MediaAttr.SOURCE] = current_chapter
                     await self.display_temporary_title(current_chapter)
                     updated_data[MediaAttr.MEDIA_TITLE] = self._temporary_title
+                    updated_data[KodiSensors.CHAPTER] = self.current_chapter
 
                 current_audio_stream = self._properties.get("currentaudiostream", {})
                 if current_audio_stream.get("index", 0) != self._audio_stream:
                     self._audio_stream = current_audio_stream.get("index", 0)
                     updated_data[MediaAttr.SOUND_MODE] = self.current_audio_track
+                    updated_data[KodiSensors.AUDIO_STREAM] = self.current_audio_track
+
+                if self._subtitle_stream != self.current_subtitle_track:
+                    self._subtitle_stream = self.current_subtitle_track
+                    updated_data[KodiSensors.SUBTITLE_STREAM] = self._subtitle_stream
 
                 # If media changed, request a deferred artwork update as it may not be available at this time
                 if changed_media and len(self.media_artwork) == 0:
@@ -1036,6 +1044,9 @@ class KodiDevice:
                 updated_data[MediaAttr.SOURCE] = ""
                 updated_data[MediaAttr.SOURCE_LIST] = []
                 updated_data[MediaAttr.SOUND_MODE_LIST] = []
+                updated_data[KodiSensors.AUDIO_STREAM] = ""
+                updated_data[KodiSensors.SUBTITLE_STREAM] = ""
+                updated_data[KodiSensors.CHAPTER] = ""
                 # updated_data[MediaAttr.MEDIA_IMAGE_URL] = ""
 
             self._position_timestamp = time.time()
@@ -1109,6 +1120,9 @@ class KodiDevice:
             MediaAttr.SOURCE: self.source if self.source_list else "",
             MediaAttr.SOUND_MODE_LIST: [track.name for track in self.audio_tracks],
             MediaAttr.SOUND_MODE: self.current_audio_track,
+            KodiSensors.AUDIO_STREAM: self.current_audio_track,
+            KodiSensors.SUBTITLE_STREAM: self.current_subtitle_track,
+            KodiSensors.CHAPTER: self.current_chapter,
         }
         return attributes
 
@@ -1212,6 +1226,23 @@ class KodiDevice:
             if track.index == current_audio_stream.get("index", 0):
                 return track.name
         return ""
+
+    @property
+    def current_subtitle_track(self) -> str:
+        """Return the current subtitle track name."""
+        subtitles_enabled: bool = self._properties.get("subtitleenabled", False)
+        if not subtitles_enabled:
+            return ""
+        current_subtitle_stream: dict[str, Any] = self._properties.get("currentsubtitle", {})
+        if current_subtitle_stream is None:
+            return ""
+
+        subtitle_stream = _get_language(current_subtitle_stream, self.device_config.show_stream_language_name)
+        if current_subtitle_stream.get("isforced", False):
+            subtitle_stream += " (forced)"
+        if current_subtitle_stream.get("isimpaired", False):
+            subtitle_stream += " (impaired)"
+        return subtitle_stream
 
     @property
     def source(self) -> str:

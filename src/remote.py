@@ -16,7 +16,7 @@ from ucapi.remote import Attributes, Commands, Features
 from ucapi.remote import States as RemoteStates
 
 import kodi
-from config import KodiConfigDevice, create_entity_id
+from config import KodiConfigDevice, KodiEntity, create_entity_id
 from const import (
     KODI_REMOTE_BUTTONS_MAPPING,
     KODI_REMOTE_SIMPLE_COMMANDS,
@@ -52,7 +52,7 @@ def get_int_param(param: str, params: dict[str, Any], default: int):
     return value
 
 
-class KodiRemote(Remote):
+class KodiRemote(KodiEntity, Remote):
     """Representation of a Kodi Media Player entity."""
 
     def __init__(self, config_device: KodiConfigDevice, device: kodi.KodiDevice):
@@ -75,6 +75,10 @@ class KodiRemote(Remote):
             button_mapping=KODI_REMOTE_BUTTONS_MAPPING,
             ui_pages=KODI_REMOTE_UI_PAGES,
         )
+
+    @property
+    def deviceid(self) -> str:
+        return self._device.id
 
     async def command(self, cmd_id: str, params: dict[str, Any] | None = None) -> StatusCodes:
         """

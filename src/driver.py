@@ -10,7 +10,8 @@ import asyncio
 import logging
 import os
 import sys
-from typing import Any
+from enum import Enum
+from typing import Any, Type
 
 import ucapi
 
@@ -18,8 +19,9 @@ import config
 import kodi
 import media_player
 import remote
+import sensor
 import setup_flow
-from config import device_from_entity_id
+from config import KodiEntity
 
 _LOG = logging.getLogger("driver")  # avoid having __main__ in log messages
 if sys.platform == "win32":
@@ -77,6 +79,11 @@ async def on_r2_enter_standby() -> None:
         await configured.disconnect()
 
 
+def filter_attributes(attributes, attribute_type: Type[Enum]) -> dict[str, Any]:
+    """Filter attributes based on an Enum class."""
+    return {k: v for k, v in attributes.items() if k in attribute_type}
+
+
 async def connect_device(device: kodi.KodiDevice):
     """Connect device and send state."""
     try:
@@ -86,16 +93,22 @@ async def connect_device(device: kodi.KodiDevice):
         state = device.state
         for entity in api.configured_entities.get_all():
             entity_id = entity.get("entity_id", "")
-            device_id = device_from_entity_id(entity_id)
+            entity: KodiEntity | None = api.configured_entities.get(entity_id)
+            device_id = entity.deviceid
             if device_id != device.id:
                 continue
             if isinstance(entity, media_player.KodiMediaPlayer):
                 _LOG.debug("Sending attributes %s : %s", entity_id, device.attributes)
-                api.configured_entities.update_attributes(entity_id, device.attributes)
+                api.configured_entities.update_attributes(
+                    entity_id, filter_attributes(device.attributes, ucapi.media_player.Attributes)
+                )
             if isinstance(entity, remote.KodiRemote):
                 api.configured_entities.update_attributes(
                     entity_id, {ucapi.remote.Attributes.STATE: remote.KODI_REMOTE_STATE_MAPPING.get(state)}
                 )
+            if isinstance(entity, sensor.KodiSensor):
+                api.configured_entities.update_attributes(entity_id, entity.update_attributes())
+
     except RuntimeError as ex:
         _LOG.error("Error while reconnecting to Kodi %s", ex)
 
@@ -133,17 +146,21 @@ async def on_subscribe_entities(entity_ids: list[str]) -> None:
     _remote_in_standby = False
     _LOG.debug("Subscribe entities event: %s", entity_ids)
     for entity_id in entity_ids:
-        entity = api.configured_entities.get(entity_id)
-        device_id = device_from_entity_id(entity_id)
+        entity: KodiEntity | None = api.configured_entities.get(entity_id)
+        device_id = entity.deviceid
         if device_id in _configured_kodis:
             device = _configured_kodis[device_id]
             state = device.get_state()
             if isinstance(entity, media_player.KodiMediaPlayer):
-                api.configured_entities.update_attributes(entity_id, {ucapi.media_player.Attributes.STATE: state})
-            if isinstance(entity, remote.KodiRemote):
+                api.configured_entities.update_attributes(
+                    entity_id, filter_attributes(device.attributes, ucapi.media_player.Attributes)
+                )
+            elif isinstance(entity, remote.KodiRemote):
                 api.configured_entities.update_attributes(
                     entity_id, {ucapi.remote.Attributes.STATE: remote.KODI_REMOTE_STATE_MAPPING.get(state)}
                 )
+            elif isinstance(entity, sensor.KodiSensor):
+                api.configured_entities.update_attributes(entity_id, entity.update_attributes())
             continue
 
         device = config.devices.get(device_id)
@@ -160,7 +177,8 @@ async def on_unsubscribe_entities(entity_ids: list[str]) -> None:
     _LOG.debug("Unsubscribe entities event: %s", entity_ids)
     devices_to_remove = set()
     for entity_id in entity_ids:
-        device_id = device_from_entity_id(entity_id)
+        entity: KodiEntity | None = api.configured_entities.get(entity_id)
+        device_id = entity.deviceid
         if device_id is None:
             continue
         devices_to_remove.add(device_id)
@@ -170,7 +188,8 @@ async def on_unsubscribe_entities(entity_ids: list[str]) -> None:
         entity_id = entity.get("entity_id", "")
         if entity_id in entity_ids:
             continue
-        device_id = device_from_entity_id(entity_id)
+        entity: KodiEntity | None = api.configured_entities.get(entity_id)
+        device_id = entity.deviceid
         if device_id is None:
             continue
         if device_id in devices_to_remove:
@@ -216,6 +235,10 @@ async def on_device_connected(device_id: str):
                 api.configured_entities.update_attributes(
                     entity_id, {ucapi.remote.Attributes.STATE: ucapi.remote.States.OFF}
                 )
+        elif configured_entity.entity_type == ucapi.EntityTypes.SENSOR:
+            api.configured_entities.update_attributes(
+                entity_id, {ucapi.sensor.Attributes.STATE: ucapi.sensor.States.ON}
+            )
 
 
 async def on_device_disconnected(device_id: str):
@@ -234,6 +257,10 @@ async def on_device_disconnected(device_id: str):
         elif configured_entity.entity_type == ucapi.EntityTypes.REMOTE:
             api.configured_entities.update_attributes(
                 entity_id, {ucapi.remote.Attributes.STATE: ucapi.remote.States.UNAVAILABLE}
+            )
+        elif configured_entity.entity_type == ucapi.EntityTypes.SENSOR:
+            api.configured_entities.update_attributes(
+                entity_id, {ucapi.sensor.Attributes.STATE: ucapi.sensor.States.UNAVAILABLE}
             )
 
     # TODO #20 when multiple devices are supported, the device state logic isn't that simple anymore!
@@ -256,6 +283,10 @@ async def on_device_connection_error(device_id: str, message):
         elif configured_entity.entity_type == ucapi.EntityTypes.REMOTE:
             api.configured_entities.update_attributes(
                 entity_id, {ucapi.remote.Attributes.STATE: ucapi.remote.States.UNAVAILABLE}
+            )
+        elif configured_entity.entity_type == ucapi.EntityTypes.SENSOR:
+            api.configured_entities.update_attributes(
+                entity_id, {ucapi.sensor.Attributes.STATE: ucapi.sensor.States.UNAVAILABLE}
             )
 
     # TODO #20 when multiple devices are supported, the device state logic isn't that simple anymore!
@@ -296,9 +327,11 @@ async def on_device_update(device_id: str, update: dict[str, Any] | None) -> Non
             continue
 
         if isinstance(configured_entity, media_player.KodiMediaPlayer):
-            attributes = update
+            attributes = filter_attributes(update, ucapi.media_player.Attributes)
         elif isinstance(configured_entity, remote.KodiRemote):
             attributes = configured_entity.filter_changed_attributes(update)
+        elif isinstance(configured_entity, sensor.KodiSensor):
+            attributes = configured_entity.update_attributes(update)
 
         if attributes:
             api.configured_entities.update_attributes(entity_id, attributes)
@@ -313,7 +346,13 @@ def _entities_from_device_id(device_id: str) -> list[str]:
     """
     # dead simple for now: one media_player entity per device!
     # TODO #21 support multiple zones: one media-player per zone
-    return [f"media_player.{device_id}", f"remote.{device_id}"]
+    return [
+        f"media_player.{device_id}",
+        f"remote.{device_id}",
+        f"sensor.{device_id}.audio_stream",
+        f"sensor.{device_id}.subtitle_stream",
+        f"sensor.{device_id}.chapter",
+    ]
 
 
 def _configure_new_device(device_config: config.KodiConfigDevice, connect: bool = True) -> None:
@@ -360,7 +399,15 @@ def _register_available_entities(device_config: config.KodiConfigDevice, device:
     """
     # plain and simple for now: only one media_player per device
     # entity = media_player.create_entity(device)
-    entities = [media_player.KodiMediaPlayer(device_config, device), remote.KodiRemote(device_config, device)]
+    _LOG.debug("TOTO1")
+    entities = [
+        media_player.KodiMediaPlayer(device_config, device),
+        remote.KodiRemote(device_config, device),
+        sensor.KodiAudioStream(device_config, device),
+        sensor.KodiSubtitleStream(device_config, device),
+        sensor.KodiChapter(device_config, device),
+    ]
+    _LOG.debug("TOTO2")
     for entity in entities:
         if api.available_entities.contains(entity.id):
             api.available_entities.remove(entity.id)
@@ -414,6 +461,7 @@ async def main():
     logging.getLogger("driver").setLevel(level)
     logging.getLogger("media_player").setLevel(level)
     logging.getLogger("remote").setLevel(level)
+    logging.getLogger("sensor").setLevel(level)
     logging.getLogger("kodi").setLevel(level)
     logging.getLogger("setup_flow").setLevel(level)
     logging.getLogger("config").setLevel(level)

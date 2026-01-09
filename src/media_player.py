@@ -12,7 +12,7 @@ from ucapi import EntityTypes, MediaPlayer, StatusCodes
 from ucapi.media_player import Commands, DeviceClasses, Options
 
 import kodi
-from config import KodiConfigDevice, create_entity_id
+from config import KodiConfigDevice, KodiEntity, create_entity_id
 from const import (
     KODI_ACTIONS_KEYMAP,
     KODI_ADVANCED_SIMPLE_COMMANDS,
@@ -27,7 +27,7 @@ from const import (
 _LOG = logging.getLogger(__name__)
 
 
-class KodiMediaPlayer(MediaPlayer):
+class KodiMediaPlayer(KodiEntity, MediaPlayer):
     """Representation of a Kodi Media Player entity."""
 
     def __init__(self, config_device: KodiConfigDevice, device: kodi.KodiDevice):
@@ -50,6 +50,10 @@ class KodiMediaPlayer(MediaPlayer):
         super().__init__(
             entity_id, config_device.name, features, attributes, device_class=DeviceClasses.RECEIVER, options=options
         )
+
+    @property
+    def deviceid(self) -> str:
+        return self._device.id
 
     @staticmethod
     async def mediaplayer_command(

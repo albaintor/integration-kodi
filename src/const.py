@@ -5,6 +5,7 @@ Constants used for Kodi integration.
 :license: Mozilla Public License Version 2.0, see LICENSE for more details.
 """
 
+from enum import Enum
 from typing import Any, TypedDict
 
 from ucapi.media_player import Commands, Features, MediaType
@@ -24,6 +25,14 @@ class MethodCall(TypedDict):
 
     method: str
     params: dict[str, Any]
+
+
+class KodiSensors(str, Enum):
+    """Kodi sensor values."""
+
+    AUDIO_STREAM = "audio_stream"
+    SUBTITLE_STREAM = "subtitle_stream"
+    CHAPTER = "chapter"
 
 
 KODI_MEDIA_TYPES = {

@@ -15,6 +15,7 @@ from typing import Any
 
 import jsonrpc_base
 from rich import print_json
+from ucapi import Events
 
 import kodi
 from config import KodiConfigDevice
@@ -34,6 +35,11 @@ password = "ludi"
 
 
 async def on_device_update(device_id: str, update: dict[str, Any] | None) -> None:
+    print_json(data=update)
+
+
+async def on_entity_attributes_updated(entity_id: str, entity_type: str, update: dict[str, Any] | None) -> None:
+    print("Attribute update : " + entity_id)
     print_json(data=update)
 
 
@@ -62,6 +68,7 @@ async def main():
     )
     # await client.power_on()
     client.events.on(kodi.Events.UPDATE, on_device_update)
+    client.events.on(Events.ENTITY_ATTRIBUTES_UPDATED, on_entity_attributes_updated)
     await client.connect()
 
     await asyncio.sleep(2)
