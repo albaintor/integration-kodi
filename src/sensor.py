@@ -10,8 +10,8 @@ from typing import Any
 
 import ucapi.media_player
 from ucapi import EntityTypes, Sensor
-from ucapi.sensor import Attributes, DeviceClasses, States
 from ucapi.media_player import States as MediaStates
+from ucapi.sensor import Attributes, DeviceClasses, States
 
 import kodi
 from config import KodiConfigDevice, KodiEntity, create_entity_id
@@ -37,7 +37,7 @@ class KodiSensor(KodiEntity, Sensor):
         """Initialize the class."""
         # pylint: disable = R0801
         self._device: kodi.KodiDevice = device
-        _LOG.debug("KodiMediaPlayer init")
+        _LOG.debug("KodiSensor init")
         features = []
         attributes = dict[Any, Any]()
         self._config_device = config_device

@@ -22,7 +22,7 @@ import remote
 import sensor
 import setup_flow
 from config import KodiEntity
-from sensor import KodiAudioStream, KodiSubtitleStream, KodiChapter
+from sensor import KodiAudioStream, KodiChapter, KodiSubtitleStream
 
 _LOG = logging.getLogger("driver")  # avoid having __main__ in log messages
 if sys.platform == "win32":
@@ -92,8 +92,8 @@ async def connect_device(device: kodi.KodiDevice):
         await device.connect()
         _LOG.debug("Device %s connected, sending attributes for subscribed entities", device.id)
         state = device.state
-        for entity in api.configured_entities.get_all():
-            entity_id = entity.get("entity_id", "")
+        for entity_entry in api.configured_entities.get_all():
+            entity_id = entity_entry.get("entity_id", "")
             entity: KodiEntity | None = api.configured_entities.get(entity_id)
             device_id = entity.deviceid
             if device_id != device.id:
@@ -185,8 +185,8 @@ async def on_unsubscribe_entities(entity_ids: list[str]) -> None:
         devices_to_remove.add(device_id)
 
     # Keep devices that are used by other configured entities not in this list
-    for entity in api.configured_entities.get_all():
-        entity_id = entity.get("entity_id", "")
+    for entity_entry in api.configured_entities.get_all():
+        entity_id = entity_entry.get("entity_id", "")
         if entity_id in entity_ids:
             continue
         entity: KodiEntity | None = api.configured_entities.get(entity_id)
@@ -400,7 +400,6 @@ def _register_available_entities(device_config: config.KodiConfigDevice, device:
     """
     # plain and simple for now: only one media_player per device
     # entity = media_player.create_entity(device)
-    _LOG.debug("TOTO1")
     entities = [
         media_player.KodiMediaPlayer(device_config, device),
         remote.KodiRemote(device_config, device),
@@ -408,7 +407,6 @@ def _register_available_entities(device_config: config.KodiConfigDevice, device:
         sensor.KodiSubtitleStream(device_config, device),
         sensor.KodiChapter(device_config, device),
     ]
-    _LOG.debug("TOTO2")
     for entity in entities:
         if api.available_entities.contains(entity.id):
             api.available_entities.remove(entity.id)
