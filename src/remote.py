@@ -78,6 +78,7 @@ class KodiRemote(KodiEntity, Remote):
 
     @property
     def deviceid(self) -> str:
+        """Return device identifier."""
         return self._device.id
 
     async def command(self, cmd_id: str, params: dict[str, Any] | None = None) -> StatusCodes:

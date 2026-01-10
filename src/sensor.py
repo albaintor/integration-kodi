@@ -47,10 +47,11 @@ class KodiSensor(KodiEntity, Sensor):
 
     @property
     def deviceid(self) -> str:
+        """Return device identifier."""
         return self._device.id
 
     def update_attributes(self, update: dict[str, Any] | None = None) -> dict[str, Any]:
-        """Returns the updated attributes of current sensor entity."""
+        """Return the updated attributes of current sensor entity."""
         raise NotImplementedError()
 
 
@@ -60,6 +61,7 @@ class KodiAudioStream(KodiSensor):
     ENTITY_NAME = "audio_stream"
 
     def __init__(self, config_device: KodiConfigDevice, device: kodi.KodiDevice):
+        """Initialize the class."""
         entity_id = f"{create_entity_id(config_device.id, EntityTypes.SENSOR)}.{KodiAudioStream.ENTITY_NAME}"
         # TODO : dict instead of name to report language names
         self._device = device
@@ -89,6 +91,7 @@ class KodiSubtitleStream(KodiSensor):
     ENTITY_NAME = "subtitle_stream"
 
     def __init__(self, config_device: KodiConfigDevice, device: kodi.KodiDevice):
+        """Initialize the class."""
         entity_id = f"{create_entity_id(config_device.id, EntityTypes.SENSOR)}.{KodiSubtitleStream.ENTITY_NAME}"
         super().__init__(entity_id, "Subtitle stream", config_device, device)
 
@@ -115,6 +118,7 @@ class KodiChapter(KodiSensor):
     ENTITY_NAME = "chapter"
 
     def __init__(self, config_device: KodiConfigDevice, device: kodi.KodiDevice):
+        """Initialize the class."""
         entity_id = f"{create_entity_id(config_device.id, EntityTypes.SENSOR)}.{KodiChapter.ENTITY_NAME}"
         super().__init__(entity_id, "Chapter", config_device, device)
 

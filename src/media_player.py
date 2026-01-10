@@ -53,6 +53,7 @@ class KodiMediaPlayer(KodiEntity, MediaPlayer):
 
     @property
     def deviceid(self) -> str:
+        """Return device identifier."""
         return self._device.id
 
     @staticmethod
