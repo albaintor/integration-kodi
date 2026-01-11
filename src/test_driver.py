@@ -14,17 +14,17 @@ import json
 import logging
 import queue
 import sys
-from asyncio import Queue, Task, Future, AbstractEventLoop
+import threading
+import tkinter as tk
+from asyncio import AbstractEventLoop, Future, Queue, Task
 from contextlib import suppress
+from tkinter import ttk
 from typing import Any, Callable
 
-from aiohttp import ClientSession, ClientWebSocketResponse, WSMsgType
-from rich import print_json
-import tkinter as tk
-from tkinter import ttk
 import requests
+from aiohttp import ClientSession, ClientWebSocketResponse, WSMsgType
 from PIL import Image, ImageTk
-import threading
+from rich import print_json
 
 
 def load_image_from_url(url: str, max_size=(500, 500)) -> ImageTk.PhotoImage:

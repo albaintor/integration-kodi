@@ -223,7 +223,7 @@ class KodiMediaPlayer(KodiEntity, MediaPlayer):
         _LOG.debug("[%s] Custom command : %s %s", device.device_config.address, command, params)
         return await device.call_command(command_key, **params)
 
-    async def command(self, cmd_id: str, params: dict[str, Any] | None = None) -> StatusCodes:
+    async def command(self, cmd_id: str, params: dict[str, Any] | None = None, *, websocket: Any) -> StatusCodes:
         """
         Media-player entity command handler.
 
@@ -231,6 +231,8 @@ class KodiMediaPlayer(KodiEntity, MediaPlayer):
 
         :param cmd_id: command
         :param params: optional command parameters
+        :param websocket: optional websocket connection. Allows for directed event
+                          callbacks instead of broadcasts.
         :return: status code of the command request
         """
         _LOG.info("Got %s command request: %s %s", self.id, cmd_id, params)
