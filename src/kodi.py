@@ -13,7 +13,7 @@ import time
 import urllib.parse
 from asyncio import AbstractEventLoop, Future, Lock, Task, shield
 from dataclasses import dataclass
-from enum import IntEnum
+from enum import IntEnum, StrEnum
 from functools import wraps
 from typing import (
     Any,
@@ -58,14 +58,14 @@ UPDATE_LOCK_TIMEOUT = 10.0
 ERROR_OS_WAIT = 0.5
 
 
-class Events(IntEnum):
+class Events(StrEnum):
     """Internal driver events."""
 
-    CONNECTING = 0
-    CONNECTED = 1
-    DISCONNECTED = 2
-    ERROR = 3
-    UPDATE = 4
+    CONNECTING = "CONNECTING"
+    CONNECTED = "CONNECTED"
+    DISCONNECTED = "DISCONNECTED"
+    ERROR = "ERROR"
+    UPDATE = "UPDATE"
     # IP_ADDRESS_CHANGED = 6
 
 
@@ -360,7 +360,7 @@ class KodiDevice:
             self.events.emit(Events.UPDATE, self.id, {MediaAttr.STATE: self.state})
 
     # pylint: disable = W0613
-    def on_volume_changed(self, sender: any, data: dict[str, any]):
+    def on_volume_changed(self, sender: Any, data: dict[str, Any]):
         """Handle the volume changes."""
         _LOG.debug("[%s] Kodi volume changed %s", self.device_config.address, data)
         volume = self._volume
@@ -378,7 +378,7 @@ class KodiDevice:
             self.events.emit(Events.UPDATE, self.id, updated_data)
 
     # pylint: disable = W0613
-    def on_key_press(self, sender: str, data: dict[str, any]):
+    def on_key_press(self, sender: str, data: dict[str, Any]):
         """Handle a incoming key press notification."""
         _LOG.debug("[%s] Keypress %s %s", self.device_config.address, sender, data)
 
