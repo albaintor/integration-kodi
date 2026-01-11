@@ -30,9 +30,9 @@ class MethodCall(TypedDict):
 class KodiSensors(str, Enum):
     """Kodi sensor values."""
 
-    AUDIO_STREAM = "audio_stream"
-    SUBTITLE_STREAM = "subtitle_stream"
-    CHAPTER = "chapter"
+    SENSOR_AUDIO_STREAM = "sensor_audio_stream"
+    SENSOR_SUBTITLE_STREAM = "sensor_subtitle_stream"
+    SENSOR_CHAPTER = "sensor_chapter"
 
 
 KODI_MEDIA_TYPES = {

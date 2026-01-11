@@ -39,7 +39,7 @@ _remote_in_standby = False  # pylint: disable=C0103
 
 @api.listens_to(ucapi.Events.CONNECT)
 async def on_connect_cmd() -> None:
-    """Connect all configured TVs when the Remote Two sends the connect command."""
+    """Connect all configured TVs when the Remote sends the connect command."""
     await api.set_device_state(ucapi.DeviceStates.CONNECTED)
     # TODO check if we were in standby and ignore the call? We'll also get an EXIT_STANDBY
     _LOG.debug("Connect command: connecting device(s)")
@@ -91,24 +91,7 @@ async def connect_device(device: kodi.KodiDevice):
         _LOG.debug("Connecting device %s...", device.id)
         await device.connect()
         _LOG.debug("Device %s connected, sending attributes for subscribed entities", device.id)
-        state = device.state
-        for entity_entry in api.configured_entities.get_all():
-            entity_id = entity_entry.get("entity_id", "")
-            entity: KodiEntity | None = api.configured_entities.get(entity_id)
-            device_id = entity.deviceid
-            if device_id != device.id:
-                continue
-            if isinstance(entity, media_player.KodiMediaPlayer):
-                _LOG.debug("Sending attributes %s : %s", entity_id, device.attributes)
-                api.configured_entities.update_attributes(
-                    entity_id, filter_attributes(device.attributes, ucapi.media_player.Attributes)
-                )
-            if isinstance(entity, remote.KodiRemote):
-                api.configured_entities.update_attributes(
-                    entity_id, {ucapi.remote.Attributes.STATE: remote.KODI_REMOTE_STATE_MAPPING.get(state)}
-                )
-            if isinstance(entity, sensor.KodiSensor):
-                api.configured_entities.update_attributes(entity_id, entity.update_attributes())
+        await on_device_update(device.id, None)
 
     except RuntimeError as ex:
         _LOG.error("Error while reconnecting to Kodi %s", ex)
@@ -146,6 +129,7 @@ async def on_subscribe_entities(entity_ids: list[str]) -> None:
 
     _remote_in_standby = False
     _LOG.debug("Subscribe entities event: %s", entity_ids)
+
     for entity_id in entity_ids:
         entity: KodiEntity | None = api.configured_entities.get(entity_id)
         device_id = entity.deviceid
@@ -210,36 +194,8 @@ async def on_device_connected(device_id: str):
         _LOG.warning("Kodi %s is not configured", device_id)
         return
 
-    # TODO #20 when multiple devices are supported, the device state logic isn't that simple anymore!
     await api.set_device_state(ucapi.DeviceStates.CONNECTED)
-
-    for entity_id in _entities_from_device_id(device_id):
-        configured_entity = api.configured_entities.get(entity_id)
-        if configured_entity is None:
-            continue
-
-        if configured_entity.entity_type == ucapi.EntityTypes.MEDIA_PLAYER:
-            if (
-                configured_entity.attributes[ucapi.media_player.Attributes.STATE]
-                == ucapi.media_player.States.UNAVAILABLE
-            ):
-                # TODO why STANDBY?
-                api.configured_entities.update_attributes(
-                    entity_id, {ucapi.media_player.Attributes.STATE: ucapi.media_player.States.STANDBY}
-                )
-            else:
-                api.configured_entities.update_attributes(
-                    entity_id, {ucapi.media_player.Attributes.STATE: ucapi.media_player.States.ON}
-                )
-        elif configured_entity.entity_type == ucapi.EntityTypes.REMOTE:
-            if configured_entity.attributes[ucapi.remote.Attributes.STATE] == ucapi.remote.States.UNAVAILABLE:
-                api.configured_entities.update_attributes(
-                    entity_id, {ucapi.remote.Attributes.STATE: ucapi.remote.States.OFF}
-                )
-        elif configured_entity.entity_type == ucapi.EntityTypes.SENSOR:
-            api.configured_entities.update_attributes(
-                entity_id, {ucapi.sensor.Attributes.STATE: ucapi.sensor.States.ON}
-            )
+    await on_device_update(device_id, None)
 
 
 async def on_device_disconnected(device_id: str):
@@ -304,25 +260,31 @@ async def handle_device_address_change(device_id: str, address: str) -> None:
         config.devices.update(device)
 
 
-async def on_device_update(device_id: str, update: dict[str, Any] | None) -> None:
+async def on_device_update(device_id: str, update: dict[str, Any] | None) -> list[str]:
     """Update attributes of configured media-player entity if device properties changed.
 
     :param device_id: device identifier
     :param update: dictionary containing the updated properties or None if
+    :return list[str]: list of unconfigured devices against entities
     """
     if update is None:
         if device_id not in _configured_kodis:
-            return
+            return []
         device = _configured_kodis[device_id]
         update = device.attributes
     else:
         _LOG.info("[%s] Kodi update: %s", device_id, update)
 
     attributes = None
+    unconfigured_devices: list[str] = []
 
-    # TODO awkward logic: this needs better support from the integration library
-    for entity_id in _entities_from_device_id(device_id):
-        _LOG.info("Update device %s for configured entity %s", device_id, entity_id)
+    entity_ids = [
+        entity_id
+        for entity_id in _entities_from_device_id(device_id)
+        if api.configured_entities.get(entity_id) is not None
+    ]
+    _LOG.info("[%s] Update device for configured entities %s", device_id, entity_ids)
+    for entity_id in entity_ids:
         configured_entity = api.configured_entities.get(entity_id)
         if configured_entity is None:
             continue
@@ -336,6 +298,10 @@ async def on_device_update(device_id: str, update: dict[str, Any] | None) -> Non
 
         if attributes:
             api.configured_entities.update_attributes(entity_id, attributes)
+
+        if configured_entity.device_id not in _configured_kodis:
+            unconfigured_devices.append(configured_entity.device_id)
+    return unconfigured_devices
 
 
 def _entities_from_device_id(device_id: str) -> list[str]:

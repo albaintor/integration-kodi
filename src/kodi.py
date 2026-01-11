@@ -339,7 +339,7 @@ class KodiDevice:
         return MediaStates.PLAYING
 
     # pylint: disable = W0613
-    def on_speed_event(self, sender: str, data: dict[str, any]):
+    def on_speed_event(self, sender: str, data: dict[str, Any]):
         """Handle player changes between playing and paused."""
         _LOG.debug("[%s] Kodi playback changed %s", self.device_config.address, data)
         if "speed" in data.get("player", {}):
@@ -347,7 +347,7 @@ class KodiDevice:
         self.event_loop.create_task(self._update_states())
 
     # pylint: disable = W0613
-    def on_stop(self, sender: str, data: dict[str, any]):
+    def on_stop(self, sender: str, data: dict[str, Any]):
         """Handle the stop of the player playback."""
         # Prevent stop notifications which are sent after quit notification
         _LOG.debug("[%s] Kodi stopped", self.device_config.address)
@@ -932,6 +932,7 @@ class KodiDevice:
 
                 changed_media = False
                 if media_title != self._media_title:
+                    _LOG.debug("[%s] Changed media : %s", self.device_config.address, media_title)
                     self._media_title = media_title
                     updated_data[MediaAttr.MEDIA_TITLE] = self._media_title
                     changed_media = True
@@ -1004,17 +1005,17 @@ class KodiDevice:
                     updated_data[MediaAttr.SOURCE] = current_chapter
                     await self.display_temporary_title(current_chapter)
                     updated_data[MediaAttr.MEDIA_TITLE] = self._temporary_title
-                    updated_data[KodiSensors.CHAPTER] = self.current_chapter
+                    updated_data[KodiSensors.SENSOR_CHAPTER] = self.current_chapter
 
                 current_audio_stream = self._properties.get("currentaudiostream", {})
                 if current_audio_stream.get("index", 0) != self._audio_stream:
                     self._audio_stream = current_audio_stream.get("index", 0)
                     updated_data[MediaAttr.SOUND_MODE] = self.current_audio_track
-                    updated_data[KodiSensors.AUDIO_STREAM] = self.current_audio_track
+                    updated_data[KodiSensors.SENSOR_AUDIO_STREAM] = self.current_audio_track
 
                 if self._subtitle_stream != self.current_subtitle_track:
                     self._subtitle_stream = self.current_subtitle_track
-                    updated_data[KodiSensors.SUBTITLE_STREAM] = self._subtitle_stream
+                    updated_data[KodiSensors.SENSOR_SUBTITLE_STREAM] = self._subtitle_stream
 
                 # If media changed, request a deferred artwork update as it may not be available at this time
                 if changed_media and len(self.media_artwork) == 0:
@@ -1044,9 +1045,9 @@ class KodiDevice:
                 updated_data[MediaAttr.SOURCE] = ""
                 updated_data[MediaAttr.SOURCE_LIST] = []
                 updated_data[MediaAttr.SOUND_MODE_LIST] = []
-                updated_data[KodiSensors.AUDIO_STREAM] = ""
-                updated_data[KodiSensors.SUBTITLE_STREAM] = ""
-                updated_data[KodiSensors.CHAPTER] = ""
+                updated_data[KodiSensors.SENSOR_AUDIO_STREAM] = ""
+                updated_data[KodiSensors.SENSOR_SUBTITLE_STREAM] = ""
+                updated_data[KodiSensors.SENSOR_CHAPTER] = ""
                 # updated_data[MediaAttr.MEDIA_IMAGE_URL] = ""
 
             self._position_timestamp = time.time()
@@ -1120,9 +1121,9 @@ class KodiDevice:
             MediaAttr.SOURCE: self.source if self.source_list else "",
             MediaAttr.SOUND_MODE_LIST: [track.name for track in self.audio_tracks],
             MediaAttr.SOUND_MODE: self.current_audio_track,
-            KodiSensors.AUDIO_STREAM: self.current_audio_track,
-            KodiSensors.SUBTITLE_STREAM: self.current_subtitle_track,
-            KodiSensors.CHAPTER: self.current_chapter,
+            KodiSensors.SENSOR_AUDIO_STREAM: self.current_audio_track,
+            KodiSensors.SENSOR_SUBTITLE_STREAM: self.current_subtitle_track,
+            KodiSensors.SENSOR_CHAPTER: self.current_chapter,
         }
         return attributes
 

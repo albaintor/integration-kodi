@@ -76,8 +76,8 @@ class KodiAudioStream(KodiSensor):
                 attributes[Attributes.STATE] = KODI_SENSOR_STATE_MAPPING.get(
                     update[ucapi.media_player.Attributes.STATE]
                 )
-            if KodiSensors.AUDIO_STREAM in update:
-                attributes[Attributes.VALUE] = update[KodiSensors.AUDIO_STREAM]
+            if KodiSensors.SENSOR_AUDIO_STREAM in update:
+                attributes[Attributes.VALUE] = update[KodiSensors.SENSOR_AUDIO_STREAM]
             return attributes
         return {
             Attributes.VALUE: self._device.current_audio_track,
@@ -103,8 +103,8 @@ class KodiSubtitleStream(KodiSensor):
                 attributes[Attributes.STATE] = KODI_SENSOR_STATE_MAPPING.get(
                     update[ucapi.media_player.Attributes.STATE]
                 )
-            if KodiSensors.SUBTITLE_STREAM in update:
-                attributes[Attributes.VALUE] = update[KodiSensors.SUBTITLE_STREAM]
+            if KodiSensors.SENSOR_SUBTITLE_STREAM in update:
+                attributes[Attributes.VALUE] = update[KodiSensors.SENSOR_SUBTITLE_STREAM]
             return attributes
         return {
             Attributes.VALUE: self._device.current_subtitle_track,
@@ -130,8 +130,8 @@ class KodiChapter(KodiSensor):
                 attributes[Attributes.STATE] = KODI_SENSOR_STATE_MAPPING.get(
                     update[ucapi.media_player.Attributes.STATE]
                 )
-            if KodiSensors.CHAPTER in update:
-                attributes[Attributes.VALUE] = update[KodiSensors.CHAPTER]
+            if KodiSensors.SENSOR_CHAPTER in update:
+                attributes[Attributes.VALUE] = update[KodiSensors.SENSOR_CHAPTER]
             return attributes
         return {
             Attributes.VALUE: self._device.current_chapter,
