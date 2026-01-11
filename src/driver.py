@@ -82,9 +82,7 @@ async def on_enter_standby() -> None:
 
 def filter_attributes(attributes, attribute_type: Type[Enum]) -> dict[str, Any]:
     """Filter attributes based on an Enum class."""
-    return {
-        k: v for k, v in attributes.items() if k in list(map(lambda x: x.value, attribute_type._member_map_.values()))
-    }
+    return {k: v for k, v in attributes.items() if k in list(map(lambda c: c.value, attribute_type))}
 
 
 async def connect_device(device: kodi.KodiDevice):
