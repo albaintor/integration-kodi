@@ -27,7 +27,7 @@ jobs:
     environment: Ubuntu
     strategy:
       matrix:
-        platform: [aarch64, x86_64]
+        platform: [aarch64]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
