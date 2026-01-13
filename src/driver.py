@@ -421,7 +421,6 @@ async def main():
     logging.basicConfig()
 
     level = os.getenv("UC_LOG_LEVEL", "DEBUG").upper()
-    logging.getLogger("lg").setLevel(level)
     logging.getLogger("discover").setLevel(level)
     logging.getLogger("driver").setLevel(level)
     logging.getLogger("media_player").setLevel(level)

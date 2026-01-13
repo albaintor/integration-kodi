@@ -334,7 +334,7 @@ class KodiDevice:
             return MediaStates.OFF
         if self._no_active_players:
             return MediaStates.ON
-        if self._properties["speed"] == 0:
+        if self._properties and self._properties["speed"] == 0:
             return MediaStates.PAUSED
         return MediaStates.PLAYING
 
@@ -1016,6 +1016,10 @@ class KodiDevice:
                 if self._subtitle_stream != self.current_subtitle_track:
                     self._subtitle_stream = self.current_subtitle_track
                     updated_data[KodiSensors.SENSOR_SUBTITLE_STREAM] = self._subtitle_stream
+
+                current_state = self._attr_state
+                if current_state != self.get_state():
+                    updated_data[MediaAttr.STATE] = self.get_state()
 
                 # If media changed, request a deferred artwork update as it may not be available at this time
                 if changed_media and len(self.media_artwork) == 0:

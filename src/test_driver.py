@@ -18,13 +18,21 @@ import threading
 import tkinter as tk
 from asyncio import AbstractEventLoop, Future, Queue, Task
 from contextlib import suppress
+from enum import StrEnum
 from tkinter import ttk
 from typing import Any, Callable
 
 import requests
 from aiohttp import ClientSession, ClientWebSocketResponse, WSMsgType
 from PIL import Image, ImageTk
+from pyee.asyncio import AsyncIOEventEmitter
 from rich import print_json
+
+
+class Events(StrEnum):
+    """Internal events."""
+
+    EXITING = "EXITING"
 
 
 def load_image_from_url(url: str, max_size=(500, 500)) -> ImageTk.PhotoImage:
@@ -136,7 +144,7 @@ class RemoteWebsocket:
         self._id += 1
         self._create_subscription_handler(uid, event_type, callback)
 
-    async def send_command(self, command: dict[str, Any]):
+    async def send_command(self, command: dict[str, Any]) -> dict[str, Any] | None:
         # {"kind":"req","id":35,"msg":"entity_command","msg_data":{"cmd_id":"on","entity_id":"media_player.192.168.1.20","entity_type":"media_player","params":{}}}
         try:
             response = await self.send_request_and_wait(
@@ -293,30 +301,96 @@ class RemoteInterface(tk.Tk):
 
     def __init__(self) -> None:
         super().__init__()
+        self._worker: WorkerThread | None = None
         self.title("Remote Interface")
-        self.geometry("800x600")
-        self.ui_queue: queue.Queue[Callable[[], None]] = queue.Queue()
-        self.container = ttk.Frame(self, padding=12)
-        self.container.pack(fill="both", expand=True)
-        self.title_field = ttk.Label(self.container, text="Title")
-        self.title_field.pack(anchor="w", pady=(0, 10))
-        self.artist = ttk.Label(self.container, text="Artist")
-        self.artist.pack(anchor="w", pady=(0, 30))
-        self.state = ttk.Label(self.container, text="State")
-        self.state.pack(anchor="w", pady=(0, 50))
-        self.loop = asyncio.get_running_loop()
+        # self.geometry("800x600")
+        self.maxsize(1920, 1080)
+        self._ui_queue: queue.Queue[Callable[[], None]] = queue.Queue()
+        # self.container = ttk.Frame(self, padding=12)
+        # self.container.pack(fill="both", expand=True)
+        self._left_frame = ttk.Frame(self, width=300, height=600)
+        self._left_frame.pack(side="left", fill="both", padx=10, pady=5, expand=True)
+        # self._left_frame.grid(row=0, column=3, padx=10, pady=5)
+        self._right_frame = ttk.Frame(self, width=650, height=600)
+        self._right_frame.pack(side="right", fill="both", padx=10, pady=5, expand=True)
+        self._image_label = ttk.Label(self._right_frame, text="Image")
+        self._image_label.pack(anchor="w")
+        # self._right_frame.grid(row=0, column=1, padx=10, pady=5)
+
+        self._title_field = ttk.Label(self._left_frame, text="Title")
+        self._title_field.grid(row=0, column=0, columnspan=3)  # pack(anchor="w", pady=(0, 10))
+        self._artist = ttk.Label(self._left_frame, text="Artist")
+        self._artist.grid(row=1, column=0, columnspan=3)  # .pack(anchor="w", pady=(0, 10))
+        self._state = ttk.Label(self._left_frame, text="State")
+        self._state.grid(row=2, column=0, columnspan=3)  # .pack(anchor="w", pady=(0, 10))
+        self._command_on = ttk.Button(self._left_frame, text="On", command=lambda: self.media_player_command("on"))
+        self._command_on.grid(row=3, column=0)
+        self._command_play_pause = ttk.Button(
+            self._left_frame, text="Play/pause", command=lambda: self.media_player_command("play_pause")
+        )
+        self._command_play_pause.grid(row=3, column=1)
+        self._command_stop = ttk.Button(
+            self._left_frame, text="Stop", command=lambda: self.media_player_command("stop")
+        )
+        self._command_stop.grid(row=3, column=2)
+        self._info_label = ttk.Label(self._left_frame, text="")
+        self._info_label.grid(row=4, column=0, columnspan=3)
+        self._loop = asyncio.get_running_loop()
         self.protocol("WM_DELETE_WINDOW", self.on_close)
         self.after(50, self.poll_queue)
-        self.photo: tk.PhotoImage | None = None
-        self.image_label: ttk.Label | None = None
+        self._photo: tk.PhotoImage | None = None
+        self._artwork: ttk.Label | None = None
+        self._events = AsyncIOEventEmitter(self._loop)
+
+    def set_worker(self, worker: Any) -> None:
+        self._worker = worker
+
+    def media_player_command(self, cmd_id: str) -> None:
+        _LOG.debug("Media Player Command %s", cmd_id)
+        if self._worker is None:
+            _LOG.error("Media Player Command undefined worker")
+            return
+        entity_id = next((x for x in self._worker.entity_ids if x.startswith("media_player.")), None)
+        if entity_id is None:
+            return
+        try:
+            asyncio.run_coroutine_threadsafe(
+                self.send_command(
+                    {
+                        "cmd_id": cmd_id,
+                        "entity_id": entity_id,
+                        "entity_type": "media_player",
+                        "params": {},
+                    }
+                ),
+                self._worker._loop,
+            )
+        except Exception as ex:
+            _LOG.exception("Send command error %s", ex)
+
+    async def send_command(self, command: dict[str, Any]):
+        try:
+            result = await self._worker.send_command(command)
+
+            if (code := result.get("code", None)) and code != 200:
+                self._info_label["text"] = f"Command failed {code}"
+                _LOG.error("Command error : %s", result)
+                self.update()
+            else:
+                _LOG.debug("Command result : %s", result)
+
+        except Exception as ex:
+            _LOG.exception("Send command error %s", ex)
 
     def on_close(self):
+        self._events.emit(Events.EXITING)
         self.destroy()
+        self._loop.call_soon_threadsafe(self._loop.stop)
 
     def poll_queue(self):
         try:
             while True:
-                action = self.ui_queue.get_nowait()
+                action = self._ui_queue.get_nowait()
                 action()
         except Exception:  # queue.Empty:
             pass
@@ -325,26 +399,25 @@ class RemoteInterface(tk.Tk):
     def load_image(self, url: str) -> None:
         try:
             _LOG.debug("Loading new image from URL: %s", url)
-            self.photo = load_image_from_url(url)
-            if self.image_label is None:
-                self.image_label = ttk.Label(self.container)
-                self.image_label.pack(anchor="w")
-            self.image_label.configure(image=self.photo)
+            self._photo = load_image_from_url(url)
+            if self._artwork is None:
+                self._artwork = ttk.Label(self._right_frame)
+                self._artwork.pack(anchor="w", fill="both", expand=True)
+            self._artwork.configure(image=self._photo)
             self.update()
         except Exception as e:
-            error_label = ttk.Label(self.container, text=f"Erreur de chargement de l'image : {e}")
-            error_label.pack(anchor="w")
+            self._info_label.text = str(f"Erreur de chargement de l'image : {e}")
 
     def set_title(self, title: str) -> None:
-        self.title_field["text"] = title
+        self._title_field["text"] = title
         self.update()
 
     def set_artist(self, artist: str) -> None:
-        self.artist["text"] = artist
+        self._artist["text"] = artist
         self.update()
 
     def set_state(self, state: str) -> None:
-        self.state["text"] = state
+        self._state["text"] = state
         self.update()
 
 
@@ -355,12 +428,23 @@ class WorkerThread(threading.Thread):
         self._interface = interface
         self._loop: AbstractEventLoop | None = None
         self._loop_ready = threading.Event()
+        self._ws: RemoteWebsocket | None = None
+        self._entity_ids: list[str] = []
         # self.start()
+
+    @property
+    def entity_ids(self) -> list[str]:
+        return self._entity_ids
 
     def run(self):
         self._loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self._loop)
         self._loop_ready.set()
-        self._loop.create_task(self.launch_server())
+        try:
+            self._loop.create_task(self.launch_server())
+        except Exception as e:
+            _LOG.exception("Error initialising server %s", e)
+            return
         try:
             self._loop.run_forever()
         finally:
@@ -370,6 +454,11 @@ class WorkerThread(threading.Thread):
                 task.cancel()
             self._loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
             self._loop.close()
+
+    async def send_command(self, command: dict[str, Any]) -> dict[str, Any] | None:
+        if self._ws is None:
+            return None
+        return await self._ws.send_command(command)
 
     async def entity_changed(self, msg: dict[str, Any]) -> None:
         _LOG.debug("Entity changed : %s", msg)
@@ -383,43 +472,52 @@ class WorkerThread(threading.Thread):
         if updated_data.get("entity_type", "") != "media_player":
             return
         if "media_image_url" in attributes:
-            self._interface.ui_queue.put(lambda u=attributes["media_image_url"]: self._interface.load_image(u))
+            self._interface._ui_queue.put(lambda u=attributes["media_image_url"]: self._interface.load_image(u))
         if "media_title" in attributes:
-            self._interface.ui_queue.put(lambda u=attributes["media_title"]: self._interface.set_title(u))
+            self._interface._ui_queue.put(lambda u=attributes["media_title"]: self._interface.set_title(u))
         if "media_artist" in attributes:
-            self._interface.ui_queue.put(lambda u=attributes["media_artist"]: self._interface.set_artist(u))
+            self._interface._ui_queue.put(lambda u=attributes["media_artist"]: self._interface.set_artist(u))
         if "state" in attributes:
-            self._interface.ui_queue.put(lambda u=attributes["state"]: self._interface.set_state(u))
+            self._interface._ui_queue.put(lambda u=attributes["state"]: self._interface.set_state(u))
 
     async def launch_server(self):
         _LOG.debug("Start connection")
-        ws = RemoteWebsocket(self._loop)
-        ws.subscribe_events("entity_change", self.entity_changed)
-        await ws.websocket_connect()
-        await asyncio.sleep(1)
-        data = await ws.get_driver_vertion()
-        _LOG.debug("Driver version : %s", data)
-        data = await ws.get_available_entities()
-        _LOG.debug("Available entities : %s", data)
-        entity_ids: list[str] = []
-        for entity in data["msg_data"]["available_entities"]:
-            entity_ids.append(entity["entity_id"])
-        data = await ws.subscribe_entities(entity_ids)
-        _LOG.debug("Subscribed entities : %s", data)
-        await asyncio.sleep(5)
-        data = await ws.send_command(
-            {"cmd_id": "on", "entity_id": "media_player.192.168.1.60", "entity_type": "media_player", "params": {}}
-        )
-        _LOG.debug("Command result : %s", data)
-        data = await ws.get_entity_states()
-        _LOG.debug("Entities states : %s", data)
-        # await asyncio.sleep(600)
-        # await ws.disconnect()
+        try:
+            self._ws = RemoteWebsocket(self._loop)
+            self._ws.subscribe_events("entity_change", self.entity_changed)
+            await self._ws.websocket_connect()
+            await asyncio.sleep(1)
+            data = await self._ws.get_driver_vertion()
+            _LOG.debug("Driver version : %s", data)
+            data = await self._ws.get_available_entities()
+            _LOG.debug("Available entities : %s", data)
+            self._entity_ids = []
+            for entity in data["msg_data"]["available_entities"]:
+                self._entity_ids.append(entity["entity_id"])
+            data = await self._ws.subscribe_entities(self._entity_ids)
+            _LOG.debug("Subscribed entities : %s", data)
+            await asyncio.sleep(5)
+            data = await self._ws.send_command(
+                {"cmd_id": "on", "entity_id": "media_player.192.168.1.60", "entity_type": "media_player", "params": {}}
+            )
+            _LOG.debug("Command result : %s", data)
+            data = await self._ws.get_entity_states()
+            _LOG.debug("Entities states : %s", data)
+        except Exception as e:
+            _LOG.exception("Error launching websocket server %s", e)
+
+    async def disconnect(self) -> None:
+        _LOG.debug("Disconnect")
+        if self._ws is not None:
+            await self._ws.disconnect()
 
 
 async def main():
     interface = RemoteInterface()
     worker: WorkerThread = WorkerThread(interface)
+    interface.set_worker(worker)
+    events = AsyncIOEventEmitter(_LOOP)
+    events.on(Events.EXITING, worker.disconnect)
     worker.start()
     interface.mainloop()
 
@@ -439,4 +537,3 @@ if __name__ == "__main__":
 
     logging.getLogger(__name__).setLevel(logging.DEBUG)
     _LOOP.run_until_complete(main())
-    _LOOP.run_forever()
