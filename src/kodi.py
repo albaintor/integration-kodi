@@ -1326,7 +1326,10 @@ class KodiDevice:
         video_stream = self._properties.get("currentvideostream", None)
         if video_stream is None:
             return ""
-        return f"{video_stream.get('name', '')} - {video_stream.get('width', 0)}x{video_stream.get('height', 0)} - {video_stream.get('codec', '')}"
+        return (
+            f"{video_stream.get('name', '')} - {video_stream.get('width', 0)}x{video_stream.get('height', 0)}"
+            f" - {video_stream.get('codec', '')}"
+        )
 
     @retry()
     async def set_volume_level(self, volume: float | None):
