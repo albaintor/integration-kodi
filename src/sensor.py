@@ -99,6 +99,7 @@ class KodiAudioStream(KodiSensor):
 
     @property
     def sensor_value(self) -> str:
+        """Return sensor value."""
         return self._device.current_audio_track if self._device.current_audio_track else ""
 
 
@@ -115,6 +116,7 @@ class KodiSubtitleStream(KodiSensor):
 
     @property
     def sensor_value(self) -> str:
+        """Return sensor value."""
         return self._device.current_subtitle_track if self._device.current_subtitle_track else ""
 
 
@@ -131,6 +133,7 @@ class KodiChapter(KodiSensor):
 
     @property
     def sensor_value(self) -> str:
+        """Return sensor value."""
         return self._device.current_chapter if self._device.current_chapter else ""
 
 
@@ -147,4 +150,5 @@ class KodiVideoInfo(KodiSensor):
 
     @property
     def sensor_value(self) -> str:
+        """Return sensor value."""
         return self._device.video_info
