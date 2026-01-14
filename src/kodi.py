@@ -391,7 +391,8 @@ class KodiDevice:
         """Handle player property change."""
         _LOG.debug("[%s] Kodi property changed %s", self.device_config.address, data)
         if all(
-            x in ["currentaudiostream", "currentsubtitle", "subtitleenabled"] for x in data.get("property", {}).keys()
+            x in ["currentaudiostream", "currentsubtitle", "subtitleenabled", "currentvideostream"]
+            for x in data.get("property", {}).keys()
         ):
             self.event_loop.create_task(self._update_streams(data))
 
@@ -782,6 +783,8 @@ class KodiDevice:
                     self._is_volume_muted = muted
                     updated_data[MediaAttr.MUTED] = muted
 
+                current_video_info = self.video_info
+
                 self._properties = await self._kodi.get_player_properties(
                     self._players[0],
                     [
@@ -794,6 +797,7 @@ class KodiDevice:
                         "subtitleenabled",
                         "audiostreams",
                         "subtitles",
+                        "currentvideostream",
                     ],
                 )
                 position = self._properties["time"]
@@ -816,6 +820,9 @@ class KodiDevice:
                     self._media_duration = duration
                     updated_data[MediaAttr.MEDIA_POSITION] = self.media_position
                     updated_data[MediaAttr.MEDIA_DURATION] = duration
+
+                if current_video_info != self.video_info:
+                    updated_data[KodiSensors.SENSOR_VIDEO_INFO] = self.video_info
 
                 self._item = await self._kodi.get_playing_item_properties(
                     self._players[0],
@@ -1039,8 +1046,6 @@ class KodiDevice:
                 self._media_title = ""
                 self._media_album = ""
                 self._media_artist = ""
-                # self._media_image_url = ""
-                # self._thumbnail = None
                 updated_data[MediaAttr.MEDIA_POSITION] = 0
                 updated_data[MediaAttr.MEDIA_DURATION] = 0
                 updated_data[MediaAttr.MEDIA_TITLE] = ""
@@ -1052,7 +1057,7 @@ class KodiDevice:
                 updated_data[KodiSensors.SENSOR_AUDIO_STREAM] = ""
                 updated_data[KodiSensors.SENSOR_SUBTITLE_STREAM] = ""
                 updated_data[KodiSensors.SENSOR_CHAPTER] = ""
-                # updated_data[MediaAttr.MEDIA_IMAGE_URL] = ""
+                updated_data[KodiSensors.SENSOR_VIDEO_INFO] = ""
 
             self._position_timestamp = time.time()
             if self._attr_state != self.get_state():
@@ -1125,9 +1130,10 @@ class KodiDevice:
             MediaAttr.SOURCE: self.source if self.source_list else "",
             MediaAttr.SOUND_MODE_LIST: [track.name for track in self.audio_tracks],
             MediaAttr.SOUND_MODE: self.current_audio_track,
-            KodiSensors.SENSOR_AUDIO_STREAM: self.current_audio_track,
-            KodiSensors.SENSOR_SUBTITLE_STREAM: self.current_subtitle_track,
-            KodiSensors.SENSOR_CHAPTER: self.current_chapter,
+            KodiSensors.SENSOR_AUDIO_STREAM: self.current_audio_track if self.current_audio_track else "",
+            KodiSensors.SENSOR_SUBTITLE_STREAM: self.current_subtitle_track if self.current_subtitle_track else "",
+            KodiSensors.SENSOR_CHAPTER: self.current_chapter if self.current_chapter else "",
+            KodiSensors.SENSOR_VIDEO_INFO: self.video_info,
         }
         return attributes
 
@@ -1313,6 +1319,14 @@ class KodiDevice:
                 break
             found_chapter = chapter
         return found_chapter.get("name", "")
+
+    @property
+    def video_info(self) -> str:
+        """Video information."""
+        video_stream = self._properties.get("currentvideostream", None)
+        if video_stream is None:
+            return ""
+        return f"{video_stream.get('name', '')} - {video_stream.get('width', 0)}x{video_stream.get('height', 0)} - {video_stream.get('codec', '')}"
 
     @retry()
     async def set_volume_level(self, volume: float | None):

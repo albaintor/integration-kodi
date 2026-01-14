@@ -33,6 +33,7 @@ class KodiSensors(str, Enum):
     SENSOR_AUDIO_STREAM = "sensor_audio_stream"
     SENSOR_SUBTITLE_STREAM = "sensor_subtitle_stream"
     SENSOR_CHAPTER = "sensor_chapter"
+    SENSOR_VIDEO_INFO = "sensor_video_info"
 
 
 KODI_MEDIA_TYPES = {
