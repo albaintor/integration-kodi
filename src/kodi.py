@@ -45,6 +45,7 @@ from pykodi.kodi import CannotConnectError, InvalidAuthError, Kodi, KodiWSConnec
 # pylint: disable=C0302
 _KodiDeviceT = TypeVar("_KodiDeviceT", bound="KodiDevice")
 _P = ParamSpec("_P")
+_R = TypeVar("_R", bound=ucapi.StatusCodes)
 
 _LOG = logging.getLogger(__name__)
 
@@ -120,7 +121,7 @@ def debounce(wait):
 async def retry_call_command(
     timeout: float,
     bufferize: bool,
-    func: Callable[Concatenate[_KodiDeviceT, _P], Awaitable[ucapi.StatusCodes | None]],
+    func: Callable[Concatenate[_KodiDeviceT, _P], Awaitable[_R]],
     obj: _KodiDeviceT,
     *args: _P.args,
     **kwargs: _P.kwargs,
@@ -156,8 +157,8 @@ async def retry_call_command(
 
 
 def retry(*, timeout: float = 5, bufferize=False) -> Callable[
-    [Callable[_P, Awaitable[ucapi.StatusCodes]]],
-    Callable[Concatenate[_KodiDeviceT, _P], Coroutine[Any, Any, ucapi.StatusCodes | None]],
+    [Callable[Concatenate[_KodiDeviceT, _P], Awaitable[_R]]],
+    Callable[Concatenate[_KodiDeviceT, _P], Awaitable[_R]],
 ]:
     """Retry call to given command."""
 
@@ -241,7 +242,7 @@ class KodiDevice:
         """Create instance with given IP or hostname of AVR."""
         # TODO find a better ID than the IP address
         # identifier from configuration
-        self._device_config = device_config  # For reconnection
+        self._device_config: KodiConfigDevice = device_config  # For reconnection
         self.id: str = device_config.id
         # friendly name from configuration
         self._name: str = device_config.name
@@ -1326,10 +1327,8 @@ class KodiDevice:
         video_stream = self._properties.get("currentvideostream", None)
         if video_stream is None:
             return ""
-        return (
-            f"{video_stream.get('name', '')} - {video_stream.get('width', 0)}x{video_stream.get('height', 0)}"
-            f" - {video_stream.get('codec', '')}"
-        )
+        # pylint: disable=W1405
+        return f"{video_stream.get('width', 0)}x{video_stream.get('height', 0)} {video_stream.get('codec', '')}"
 
     @retry()
     async def set_volume_level(self, volume: float | None):
@@ -1338,6 +1337,7 @@ class KodiDevice:
             return ucapi.StatusCodes.BAD_REQUEST
         _LOG.debug("[%s] Kodi setting volume to %s", self.device_config.address, volume)
         await self._kodi.set_volume_level(int(volume))
+        return ucapi.StatusCodes.OK
 
     @retry()
     async def volume_up(self):
