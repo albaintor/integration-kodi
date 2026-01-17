@@ -36,11 +36,13 @@ Note : this release requires remote firmware `>= 1.7.10`
 - State (On / Off)
 
 **Sensors**
-3 sensors are available with the following attributes exposed :
+Several sensors are available with the following attributes exposed :
 - Current audio stream name
 - Current subtitle stream name
 - Current chapter name (Kodi >=22)
-- Current video information (name, resolution, codec)
+- Current video information (resolution, codec)
+- Current volume level
+- Current volume muted state
 
 Note: the audio/subtitle streams names are available prior Kodi 22 but are not updated instantly (I pushed a patch recently in Kodi 22 to get instant updates)
 

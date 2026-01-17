@@ -22,7 +22,14 @@ import remote
 import sensor
 import setup_flow
 from config import KodiEntity
-from sensor import KodiAudioStream, KodiChapter, KodiSubtitleStream, KodiVideoInfo
+from sensor import (
+    KodiAudioStream,
+    KodiChapter,
+    KodiSensorMuted,
+    KodiSensorVolume,
+    KodiSubtitleStream,
+    KodiVideoInfo,
+)
 
 _LOG = logging.getLogger("driver")  # avoid having __main__ in log messages
 if sys.platform == "win32":
@@ -320,6 +327,8 @@ def _entities_from_device_id(device_id: str) -> list[str]:
         f"sensor.{device_id}.{KodiSubtitleStream.ENTITY_NAME}",
         f"sensor.{device_id}.{KodiChapter.ENTITY_NAME}",
         f"sensor.{device_id}.{KodiVideoInfo.ENTITY_NAME}",
+        f"sensor.{device_id}.{KodiSensorVolume.ENTITY_NAME}",
+        f"sensor.{device_id}.{KodiSensorMuted.ENTITY_NAME}",
     ]
 
 
@@ -374,6 +383,8 @@ def _register_available_entities(device_config: config.KodiConfigDevice, device:
         sensor.KodiSubtitleStream(device_config, device),
         sensor.KodiChapter(device_config, device),
         sensor.KodiVideoInfo(device_config, device),
+        sensor.KodiSensorVolume(device_config, device),
+        sensor.KodiSensorMuted(device_config, device),
     ]
     for entity in entities:
         if api.available_entities.contains(entity.id):

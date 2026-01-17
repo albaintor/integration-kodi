@@ -11,7 +11,7 @@ from typing import Any
 import ucapi.media_player
 from ucapi import EntityTypes, Sensor
 from ucapi.media_player import States as MediaStates
-from ucapi.sensor import Attributes, DeviceClasses, States
+from ucapi.sensor import Attributes, DeviceClasses, Options, States
 
 import kodi
 from config import KodiConfigDevice, KodiEntity, create_entity_id
@@ -30,6 +30,7 @@ KODI_SENSOR_STATE_MAPPING = {
 }
 
 
+# pylint: disable=R0917
 class KodiSensor(KodiEntity, Sensor):
     """Representation of a Kodi Sensor entity."""
 
@@ -37,7 +38,13 @@ class KodiSensor(KodiEntity, Sensor):
     SENSOR_NAME: KodiSensors
 
     def __init__(
-        self, entity_id: str, name: str | dict[str, str], config_device: KodiConfigDevice, device: kodi.KodiDevice
+        self,
+        entity_id: str,
+        name: str | dict[str, str],
+        config_device: KodiConfigDevice,
+        device: kodi.KodiDevice,
+        options: dict[Options, Any] | None = None,
+        device_class: DeviceClasses = DeviceClasses.CUSTOM,
     ):
         """Initialize the class."""
         # pylint: disable = R0801
@@ -48,7 +55,7 @@ class KodiSensor(KodiEntity, Sensor):
         self._config_device = config_device
         self._device: kodi.KodiDevice = device
         self._state: States = States.UNAVAILABLE
-        super().__init__(entity_id, name, features, attributes, device_class=DeviceClasses.CUSTOM)
+        super().__init__(entity_id, name, features, attributes, device_class=device_class, options=options)
 
     @property
     def deviceid(self) -> str:
@@ -152,3 +159,48 @@ class KodiVideoInfo(KodiSensor):
     def sensor_value(self) -> str:
         """Return sensor value."""
         return self._device.video_info
+
+
+class KodiSensorVolume(KodiSensor):
+    """Current input source sensor entity."""
+
+    ENTITY_NAME = "sensor_volume"
+    SENSOR_NAME = KodiSensors.SENSOR_VOLUME
+
+    def __init__(self, config_device: KodiConfigDevice, device: kodi.KodiDevice):
+        """Initialize the class."""
+        entity_id = f"{create_entity_id(config_device.id, EntityTypes.SENSOR)}.{self.ENTITY_NAME}"
+        self._device = device
+        self._config_device = config_device
+        options = {
+            Options.CUSTOM_UNIT: "%",
+            Options.MIN_VALUE: 0,
+            Options.MAX_VALUE: 100,
+        }
+        super().__init__(entity_id, {"en": "Volume", "fr": "Volume"}, config_device, device, options)
+
+    @property
+    def sensor_value(self) -> str | float:
+        """Return sensor value."""
+        return self._device.volume_level if self._device.volume_level else 0
+
+
+class KodiSensorMuted(KodiSensor):
+    """Current mute state sensor entity."""
+
+    ENTITY_NAME = "sensor_muted"
+    SENSOR_NAME = KodiSensors.SENSOR_VOLUME_MUTED
+
+    def __init__(self, config_device: KodiConfigDevice, device: kodi.KodiDevice):
+        """Initialize the class."""
+        entity_id = f"{create_entity_id(config_device.id, EntityTypes.SENSOR)}.{self.ENTITY_NAME}"
+        self._device = device
+        self._config_device = config_device
+        super().__init__(
+            entity_id, {"en": "Muted", "fr": "Son coupé"}, config_device, device, None, DeviceClasses.BINARY
+        )
+
+    @property
+    def sensor_value(self) -> str | float:
+        """Return sensor value."""
+        return "on" if self._device.is_volume_muted else "off"

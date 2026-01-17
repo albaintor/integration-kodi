@@ -372,9 +372,11 @@ class KodiDevice:
         if volume != self._volume:
             self._volume = int(self._app_properties["volume"])
             updated_data[MediaAttr.VOLUME] = self._volume
+            updated_data[KodiSensors.SENSOR_VOLUME] = self._volume
         if muted != self._app_properties["muted"]:
             self._is_volume_muted = self._app_properties["muted"]
             updated_data[MediaAttr.MUTED] = self._is_volume_muted
+            updated_data[KodiSensors.SENSOR_VOLUME_MUTED] = self._is_volume_muted
         if updated_data:
             self.events.emit(Events.UPDATE, self.id, updated_data)
 
@@ -1059,6 +1061,8 @@ class KodiDevice:
                 updated_data[KodiSensors.SENSOR_SUBTITLE_STREAM] = ""
                 updated_data[KodiSensors.SENSOR_CHAPTER] = ""
                 updated_data[KodiSensors.SENSOR_VIDEO_INFO] = ""
+                updated_data[KodiSensors.SENSOR_VOLUME] = self._volume
+                updated_data[KodiSensors.SENSOR_VOLUME_MUTED] = self.is_volume_muted
 
             self._position_timestamp = time.time()
             if self._attr_state != self.get_state():
@@ -1135,6 +1139,8 @@ class KodiDevice:
             KodiSensors.SENSOR_SUBTITLE_STREAM: self.current_subtitle_track if self.current_subtitle_track else "",
             KodiSensors.SENSOR_CHAPTER: self.current_chapter if self.current_chapter else "",
             KodiSensors.SENSOR_VIDEO_INFO: self.video_info,
+            KodiSensors.SENSOR_VOLUME: self._volume,
+            KodiSensors.SENSOR_VOLUME_MUTED: self.is_volume_muted,
         }
         return attributes
 
