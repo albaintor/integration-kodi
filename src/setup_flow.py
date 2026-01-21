@@ -29,6 +29,8 @@ from const import (
     KODI_ARTWORK_TVSHOWS_LABELS,
     KODI_DEFAULT_ARTWORK,
     KODI_DEFAULT_TVSHOW_ARTWORK,
+    KodiSensorStreamConfig,
+    KODI_SENSOR_STREAM_CONFIG_LABELS,
 )
 from discover import KodiDiscover
 from pykodi.kodi import (
@@ -172,6 +174,32 @@ _user_input_manual = RequestUserInput(
                 "en": "Disable keyboard map : check only if some commands fail (eg arrow keys)",
                 "fr": "Désactiver les commandes clavier : cocher uniquement si certaines commandes échouent "
                 "(ex : commandes de direction)",
+            },
+        },
+        {
+            "field": {
+                "dropdown": {
+                    "value": f"{KodiSensorStreamConfig.FULL}",
+                    "items": KODI_SENSOR_STREAM_CONFIG_LABELS,
+                }
+            },
+            "id": "sensor_audio_stream_config",
+            "label": {
+                "en": "Audio stream sensor configuration",
+                "fr": "Configuration du capteur piste audio",
+            },
+        },
+        {
+            "field": {
+                "dropdown": {
+                    "value": f"{KodiSensorStreamConfig.FULL}",
+                    "items": KODI_SENSOR_STREAM_CONFIG_LABELS,
+                }
+            },
+            "id": "sensor_subtitle_stream_config",
+            "label": {
+                "en": "Subtitle stream sensor configuration",
+                "fr": "Configuration du capteur piste de sous-titres",
             },
         },
     ],
@@ -537,6 +565,32 @@ async def handle_configuration_mode(msg: UserDataResponse) -> RequestUserInput |
                             " échouent (ex : commandes de direction)",
                         },
                     },
+                    {
+                        "field": {
+                            "dropdown": {
+                                "value": f"{_reconfigured_device.sensor_audio_stream_config}",
+                                "items": KODI_SENSOR_STREAM_CONFIG_LABELS,
+                            }
+                        },
+                        "id": "sensor_audio_stream_config",
+                        "label": {
+                            "en": "Audio stream sensor configuration",
+                            "fr": "Configuration du capteur piste audio",
+                        },
+                    },
+                    {
+                        "field": {
+                            "dropdown": {
+                                "value": f"{_reconfigured_device.sensor_subtitle_stream_config}",
+                                "items": KODI_SENSOR_STREAM_CONFIG_LABELS,
+                            }
+                        },
+                        "id": "sensor_subtitle_stream_config",
+                        "label": {
+                            "en": "Subtitle stream sensor configuration",
+                            "fr": "Configuration du capteur piste de sous-titres",
+                        },
+                    },
                 ],
             )
         case "reset":
@@ -787,6 +841,18 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
     disable_keyboard_map = msg.input_values["disable_keyboard_map"]
     show_stream_name = msg.input_values["show_stream_name"]
     show_stream_language_name = msg.input_values["show_stream_language_name"]
+    try:
+        sensor_audio_stream_config = int(
+            msg.input_values.get("sensor_audio_stream_config", f"{KodiSensorStreamConfig.FULL}")
+        )
+    except ValueError:
+        sensor_audio_stream_config = int(KodiSensorStreamConfig.STREAM_NAME)
+    try:
+        sensor_subtitle_stream_config = int(
+            msg.input_values.get("sensor_subtitle_stream_config", f"{KodiSensorStreamConfig.FULL}")
+        )
+    except ValueError:
+        sensor_subtitle_stream_config = int(KodiSensorStreamConfig.STREAM_NAME)
 
     if ssl == "false":
         ssl = False
@@ -894,6 +960,8 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
             disable_keyboard_map=disable_keyboard_map,
             show_stream_name=show_stream_name,
             show_stream_language_name=show_stream_language_name,
+            sensor_audio_stream_config=sensor_audio_stream_config,
+            sensor_subtitle_stream_config=sensor_subtitle_stream_config,
         )
     )  # triggers SonyLG TV instance creation
     config.devices.store()
@@ -932,6 +1000,18 @@ async def _handle_device_reconfigure(msg: UserDataResponse) -> SetupComplete | S
     disable_keyboard_map = msg.input_values["disable_keyboard_map"]
     show_stream_name = msg.input_values["show_stream_name"]
     show_stream_language_name = msg.input_values["show_stream_language_name"]
+    try:
+        sensor_audio_stream_config = int(
+            msg.input_values.get("sensor_audio_stream_config", f"{KodiSensorStreamConfig.STREAM_NAME}")
+        )
+    except ValueError:
+        sensor_audio_stream_config = int(KodiSensorStreamConfig.STREAM_NAME)
+    try:
+        sensor_subtitle_stream_config = int(
+            msg.input_values.get("sensor_subtitle_stream_config", f"{KodiSensorStreamConfig.STREAM_NAME}")
+        )
+    except ValueError:
+        sensor_subtitle_stream_config = int(KodiSensorStreamConfig.STREAM_NAME)
 
     if ssl == "false":
         ssl = False
@@ -977,6 +1057,8 @@ async def _handle_device_reconfigure(msg: UserDataResponse) -> SetupComplete | S
     _reconfigured_device.disable_keyboard_map = disable_keyboard_map
     _reconfigured_device.show_stream_name = show_stream_name
     _reconfigured_device.show_stream_language_name = show_stream_language_name
+    _reconfigured_device.sensor_audio_stream_config = sensor_audio_stream_config
+    _reconfigured_device.sensor_subtitle_stream_config = sensor_subtitle_stream_config
 
     config.devices.add_or_update(_reconfigured_device)  # triggers ATV instance update
     await asyncio.sleep(1)

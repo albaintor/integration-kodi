@@ -38,6 +38,24 @@ class KodiSensors(str, Enum):
     SENSOR_VOLUME_MUTED = "sensor_volume_muted"
 
 
+class KodiSensorStreamConfig(int, Enum):
+    """Stream sensor configuration."""
+
+    STREAM_NAME = 1
+    LANGUAGE_NAME = 2
+    FULL = 3
+
+
+KODI_SENSOR_STREAM_CONFIG_LABELS = [
+    {"id": f"{KodiSensorStreamConfig.STREAM_NAME}", "label": {"en": "Stream name", "fr": "Nom du flux"}},
+    {"id": f"{KodiSensorStreamConfig.LANGUAGE_NAME}", "label": {"en": "Language name", "fr": "Nom de la langue"}},
+    {
+        "id": f"{KodiSensorStreamConfig.FULL}",
+        "label": {"en": "Language and stream names", "fr": "Langue et nom du flux"},
+    },
+]
+
+
 KODI_MEDIA_TYPES = {
     "music": MediaType.MUSIC,
     "artist": MediaType.MUSIC,

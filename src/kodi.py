@@ -39,7 +39,7 @@ from ucapi.media_player import Features, MediaType
 from ucapi.media_player import States as MediaStates
 
 from config import KodiConfigDevice
-from const import KODI_FEATURES, KODI_MEDIA_TYPES, ButtonKeymap, KodiSensors
+from const import KODI_FEATURES, KODI_MEDIA_TYPES, ButtonKeymap, KodiSensors, KodiSensorStreamConfig
 from pykodi.kodi import CannotConnectError, InvalidAuthError, Kodi, KodiWSConnection
 
 # pylint: disable=C0302
@@ -91,6 +91,8 @@ class Track:
 
     index: int
     name: str
+    language_name: str
+    stream_name: str
 
 
 def debounce(wait):
@@ -1021,11 +1023,11 @@ class KodiDevice:
                 if current_audio_stream.get("index", 0) != self._audio_stream:
                     self._audio_stream = current_audio_stream.get("index", 0)
                     updated_data[MediaAttr.SOUND_MODE] = self.current_audio_track
-                    updated_data[KodiSensors.SENSOR_AUDIO_STREAM] = self.current_audio_track
+                    updated_data[KodiSensors.SENSOR_AUDIO_STREAM] = self.sensor_audio_stream
 
                 if self._subtitle_stream != self.current_subtitle_track:
                     self._subtitle_stream = self.current_subtitle_track
-                    updated_data[KodiSensors.SENSOR_SUBTITLE_STREAM] = self._subtitle_stream
+                    updated_data[KodiSensors.SENSOR_SUBTITLE_STREAM] = self.sensor_subtitle_stream
 
                 current_state = self._attr_state
                 if current_state != self.get_state():
@@ -1135,8 +1137,8 @@ class KodiDevice:
             MediaAttr.SOURCE: self.source if self.source_list else "",
             MediaAttr.SOUND_MODE_LIST: [track.name for track in self.audio_tracks],
             MediaAttr.SOUND_MODE: self.current_audio_track,
-            KodiSensors.SENSOR_AUDIO_STREAM: self.current_audio_track if self.current_audio_track else "",
-            KodiSensors.SENSOR_SUBTITLE_STREAM: self.current_subtitle_track if self.current_subtitle_track else "",
+            KodiSensors.SENSOR_AUDIO_STREAM: self.sensor_audio_stream,
+            KodiSensors.SENSOR_SUBTITLE_STREAM: self.sensor_subtitle_stream,
             KodiSensors.SENSOR_CHAPTER: self.current_chapter if self.current_chapter else "",
             KodiSensors.SENSOR_VIDEO_INFO: self.video_info,
             KodiSensors.SENSOR_VOLUME: self._volume,
@@ -1224,11 +1226,13 @@ class KodiDevice:
         tracks: list[dict[str, Any]] = self._properties.get("audiostreams", [])
         duplicates = False
         for track in tracks:
-            name = track.get("name", track.get("language", ""))
+            stream_name = track.get("name", "")
+            language_name = track.get("language", "")
+            name = stream_name if stream_name else language_name
             index = track.get("index", 0)
-            if name in track_names:
+            if name in [x.name for x in track_names]:
                 duplicates = True
-            track_names.append(Track(name=name, index=index))
+            track_names.append(Track(name=name, index=index, language_name=language_name, stream_name=stream_name))
         if duplicates:
             for track in track_names:
                 track.name = f"{track.index}:{track.name}"
@@ -1243,6 +1247,24 @@ class KodiDevice:
         for track in self.audio_tracks:
             if track.index == current_audio_stream.get("index", 0):
                 return track.name
+        return ""
+
+    @property
+    def sensor_audio_stream(self) -> str:
+        """Return the sensor audio stream."""
+        if self._device_config.sensor_audio_stream_config == KodiSensorStreamConfig.FULL:
+            return self.current_audio_track
+        current_audio_stream = self._properties.get("currentaudiostream", {})
+        if current_audio_stream is None:
+            return ""
+        for track in self.audio_tracks:
+            if track.index == current_audio_stream.get("index", 0):
+                if self._device_config.sensor_audio_stream_config == KodiSensorStreamConfig.STREAM_NAME:
+                    return track.stream_name
+                elif self._device_config.sensor_audio_stream_config == KodiSensorStreamConfig.LANGUAGE_NAME:
+                    return track.language_name
+                else:
+                    return track.name
         return ""
 
     @property
@@ -1261,6 +1283,29 @@ class KodiDevice:
         if current_subtitle_stream.get("isimpaired", False):
             subtitle_stream += " (impaired)"
         return subtitle_stream
+
+    @property
+    def sensor_subtitle_stream(self) -> str:
+        """Return the sensor subtitle stream."""
+        if self._device_config.sensor_subtitle_stream_config == KodiSensorStreamConfig.FULL:
+            return self.current_subtitle_track
+        subtitles_enabled: bool = self._properties.get("subtitleenabled", False)
+        if not subtitles_enabled:
+            return ""
+        current_subtitle_stream: dict[str, Any] = self._properties.get("currentsubtitle", {})
+        if current_subtitle_stream is None:
+            return ""
+        if self._device_config.sensor_subtitle_stream_config == KodiSensorStreamConfig.STREAM_NAME:
+            stream = current_subtitle_stream.get("name", "").title()
+            if current_subtitle_stream.get("isforced", False):
+                stream += " (forced)"
+            if current_subtitle_stream.get("isimpaired", False):
+                stream += " (impaired)"
+            return stream
+        elif self._device_config.sensor_subtitle_stream_config == KodiSensorStreamConfig.LANGUAGE_NAME:
+            return current_subtitle_stream.get("language", "").title()
+        else:
+            return self.current_subtitle_track
 
     @property
     def source(self) -> str:

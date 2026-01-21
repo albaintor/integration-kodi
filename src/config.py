@@ -15,6 +15,8 @@ from typing import Callable, Iterator
 
 from ucapi import Entity, EntityTypes
 
+from const import KodiSensorStreamConfig
+
 _LOG = logging.getLogger(__name__)
 
 _CFG_FILENAME = "config.json"
@@ -61,6 +63,8 @@ class KodiConfigDevice:
     disable_keyboard_map: bool = field(default=False)
     show_stream_name: bool = field(default=True)
     show_stream_language_name: bool = field(default=True)
+    sensor_audio_stream_config: int = field(default=KodiSensorStreamConfig.FULL)
+    sensor_subtitle_stream_config: int = field(default=KodiSensorStreamConfig.FULL)
 
     def __post_init__(self):
         """Apply default values on missing fields."""
@@ -173,6 +177,8 @@ class Devices:
                 item.disable_keyboard_map = device.disable_keyboard_map
                 item.show_stream_name = device.show_stream_name
                 item.show_stream_language_name = device.show_stream_language_name
+                item.sensor_audio_stream_config = device.sensor_audio_stream_config
+                item.sensor_subtitle_stream_config = device.sensor_subtitle_stream_config
                 return self.store()
         return False
 
