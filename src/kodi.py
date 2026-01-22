@@ -41,6 +41,7 @@ from ucapi.media_player import States as MediaStates
 from config import KodiConfigDevice
 from const import KODI_FEATURES, KODI_MEDIA_TYPES, ButtonKeymap, KodiSensors, KodiSensorStreamConfig
 from pykodi.kodi import CannotConnectError, InvalidAuthError, Kodi, KodiWSConnection
+from languages import LANGUAGES, LANGUAGES_KEYS
 
 # pylint: disable=C0302
 _KodiDeviceT = TypeVar("_KodiDeviceT", bound="KodiDevice")
@@ -209,28 +210,30 @@ def retry(*, timeout: float = 5, bufferize=False) -> Callable[
     return decorator
 
 
-def _get_language_name(lang: str) -> str:
+def _get_language_name(app_language: str | None, lang: str) -> str:
     """Retrieve language name from language code."""
-    return lang
-    # try:
-    #     return language.Language.from_part2b(lang).name
-    # # pylint: disable = W0718
-    # except Exception as ex:
-    #     _LOG.debug("Error getting language name from %s : %s", lang, ex)
-    #     return lang
+    if app_language is None:
+        return lang
+    app_language_code = LANGUAGES_KEYS.get(app_language, None)
+    if app_language_code is None:
+        app_language_code = "en"
+    stream_language = LANGUAGES.get(lang, None)
+    if stream_language is None:
+        return lang
+    return stream_language.get(app_language_code, stream_language.get("en", lang))
 
 
-def _get_language(info: dict[str, Any], language_first: bool) -> str:
+def _get_language(app_language: str | None, info: dict[str, Any], language_first: bool) -> str:
     """Retrieve language name."""
     if language_first:
-        language = _get_language_name(info.get("language", "")).title()
+        language = _get_language_name(app_language, info.get("language", "")).title()
         if language != "":
             return language
         return info.get("name", "").title()
     language = info.get("name", "").title()
     if language != "":
         return language
-    return _get_language_name(info.get("language", "")).title()
+    return _get_language_name(app_language, info.get("language", "")).title()
 
 
 class KodiDevice:
@@ -292,6 +295,7 @@ class KodiDevice:
         self._source: str | None = None
         self._audio_stream: int = 0
         self._subtitle_stream = ""
+        self._app_language: str | None = None
 
     async def init_connection(self):
         """Initialize connection to device."""
@@ -407,10 +411,14 @@ class KodiDevice:
             current_audio_stream: dict[str, Any] = properties.get("currentaudiostream", {})
             current_subtitle: dict[str, Any] = properties.get("currentsubtitle", {})
             subtitles_enabled: bool = properties.get("subtitleenabled", False)
-            audio_stream = _get_language(current_audio_stream, self.device_config.show_stream_language_name)
+            audio_stream = _get_language(
+                self._app_language, current_audio_stream, self.device_config.show_stream_language_name
+            )
             subtitle_stream = ""
             if subtitles_enabled:
-                subtitle_stream = _get_language(current_subtitle, self.device_config.show_stream_language_name)
+                subtitle_stream = _get_language(
+                    self._app_language, current_subtitle, self.device_config.show_stream_language_name
+                )
                 if current_subtitle.get("isforced", False):
                     subtitle_stream += " (forced)"
                 if current_subtitle.get("isimpaired", False):
@@ -436,10 +444,10 @@ class KodiDevice:
             current_audio_stream: dict[str, Any] = properties.get("currentaudiostream", {})
             current_subtitle: dict[str, Any] = properties.get("currentsubtitle", {})
             subtitles_enabled: bool = properties.get("subtitleenabled", properties.get("subtitleenabled", False))
-            audio_stream = _get_language(current_audio_stream, False)
+            audio_stream = _get_language(self._app_language, current_audio_stream, False)
             subtitle_stream = ""
             if subtitles_enabled:
-                subtitle_stream = _get_language(current_subtitle, False)
+                subtitle_stream = _get_language(self._app_language, current_subtitle, False)
                 if current_subtitle.get("isforced", False):
                     subtitle_stream += " (forced)"
                 if current_subtitle.get("isimpaired", False):
@@ -674,6 +682,7 @@ class KodiDevice:
         finally:
             self._available = False
             self._websocket_task = None
+            self._app_language = None
             try:
                 self._update_lock.release()
             except RuntimeError:
@@ -805,6 +814,8 @@ class KodiDevice:
                         "currentvideostream",
                     ],
                 )
+                if self._app_language is None:
+                    self._app_language = await self.get_app_language()
                 position = self._properties["time"]
                 if position:
                     media_position = position["hours"] * 3600 + position["minutes"] * 60 + position["seconds"]
@@ -1277,7 +1288,9 @@ class KodiDevice:
         if current_subtitle_stream is None:
             return ""
 
-        subtitle_stream = _get_language(current_subtitle_stream, self.device_config.show_stream_language_name)
+        subtitle_stream = _get_language(
+            self._app_language, current_subtitle_stream, self.device_config.show_stream_language_name
+        )
         if current_subtitle_stream.get("isforced", False):
             subtitle_stream += " (forced)"
         if current_subtitle_stream.get("isimpaired", False):
@@ -1595,6 +1608,16 @@ class KodiDevice:
         """Return chapters of running video."""
         _LOG.debug("[%s] Extract video chapters", self.device_config.address)
         return await self._kodi.get_player_chapters(self._players[0])
+
+    async def get_app_language(self) -> str | None:
+        """Return current app language."""
+        try:
+            language = (await self._kodi.get_application_properties(["language"]))["language"]
+            _LOG.debug("[%s] Kodi language : %s", self.device_config.address, language)
+            return language
+        # pylint: disable = W0718
+        except Exception:
+            return None
 
     async def is_fullscreen_video(self) -> bool:
         """Check if Kodi is in fullscreen (playing video)."""

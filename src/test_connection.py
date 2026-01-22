@@ -27,9 +27,9 @@ if sys.platform == "win32":
 _LOOP = asyncio.new_event_loop()
 asyncio.set_event_loop(_LOOP)
 
-# address = "192.168.1.60"  # PC
+address = "192.168.1.60"  # PC
 # address = "192.168.1.45"  # Mac
-address = "192.168.1.20"  # Shield
+# address = "192.168.1.20"  # Shield
 username = "kodi"
 password = "ludi"
 
@@ -81,6 +81,9 @@ async def main():
     # await client.select_audio_track("French FR (VFF Remix Surround 5.1 (tonalité correcte), DVD PAL FRA) DTS-HD MA 5.1")
     # properties = await client.get_chapters()
     # print_json(data=properties)
+
+    properties = await client.get_app_language()
+    print_json(data=properties)
 
     await asyncio.sleep(600)
 
