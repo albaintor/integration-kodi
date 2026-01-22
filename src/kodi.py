@@ -94,6 +94,8 @@ class Track:
     name: str
     language_name: str
     stream_name: str
+    forced: bool | None = None
+    impaired: bool | None = None
 
 
 def debounce(wait):
@@ -212,7 +214,7 @@ def retry(*, timeout: float = 5, bufferize=False) -> Callable[
 
 def _get_language_name(app_language: str | None, lang: str) -> str:
     """Retrieve language name from language code."""
-    if app_language is None:
+    if app_language is None or lang == "":
         return lang
     app_language_code = LANGUAGES_KEYS.get(app_language, None)
     if app_language_code is None:
@@ -1033,11 +1035,13 @@ class KodiDevice:
                 current_audio_stream = self._properties.get("currentaudiostream", {})
                 if current_audio_stream.get("index", 0) != self._audio_stream:
                     self._audio_stream = current_audio_stream.get("index", 0)
-                    updated_data[MediaAttr.SOUND_MODE] = self.current_audio_track
+                    updated_data[MediaAttr.SOUND_MODE] = (
+                        self.current_audio_track.name if self.current_audio_track else ""
+                    )
                     updated_data[KodiSensors.SENSOR_AUDIO_STREAM] = self.sensor_audio_stream
 
-                if self._subtitle_stream != self.current_subtitle_track:
-                    self._subtitle_stream = self.current_subtitle_track
+                if self._subtitle_stream != self.current_subtitle_track.name:
+                    self._subtitle_stream = self.current_subtitle_track.name
                     updated_data[KodiSensors.SENSOR_SUBTITLE_STREAM] = self.sensor_subtitle_stream
 
                 current_state = self._attr_state
@@ -1147,7 +1151,7 @@ class KodiDevice:
             MediaAttr.SOURCE_LIST: self.source_list,
             MediaAttr.SOURCE: self.source if self.source_list else "",
             MediaAttr.SOUND_MODE_LIST: [track.name for track in self.audio_tracks],
-            MediaAttr.SOUND_MODE: self.current_audio_track,
+            MediaAttr.SOUND_MODE: self.current_audio_track.name if self.current_audio_track else "",
             KodiSensors.SENSOR_AUDIO_STREAM: self.sensor_audio_stream,
             KodiSensors.SENSOR_SUBTITLE_STREAM: self.sensor_subtitle_stream,
             KodiSensors.SENSOR_CHAPTER: self.current_chapter if self.current_chapter else "",
@@ -1239,6 +1243,8 @@ class KodiDevice:
         for track in tracks:
             stream_name = track.get("name", "")
             language_name = track.get("language", "")
+            if language_name:
+                language_name = _get_language_name(self._app_language, language_name)
             name = stream_name if stream_name else language_name
             index = track.get("index", 0)
             if name in [x.name for x in track_names]:
@@ -1250,75 +1256,70 @@ class KodiDevice:
         return track_names
 
     @property
-    def current_audio_track(self) -> str:
+    def current_audio_track(self) -> Track | None:
         """Return the current audio track name."""
         current_audio_stream = self._properties.get("currentaudiostream", {})
         if current_audio_stream is None:
-            return ""
+            return None
         for track in self.audio_tracks:
             if track.index == current_audio_stream.get("index", 0):
-                return track.name
-        return ""
+                return track
+        return None
 
     @property
     def sensor_audio_stream(self) -> str:
         """Return the sensor audio stream."""
-        if self._device_config.sensor_audio_stream_config == KodiSensorStreamConfig.FULL:
-            return self.current_audio_track
-        current_audio_stream = self._properties.get("currentaudiostream", {})
-        if current_audio_stream is None:
+        current_track = self.current_audio_track
+        if current_track is None:
             return ""
-        for track in self.audio_tracks:
-            if track.index == current_audio_stream.get("index", 0):
-                if self._device_config.sensor_audio_stream_config == KodiSensorStreamConfig.STREAM_NAME:
-                    return track.stream_name
-                elif self._device_config.sensor_audio_stream_config == KodiSensorStreamConfig.LANGUAGE_NAME:
-                    return track.language_name
-                else:
-                    return track.name
-        return ""
+        if self._device_config.sensor_audio_stream_config == KodiSensorStreamConfig.FULL:
+            return (
+                f"{current_track.language_name.title()} {current_track.stream_name}"
+                if current_track.language_name
+                else current_track.name
+            )
+        if self._device_config.sensor_audio_stream_config == KodiSensorStreamConfig.STREAM_NAME:
+            return current_track.stream_name if current_track.stream_name else current_track.name
+        # if self._device_config.sensor_audio_stream_config == KodiSensorStreamConfig.LANGUAGE_NAME:
+        return current_track.language_name.title() if current_track.language_name else current_track.name
 
     @property
-    def current_subtitle_track(self) -> str:
+    def current_subtitle_track(self) -> Track | None:
         """Return the current subtitle track name."""
         subtitles_enabled: bool = self._properties.get("subtitleenabled", False)
         if not subtitles_enabled:
-            return ""
+            return None
         current_subtitle_stream: dict[str, Any] = self._properties.get("currentsubtitle", {})
         if current_subtitle_stream is None:
-            return ""
-
-        subtitle_stream = _get_language(
-            self._app_language, current_subtitle_stream, self.device_config.show_stream_language_name
-        )
+            return None
+        language_name = _get_language_name(self._app_language, current_subtitle_stream.get("language", ""))
+        stream_name = current_subtitle_stream.get("name", "")
+        name = f"{language_name.title()} {stream_name}" if language_name else stream_name
+        track = Track(language_name=language_name, stream_name=stream_name, name=name, index=0)
         if current_subtitle_stream.get("isforced", False):
-            subtitle_stream += " (forced)"
+            track.forced = True
         if current_subtitle_stream.get("isimpaired", False):
-            subtitle_stream += " (impaired)"
-        return subtitle_stream
+            track.impaired = True
+        return track
 
     @property
     def sensor_subtitle_stream(self) -> str:
         """Return the sensor subtitle stream."""
-        if self._device_config.sensor_subtitle_stream_config == KodiSensorStreamConfig.FULL:
-            return self.current_subtitle_track
-        subtitles_enabled: bool = self._properties.get("subtitleenabled", False)
-        if not subtitles_enabled:
+        current_track = self.current_subtitle_track
+        if current_track is None:
             return ""
-        current_subtitle_stream: dict[str, Any] = self._properties.get("currentsubtitle", {})
-        if current_subtitle_stream is None:
-            return ""
-        if self._device_config.sensor_subtitle_stream_config == KodiSensorStreamConfig.STREAM_NAME:
-            stream = current_subtitle_stream.get("name", "").title()
-            if current_subtitle_stream.get("isforced", False):
-                stream += " (forced)"
-            if current_subtitle_stream.get("isimpaired", False):
-                stream += " (impaired)"
-            return stream
-        elif self._device_config.sensor_subtitle_stream_config == KodiSensorStreamConfig.LANGUAGE_NAME:
-            return current_subtitle_stream.get("language", "").title()
-        else:
-            return self.current_subtitle_track
+        descr = ""
+        if current_track.forced:
+            descr += " (forced)"
+        if current_track.impaired:
+            descr += " (impaired)"
+        if self._device_config.sensor_audio_stream_config == KodiSensorStreamConfig.FULL:
+            return current_track.name + descr
+        if self._device_config.sensor_audio_stream_config == KodiSensorStreamConfig.STREAM_NAME:
+            return current_track.stream_name + descr if current_track.stream_name else current_track.name + descr
+        return (
+            current_track.language_name.title() + descr if current_track.language_name else current_track.name + descr
+        )
 
     @property
     def source(self) -> str:
