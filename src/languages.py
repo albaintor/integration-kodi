@@ -1,3 +1,10 @@
+"""
+This module exposes languages catalogs.
+
+:copyright: (c) 2026 by Albaintor
+:license: Mozilla Public License Version 2.0, see LICENSE for more details.
+"""
+
 LANGUAGES_KEYS = {
     "und_UND": "und",
     "mul_MUL": "mul",

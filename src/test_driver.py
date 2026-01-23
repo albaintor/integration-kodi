@@ -159,6 +159,9 @@ class RemoteWebsocket:
         except asyncio.TimeoutError:
             _LOG.error("Timeout while sending command")
             return None
+        except Exception as ex:
+            _LOG.error("Command error %s", ex)
+            return None
 
     async def _rx_msgs_main_ws(self, web_socket: ClientWebSocketResponse) -> None:
         """Receive messages from main websocket connection."""
@@ -390,8 +393,11 @@ class RemoteInterface(tk.Tk):
         if self._worker is None:
             _LOG.error("Media Player Command undefined worker")
             return
-        entity_id = next((x for x in self._worker.entity_ids if x.startswith("media_player.")), None)
+        entity_id = next(
+            (x.get("entity_id", "") for x in self._worker._entities if x.get("entity_type", "") == "media_player")
+        )
         if entity_id is None:
+            _LOG.error("No Media Player entity not found for command %s (%s)", cmd_id, self._worker.entity_ids)
             return
         try:
             asyncio.run_coroutine_threadsafe(
@@ -485,6 +491,7 @@ class WorkerThread(threading.Thread):
         self._ws: RemoteWebsocket | None = None
         self._entity_ids: list[str] = []
         self._sensors: dict[str, str] = {}
+        self._entities: list[dict[str, Any]] = []
         # self.start()
 
     @property
@@ -511,6 +518,7 @@ class WorkerThread(threading.Thread):
 
     async def send_command(self, command: dict[str, Any]) -> dict[str, Any] | None:
         if self._ws is None:
+            _LOG.error("Command %s error : no websocket connected", command)
             return None
         return await self._ws.send_command(command)
 
@@ -561,7 +569,9 @@ class WorkerThread(threading.Thread):
             data = await self._ws.get_available_entities()
             _LOG.debug("Available entities : %s", data)
             self._entity_ids = []
+            self._entities = []
             for entity in data["msg_data"]["available_entities"]:
+                self._entities.append(entity)
                 entity_id: str = entity["entity_id"]
                 self._entity_ids.append(entity_id)
                 if entity_id.startswith("media_player"):

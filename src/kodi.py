@@ -1,7 +1,7 @@
 """
 This module implements Kodi communication of the Remote Two integration driver.
 
-:copyright: (c) 2023 by Unfolded Circle ApS.
+:copyright: (c) 2026 by Albaintor
 :license: Mozilla Public License Version 2.0, see LICENSE for more details.
 """
 
@@ -39,9 +39,15 @@ from ucapi.media_player import Features, MediaType
 from ucapi.media_player import States as MediaStates
 
 from config import KodiConfigDevice
-from const import KODI_FEATURES, KODI_MEDIA_TYPES, ButtonKeymap, KodiSensors, KodiSensorStreamConfig
-from pykodi.kodi import CannotConnectError, InvalidAuthError, Kodi, KodiWSConnection
+from const import (
+    KODI_FEATURES,
+    KODI_MEDIA_TYPES,
+    ButtonKeymap,
+    KodiSensors,
+    KodiSensorStreamConfig,
+)
 from languages import LANGUAGES, LANGUAGES_KEYS
+from pykodi.kodi import CannotConnectError, InvalidAuthError, Kodi, KodiWSConnection
 
 # pylint: disable=C0302
 _KodiDeviceT = TypeVar("_KodiDeviceT", bound="KodiDevice")
@@ -96,6 +102,23 @@ class Track:
     stream_name: str
     forced: bool | None = None
     impaired: bool | None = None
+
+    @property
+    def get_full_name(self) -> str:
+        """Return full track name."""
+        if self.language_name != self.stream_name:
+            return f"{self.language_name.title()} {self.stream_name}" if self.language_name else self.name
+        return self.language_name.title()
+
+    @property
+    def get_stream_name(self) -> str:
+        """Return stream name."""
+        return self.stream_name if self.stream_name else self.name
+
+    @property
+    def get_language_name(self) -> str:
+        """Return language name."""
+        return self.language_name.title() if self.language_name else self.name
 
 
 def debounce(wait):
@@ -1237,23 +1260,23 @@ class KodiDevice:
     @property
     def audio_tracks(self) -> list[Track]:
         """Return a list of available audio track names."""
-        track_names: list[Track] = []
-        tracks: list[dict[str, Any]] = self._properties.get("audiostreams", [])
+        tracks: list[Track] = []
+        streams: list[dict[str, Any]] = self._properties.get("audiostreams", [])
         duplicates = False
-        for track in tracks:
+        for track in streams:
             stream_name = track.get("name", "")
             language_name = track.get("language", "")
             if language_name:
                 language_name = _get_language_name(self._app_language, language_name)
             name = stream_name if stream_name else language_name
             index = track.get("index", 0)
-            if name in [x.name for x in track_names]:
+            if name in [x.name for x in tracks]:
                 duplicates = True
-            track_names.append(Track(name=name, index=index, language_name=language_name, stream_name=stream_name))
+            tracks.append(Track(name=name, index=index, language_name=language_name, stream_name=stream_name))
         if duplicates:
-            for track in track_names:
+            for track in tracks:
                 track.name = f"{track.index}:{track.name}"
-        return track_names
+        return tracks
 
     @property
     def current_audio_track(self) -> Track | None:
@@ -1273,15 +1296,11 @@ class KodiDevice:
         if current_track is None:
             return ""
         if self._device_config.sensor_audio_stream_config == KodiSensorStreamConfig.FULL:
-            return (
-                f"{current_track.language_name.title()} {current_track.stream_name}"
-                if current_track.language_name
-                else current_track.name
-            )
+            return current_track.get_full_name
         if self._device_config.sensor_audio_stream_config == KodiSensorStreamConfig.STREAM_NAME:
-            return current_track.stream_name if current_track.stream_name else current_track.name
+            return current_track.get_stream_name
         # if self._device_config.sensor_audio_stream_config == KodiSensorStreamConfig.LANGUAGE_NAME:
-        return current_track.language_name.title() if current_track.language_name else current_track.name
+        return current_track.get_language_name
 
     @property
     def current_subtitle_track(self) -> Track | None:
@@ -1294,8 +1313,12 @@ class KodiDevice:
             return None
         language_name = _get_language_name(self._app_language, current_subtitle_stream.get("language", ""))
         stream_name = current_subtitle_stream.get("name", "")
-        name = f"{language_name.title()} {stream_name}" if language_name else stream_name
-        track = Track(language_name=language_name, stream_name=stream_name, name=name, index=0)
+        if language_name and language_name != stream_name:
+            name = f"{language_name.title()} {stream_name}"
+        else:
+            name = stream_name
+        index = current_subtitle_stream.get("index", 0)
+        track = Track(language_name=language_name, stream_name=stream_name, name=name, index=index)
         if current_subtitle_stream.get("isforced", False):
             track.forced = True
         if current_subtitle_stream.get("isimpaired", False):
@@ -1308,18 +1331,16 @@ class KodiDevice:
         current_track = self.current_subtitle_track
         if current_track is None:
             return ""
-        descr = ""
+        attributes = ""
         if current_track.forced:
-            descr += " (forced)"
+            attributes += " (forced)"
         if current_track.impaired:
-            descr += " (impaired)"
+            attributes += " (impaired)"
         if self._device_config.sensor_audio_stream_config == KodiSensorStreamConfig.FULL:
-            return current_track.name + descr
+            return current_track.get_full_name + attributes
         if self._device_config.sensor_audio_stream_config == KodiSensorStreamConfig.STREAM_NAME:
-            return current_track.stream_name + descr if current_track.stream_name else current_track.name + descr
-        return (
-            current_track.language_name.title() + descr if current_track.language_name else current_track.name + descr
-        )
+            return current_track.get_stream_name + attributes
+        return current_track.get_language_name + attributes
 
     @property
     def source(self) -> str:

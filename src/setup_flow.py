@@ -29,8 +29,8 @@ from const import (
     KODI_ARTWORK_TVSHOWS_LABELS,
     KODI_DEFAULT_ARTWORK,
     KODI_DEFAULT_TVSHOW_ARTWORK,
-    KodiSensorStreamConfig,
     KODI_SENSOR_STREAM_CONFIG_LABELS,
+    KodiSensorStreamConfig,
 )
 from discover import KodiDiscover
 from pykodi.kodi import (
@@ -979,7 +979,7 @@ async def _handle_device_reconfigure(msg: UserDataResponse) -> SetupComplete | S
     :return: the setup action on how to continue: SetupComplete after updating configuration
     """
     # flake8: noqa:F824
-    # pylint: disable=W0602, R0915
+    # pylint: disable=W0602, R0915, R0914
     global _reconfigured_device
 
     _LOG.debug("Handle device reconfigure")
