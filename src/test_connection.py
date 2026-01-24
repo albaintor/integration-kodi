@@ -84,6 +84,8 @@ async def main():
 
     properties = await client.get_app_language()
     print_json(data=properties)
+    properties = await client.get_name()
+    print_json(data=properties)
 
     await asyncio.sleep(600)
 

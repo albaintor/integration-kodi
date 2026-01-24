@@ -55,6 +55,7 @@ KODI_SENSOR_STREAM_CONFIG_LABELS = [
     },
 ]
 
+KODI_DEFAULT_NAME = "Kodi"
 
 KODI_MEDIA_TYPES = {
     "music": MediaType.MUSIC,

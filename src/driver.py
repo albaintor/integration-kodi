@@ -290,7 +290,7 @@ async def on_device_update(device_id: str, update: dict[str, Any] | None) -> lis
         for entity_id in _entities_from_device_id(device_id)
         if api.configured_entities.get(entity_id) is not None
     ]
-    _LOG.info("[%s] Update device for configured entities %s", device_id, entity_ids)
+    # _LOG.info("[%s] Update device for configured entities %s", device_id, entity_ids)
     for entity_id in entity_ids:
         configured_entity = api.configured_entities.get(entity_id)
         if configured_entity is None:

@@ -31,6 +31,7 @@ from const import (
     KODI_DEFAULT_TVSHOW_ARTWORK,
     KODI_SENSOR_STREAM_CONFIG_LABELS,
     KodiSensorStreamConfig,
+    KODI_DEFAULT_NAME,
 )
 from discover import KodiDiscover
 from pykodi.kodi import (
@@ -478,6 +479,11 @@ async def handle_configuration_mode(msg: UserDataResponse) -> RequestUserInput |
                         "field": {"text": {"value": _reconfigured_device.address}},
                         "id": "address",
                         "label": {"en": "IP address", "de": "IP-Adresse", "fr": "Adresse IP"},
+                    },
+                    {
+                        "field": {"text": {"value": _reconfigured_device.name}},
+                        "id": "name",
+                        "label": {"en": "Device name", "fr": "Nom de l'appareil"},
                     },
                     {
                         "field": {"text": {"value": _reconfigured_device.username}},
@@ -931,6 +937,10 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
                     return SetupError(error_type=IntegrationSetupError.CONNECTION_REFUSED)
                 kodi = Kodi(device)
                 await kodi.ping()
+                name = await kodi.get_name()
+                if name == KODI_DEFAULT_NAME:
+                    name = f"Kodi {address}"
+
                 await device.close()
                 _LOG.debug("Connection %s:%s succeeded over websocket", address, port)
             except CannotConnectError:
@@ -946,7 +956,7 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
     config.devices.add(
         KodiConfigDevice(
             id=address,
-            name="Kodi",
+            name=name,
             address=address,
             username=username,
             password=password,
@@ -1000,6 +1010,7 @@ async def _handle_device_reconfigure(msg: UserDataResponse) -> SetupComplete | S
     disable_keyboard_map = msg.input_values["disable_keyboard_map"]
     show_stream_name = msg.input_values["show_stream_name"]
     show_stream_language_name = msg.input_values["show_stream_language_name"]
+    name = msg.input_values["name"]
     try:
         sensor_audio_stream_config = int(
             msg.input_values.get("sensor_audio_stream_config", f"{KodiSensorStreamConfig.STREAM_NAME}")
@@ -1045,6 +1056,7 @@ async def _handle_device_reconfigure(msg: UserDataResponse) -> SetupComplete | S
 
     _LOG.debug("User has changed configuration")
     _reconfigured_device.address = address
+    _reconfigured_device.name = name
     _reconfigured_device.username = username
     _reconfigured_device.password = password
     _reconfigured_device.port = port

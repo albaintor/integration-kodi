@@ -195,6 +195,15 @@ class Kodi:
         """Get value of given properties."""
         return await self._server.Application.GetProperties(properties)
 
+    async def get_name(self) -> str | None:
+        """Return Kodi instance name."""
+        try:
+            name = (await self.get_application_properties(["name"]))["name"]
+            return name
+        # pylint: disable = W0718
+        except Exception:
+            return None
+
     async def get_player_properties(self, player, properties):
         """Get value of given properties."""
         return await self._server.Player.GetProperties(player["playerid"], properties)

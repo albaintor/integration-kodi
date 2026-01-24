@@ -1641,6 +1641,10 @@ class KodiDevice:
         except Exception:
             return None
 
+    async def get_name(self) -> str | None:
+        """Return Kodi instance name."""
+        return await self._kodi.get_name()
+
     async def is_fullscreen_video(self) -> bool:
         """Check if Kodi is in fullscreen (playing video)."""
         if self.state in (MediaStates.OFF, MediaStates.ON, MediaStates.UNKNOWN):
