@@ -235,32 +235,6 @@ def retry(*, timeout: float = 5, bufferize=False) -> Callable[
     return decorator
 
 
-def _get_language_name(lang: str, app_language: str = "en_US") -> str:
-    """Retrieve language name from language code."""
-    if lang == "":
-        return lang
-    app_language_code = LANGUAGES_KEYS.get(app_language, None)
-    if app_language_code is None:
-        app_language_code = "en"
-    stream_language = LANGUAGES.get(lang, None)
-    if stream_language is None:
-        return lang
-    return stream_language.get(app_language_code, stream_language.get("en", lang))
-
-
-def _get_language(app_language: str | None, info: dict[str, Any], language_first: bool) -> str:
-    """Retrieve language name."""
-    if language_first:
-        language = _get_language_name(info.get("language", ""), app_language).title()
-        if language != "":
-            return language
-        return info.get("name", "").title()
-    language = info.get("name", "").title()
-    if language != "":
-        return language
-    return _get_language_name(info.get("language", ""), app_language).title()
-
-
 class KodiDevice:
     """Representing a LG TV Device."""
 
@@ -430,20 +404,44 @@ class KodiDevice:
         ):
             self.event_loop.create_task(self._update_streams(data))
 
+    def _get_language_name(self, lang: str) -> str:
+        """Retrieve language name from language code."""
+        app_language = self._app_language
+        if app_language is None:
+            _LOG.warning("[%s] App language not extracted yet, using English : %s", self._device_config.address)
+            app_language = "en_US"
+        if lang == "":
+            return lang
+        app_language_code = LANGUAGES_KEYS.get(app_language, None)
+        if app_language_code is None:
+            app_language_code = "en"
+        stream_language = LANGUAGES.get(lang, None)
+        if stream_language is None:
+            return lang
+        return stream_language.get(app_language_code, stream_language.get("en", lang))
+
+    def _get_language(self, info: dict[str, Any], language_first: bool) -> str:
+        """Retrieve language name."""
+        if language_first:
+            language = self._get_language_name(info.get("language", "")).title()
+            if language != "":
+                return language
+            return info.get("name", "").title()
+        language = info.get("name", "").title()
+        if language != "":
+            return language
+        return self._get_language_name(info.get("language", "")).title()
+
     def get_streams_info(self, properties: dict[str, Any]) -> str | None:
         """Build audio/subtitles stream info."""
         if self.device_config.show_stream_name:
             current_audio_stream: dict[str, Any] = properties.get("currentaudiostream", {})
             current_subtitle: dict[str, Any] = properties.get("currentsubtitle", {})
             subtitles_enabled: bool = properties.get("subtitleenabled", False)
-            audio_stream = _get_language(
-                self._app_language, current_audio_stream, self.device_config.show_stream_language_name
-            )
+            audio_stream = self._get_language(current_audio_stream, self.device_config.show_stream_language_name)
             subtitle_stream = ""
             if subtitles_enabled:
-                subtitle_stream = _get_language(
-                    self._app_language, current_subtitle, self.device_config.show_stream_language_name
-                )
+                subtitle_stream = self._get_language(current_subtitle, self.device_config.show_stream_language_name)
                 if current_subtitle.get("isforced", False):
                     subtitle_stream += " (forced)"
                 if current_subtitle.get("isimpaired", False):
@@ -469,10 +467,10 @@ class KodiDevice:
             current_audio_stream: dict[str, Any] = properties.get("currentaudiostream", {})
             current_subtitle: dict[str, Any] = properties.get("currentsubtitle", {})
             subtitles_enabled: bool = properties.get("subtitleenabled", properties.get("subtitleenabled", False))
-            audio_stream = _get_language(self._app_language, current_audio_stream, False)
+            audio_stream = self._get_language(current_audio_stream, False)
             subtitle_stream = ""
             if subtitles_enabled:
-                subtitle_stream = _get_language(self._app_language, current_subtitle, False)
+                subtitle_stream = self._get_language(current_subtitle, False)
                 if current_subtitle.get("isforced", False):
                     subtitle_stream += " (forced)"
                 if current_subtitle.get("isimpaired", False):
@@ -1269,7 +1267,7 @@ class KodiDevice:
             stream_name = track.get("name", "")
             language_name = track.get("language", "")
             if language_name:
-                language_name = _get_language_name(language_name, self._app_language)
+                language_name = self._get_language_name(language_name)
             name = stream_name if stream_name else language_name
             index = track.get("index", 0)
             if name in [x.name for x in tracks]:
@@ -1313,7 +1311,7 @@ class KodiDevice:
         current_subtitle_stream: dict[str, Any] = self._properties.get("currentsubtitle", {})
         if current_subtitle_stream is None:
             return None
-        language_name = _get_language_name(current_subtitle_stream.get("language", ""), self._app_language)
+        language_name = self._get_language_name(current_subtitle_stream.get("language", ""))
         stream_name = current_subtitle_stream.get("name", "")
         if language_name and language_name != stream_name:
             name = f"{language_name.title()} {stream_name}"

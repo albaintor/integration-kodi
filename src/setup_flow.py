@@ -180,7 +180,7 @@ _user_input_manual = RequestUserInput(
         {
             "field": {
                 "dropdown": {
-                    "value": f"{KodiSensorStreamConfig.FULL}",
+                    "value": f"{int(KodiSensorStreamConfig.FULL)}",
                     "items": KODI_SENSOR_STREAM_CONFIG_LABELS,
                 }
             },
@@ -193,7 +193,7 @@ _user_input_manual = RequestUserInput(
         {
             "field": {
                 "dropdown": {
-                    "value": f"{KodiSensorStreamConfig.FULL}",
+                    "value": f"{int(KodiSensorStreamConfig.FULL)}",
                     "items": KODI_SENSOR_STREAM_CONFIG_LABELS,
                 }
             },
@@ -582,7 +582,7 @@ async def handle_configuration_mode(msg: UserDataResponse) -> RequestUserInput |
                     {
                         "field": {
                             "dropdown": {
-                                "value": f"{_reconfigured_device.sensor_audio_stream_config}",
+                                "value": f"{int(_reconfigured_device.sensor_audio_stream_config)}",
                                 "items": KODI_SENSOR_STREAM_CONFIG_LABELS,
                             }
                         },
@@ -595,7 +595,7 @@ async def handle_configuration_mode(msg: UserDataResponse) -> RequestUserInput |
                     {
                         "field": {
                             "dropdown": {
-                                "value": f"{_reconfigured_device.sensor_subtitle_stream_config}",
+                                "value": f"{int(_reconfigured_device.sensor_subtitle_stream_config)}",
                                 "items": KODI_SENSOR_STREAM_CONFIG_LABELS,
                             }
                         },
@@ -867,13 +867,13 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
 
     try:
         sensor_audio_stream_config = int(
-            msg.input_values.get("sensor_audio_stream_config", f"{KodiSensorStreamConfig.FULL}")
+            msg.input_values.get("sensor_audio_stream_config", f"{int(KodiSensorStreamConfig.FULL)}")
         )
     except ValueError:
         sensor_audio_stream_config = int(KodiSensorStreamConfig.STREAM_NAME)
     try:
         sensor_subtitle_stream_config = int(
-            msg.input_values.get("sensor_subtitle_stream_config", f"{KodiSensorStreamConfig.FULL}")
+            msg.input_values.get("sensor_subtitle_stream_config", f"{int(KodiSensorStreamConfig.FULL)}")
         )
     except ValueError:
         sensor_subtitle_stream_config = int(KodiSensorStreamConfig.STREAM_NAME)
@@ -1003,16 +1003,16 @@ async def _handle_device_reconfigure(msg: UserDataResponse) -> SetupComplete | S
     name = msg.input_values["name"]
     try:
         sensor_audio_stream_config = int(
-            msg.input_values.get("sensor_audio_stream_config", f"{KodiSensorStreamConfig.STREAM_NAME}")
+            msg.input_values.get("sensor_audio_stream_config", f"{KodiSensorStreamConfig.FULL}")
         )
     except ValueError:
-        sensor_audio_stream_config = int(KodiSensorStreamConfig.STREAM_NAME)
+        sensor_audio_stream_config = int(KodiSensorStreamConfig.FULL)
     try:
         sensor_subtitle_stream_config = int(
-            msg.input_values.get("sensor_subtitle_stream_config", f"{KodiSensorStreamConfig.STREAM_NAME}")
+            msg.input_values.get("sensor_subtitle_stream_config", f"{KodiSensorStreamConfig.FULL}")
         )
     except ValueError:
-        sensor_subtitle_stream_config = int(KodiSensorStreamConfig.STREAM_NAME)
+        sensor_subtitle_stream_config = int(KodiSensorStreamConfig.FULL)
 
     _LOG.debug("User has changed configuration")
     _reconfigured_device.address = address
