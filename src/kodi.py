@@ -827,7 +827,6 @@ class KodiDevice:
 
                 # Save current values before update to check changes
                 current_video_info = self.video_info
-                current_audio_track = self.current_audio_track
 
                 self._properties = await self._kodi.get_player_properties(
                     self._players[0],
@@ -1058,10 +1057,11 @@ class KodiDevice:
                     updated_data[MediaAttr.MEDIA_TITLE] = self._temporary_title
                     updated_data[KodiSensors.SENSOR_CHAPTER] = self.current_chapter
 
-                if (current_audio_track and self._audio_stream != current_audio_track.name) or (
-                    current_audio_track is None and self._audio_stream != ""
+                new_audio_track = self.current_audio_track
+                if (new_audio_track and self._audio_stream != new_audio_track.name) or (
+                    new_audio_track is None and self._audio_stream != ""
                 ):
-                    self._audio_stream = current_audio_track.name if current_audio_track else ""
+                    self._audio_stream = new_audio_track.name if new_audio_track else ""
                     updated_data[MediaAttr.SOUND_MODE] = self._audio_stream
                     updated_data[KodiSensors.SENSOR_AUDIO_STREAM] = self.sensor_audio_stream
 
