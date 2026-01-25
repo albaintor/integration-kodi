@@ -203,6 +203,14 @@ _user_input_manual = RequestUserInput(
                 "fr": "Configuration du capteur piste de sous-titres",
             },
         },
+        {
+            "field": {"checkbox": {"value": True}},
+            "id": "sensor_include_device_name",
+            "label": {
+                "en": "Include device name in sensors names",
+                "fr": "Inclure le nom de l'appareil dans le nom des capteurs",
+            },
+        },
     ],
 )
 
@@ -597,6 +605,14 @@ async def handle_configuration_mode(msg: UserDataResponse) -> RequestUserInput |
                             "fr": "Configuration du capteur piste de sous-titres",
                         },
                     },
+                    {
+                        "field": {"checkbox": {"value": _reconfigured_device.sensor_include_device_name}},
+                        "id": "sensor_include_device_name",
+                        "label": {
+                            "en": "Include device name in sensors names",
+                            "fr": "Inclure le nom de l'appareil dans le nom des capteurs",
+                        },
+                    },
                 ],
             )
         case "reset":
@@ -839,14 +855,16 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
     ws_port = msg.input_values["ws_port"]
     username = msg.input_values["username"]
     password = msg.input_values["password"]
-    ssl = msg.input_values["ssl"]
+    ssl = msg.input_values.get("ssl", "false") == "true"
     artwork_type = msg.input_values.get("artwork_type", KODI_DEFAULT_ARTWORK)
     artwork_type_tvshows = msg.input_values.get("artwork_type_tvshows", KODI_DEFAULT_TVSHOW_ARTWORK)
-    media_update_task = msg.input_values["media_update_task"]
-    download_artwork = msg.input_values["download_artwork"]
-    disable_keyboard_map = msg.input_values["disable_keyboard_map"]
-    show_stream_name = msg.input_values["show_stream_name"]
-    show_stream_language_name = msg.input_values["show_stream_language_name"]
+    media_update_task = msg.input_values.get("media_update_task", "false") == "true"
+    download_artwork = msg.input_values.get("download_artwork", "false") == "true"
+    disable_keyboard_map = msg.input_values.get("disable_keyboard_map", "false") == "true"
+    show_stream_name = msg.input_values.get("show_stream_name", "false") == "true"
+    show_stream_language_name = msg.input_values.get("show_stream_language_name", "false") == "true"
+    sensor_include_device_name = msg.input_values.get("sensor_include_device_name", "false") == "true"
+
     try:
         sensor_audio_stream_config = int(
             msg.input_values.get("sensor_audio_stream_config", f"{KodiSensorStreamConfig.FULL}")
@@ -859,36 +877,6 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
         )
     except ValueError:
         sensor_subtitle_stream_config = int(KodiSensorStreamConfig.STREAM_NAME)
-
-    if ssl == "false":
-        ssl = False
-    else:
-        ssl = True
-
-    if media_update_task == "false":
-        media_update_task = False
-    else:
-        media_update_task = True
-
-    if download_artwork == "false":
-        download_artwork = False
-    else:
-        download_artwork = True
-
-    if disable_keyboard_map == "false":
-        disable_keyboard_map = False
-    else:
-        disable_keyboard_map = True
-
-    if show_stream_name == "false":
-        show_stream_name = False
-    else:
-        show_stream_name = True
-
-    if show_stream_language_name == "false":
-        show_stream_language_name = False
-    else:
-        show_stream_language_name = True
 
     if device_choice:
         _LOG.debug("Configure device following discovery : %s %s", device_choice, _discovered_kodis)
@@ -972,6 +960,7 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
             show_stream_language_name=show_stream_language_name,
             sensor_audio_stream_config=sensor_audio_stream_config,
             sensor_subtitle_stream_config=sensor_subtitle_stream_config,
+            sensor_include_device_name=sensor_include_device_name,
         )
     )  # triggers SonyLG TV instance creation
     config.devices.store()
@@ -1002,14 +991,15 @@ async def _handle_device_reconfigure(msg: UserDataResponse) -> SetupComplete | S
     ws_port = msg.input_values["ws_port"]
     username = msg.input_values["username"]
     password = msg.input_values["password"]
-    ssl = msg.input_values["ssl"]
+    ssl = msg.input_values.get("ssl", "false") == "true"
     artwork_type = msg.input_values.get("artwork_type", KODI_DEFAULT_ARTWORK)
     artwork_type_tvshows = msg.input_values.get("artwork_type_tvshows", KODI_DEFAULT_TVSHOW_ARTWORK)
-    media_update_task = msg.input_values["media_update_task"]
-    download_artwork = msg.input_values["download_artwork"]
-    disable_keyboard_map = msg.input_values["disable_keyboard_map"]
-    show_stream_name = msg.input_values["show_stream_name"]
-    show_stream_language_name = msg.input_values["show_stream_language_name"]
+    media_update_task = msg.input_values.get("media_update_task", "false") == "true"
+    download_artwork = msg.input_values.get("download_artwork", "false") == "true"
+    disable_keyboard_map = msg.input_values.get("disable_keyboard_map", "false") == "true"
+    show_stream_name = msg.input_values.get("show_stream_name", "false") == "true"
+    show_stream_language_name = msg.input_values.get("show_stream_language_name", "false") == "true"
+    sensor_include_device_name = msg.input_values.get("sensor_include_device_name", "false") == "true"
     name = msg.input_values["name"]
     try:
         sensor_audio_stream_config = int(
@@ -1023,36 +1013,6 @@ async def _handle_device_reconfigure(msg: UserDataResponse) -> SetupComplete | S
         )
     except ValueError:
         sensor_subtitle_stream_config = int(KodiSensorStreamConfig.STREAM_NAME)
-
-    if ssl == "false":
-        ssl = False
-    else:
-        ssl = True
-
-    if media_update_task == "false":
-        media_update_task = False
-    else:
-        media_update_task = True
-
-    if download_artwork == "false":
-        download_artwork = False
-    else:
-        download_artwork = True
-
-    if disable_keyboard_map == "false":
-        disable_keyboard_map = False
-    else:
-        disable_keyboard_map = True
-
-    if show_stream_name == "false":
-        show_stream_name = False
-    else:
-        show_stream_name = True
-
-    if show_stream_language_name == "false":
-        show_stream_language_name = False
-    else:
-        show_stream_language_name = True
 
     _LOG.debug("User has changed configuration")
     _reconfigured_device.address = address
@@ -1071,6 +1031,7 @@ async def _handle_device_reconfigure(msg: UserDataResponse) -> SetupComplete | S
     _reconfigured_device.show_stream_language_name = show_stream_language_name
     _reconfigured_device.sensor_audio_stream_config = sensor_audio_stream_config
     _reconfigured_device.sensor_subtitle_stream_config = sensor_subtitle_stream_config
+    _reconfigured_device.sensor_include_device_name = sensor_include_device_name
 
     config.devices.add_or_update(_reconfigured_device)  # triggers ATV instance update
     await asyncio.sleep(1)

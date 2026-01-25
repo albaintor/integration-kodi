@@ -318,7 +318,7 @@ class KodiDevice:
         self._temporary_title: str | None = None
         self._chapters: list[dict[str, Any]] | None = None
         self._source: str | None = None
-        self._audio_stream: int = 0
+        self._audio_stream: str = ""
         self._subtitle_stream = ""
         self._app_language: str | None = None
 
@@ -725,7 +725,7 @@ class KodiDevice:
         self._update_state_retry = 0
         self._chapters = None
         self._source = None
-        self._audio_stream = 0
+        self._audio_stream = ""
         self._subtitle_stream = ""
         try:
             self._update_lock.release()
@@ -822,7 +822,9 @@ class KodiDevice:
                     self._is_volume_muted = muted
                     updated_data[MediaAttr.MUTED] = muted
 
+                # Save current values before update to check changes
                 current_video_info = self.video_info
+                current_audio_track = self.current_audio_track
 
                 self._properties = await self._kodi.get_player_properties(
                     self._players[0],
@@ -1055,12 +1057,11 @@ class KodiDevice:
                     updated_data[MediaAttr.MEDIA_TITLE] = self._temporary_title
                     updated_data[KodiSensors.SENSOR_CHAPTER] = self.current_chapter
 
-                current_audio_stream = self._properties.get("currentaudiostream", {})
-                if current_audio_stream.get("index", 0) != self._audio_stream:
-                    self._audio_stream = current_audio_stream.get("index", 0)
-                    updated_data[MediaAttr.SOUND_MODE] = (
-                        self.current_audio_track.name if self.current_audio_track else ""
-                    )
+                if (current_audio_track and self._audio_stream != current_audio_track.name) or (
+                    current_audio_track is None and self._audio_stream != ""
+                ):
+                    self._audio_stream = current_audio_track.name if current_audio_track else ""
+                    updated_data[MediaAttr.SOUND_MODE] = self._audio_stream
                     updated_data[KodiSensors.SENSOR_AUDIO_STREAM] = self.sensor_audio_stream
 
                 if self._subtitle_stream != self.current_subtitle_track.name:

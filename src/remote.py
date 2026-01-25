@@ -59,7 +59,6 @@ class KodiRemote(KodiEntity, Remote):
         """Initialize the class."""
         # pylint: disable = R0801
         self._device: kodi.KodiDevice = device
-        _LOG.debug("KodiRemote init")
         entity_id = create_entity_id(config_device.id, EntityTypes.REMOTE)
         features = [Features.SEND_CMD, Features.ON_OFF]
         attributes = {
