@@ -235,9 +235,9 @@ def retry(*, timeout: float = 5, bufferize=False) -> Callable[
     return decorator
 
 
-def _get_language_name(app_language: str | None, lang: str) -> str:
+def _get_language_name(lang: str, app_language: str = "en_US") -> str:
     """Retrieve language name from language code."""
-    if app_language is None or lang == "":
+    if lang == "":
         return lang
     app_language_code = LANGUAGES_KEYS.get(app_language, None)
     if app_language_code is None:
@@ -251,14 +251,14 @@ def _get_language_name(app_language: str | None, lang: str) -> str:
 def _get_language(app_language: str | None, info: dict[str, Any], language_first: bool) -> str:
     """Retrieve language name."""
     if language_first:
-        language = _get_language_name(app_language, info.get("language", "")).title()
+        language = _get_language_name(info.get("language", ""), app_language).title()
         if language != "":
             return language
         return info.get("name", "").title()
     language = info.get("name", "").title()
     if language != "":
         return language
-    return _get_language_name(app_language, info.get("language", "")).title()
+    return _get_language_name(info.get("language", ""), app_language).title()
 
 
 class KodiDevice:
@@ -822,6 +822,9 @@ class KodiDevice:
                     self._is_volume_muted = muted
                     updated_data[MediaAttr.MUTED] = muted
 
+                if self._app_language is None:
+                    self._app_language = await self.get_app_language()
+
                 # Save current values before update to check changes
                 current_video_info = self.video_info
                 current_audio_track = self.current_audio_track
@@ -841,8 +844,6 @@ class KodiDevice:
                         "currentvideostream",
                     ],
                 )
-                if self._app_language is None:
-                    self._app_language = await self.get_app_language()
                 position = self._properties["time"]
                 if position:
                     media_position = position["hours"] * 3600 + position["minutes"] * 60 + position["seconds"]
@@ -1268,7 +1269,7 @@ class KodiDevice:
             stream_name = track.get("name", "")
             language_name = track.get("language", "")
             if language_name:
-                language_name = _get_language_name(self._app_language, language_name)
+                language_name = _get_language_name(language_name, self._app_language)
             name = stream_name if stream_name else language_name
             index = track.get("index", 0)
             if name in [x.name for x in tracks]:
@@ -1312,7 +1313,7 @@ class KodiDevice:
         current_subtitle_stream: dict[str, Any] = self._properties.get("currentsubtitle", {})
         if current_subtitle_stream is None:
             return None
-        language_name = _get_language_name(self._app_language, current_subtitle_stream.get("language", ""))
+        language_name = _get_language_name(current_subtitle_stream.get("language", ""), self._app_language)
         stream_name = current_subtitle_stream.get("name", "")
         if language_name and language_name != stream_name:
             name = f"{language_name.title()} {stream_name}"
