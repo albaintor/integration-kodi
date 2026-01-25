@@ -47,10 +47,10 @@ class KodiSensorStreamConfig(int, Enum):
 
 
 KODI_SENSOR_STREAM_CONFIG_LABELS = [
-    {"id": f"{KodiSensorStreamConfig.STREAM_NAME}", "label": {"en": "Stream name", "fr": "Nom du flux"}},
-    {"id": f"{KodiSensorStreamConfig.LANGUAGE_NAME}", "label": {"en": "Language name", "fr": "Nom de la langue"}},
+    {"id": f"{int(KodiSensorStreamConfig.STREAM_NAME)}", "label": {"en": "Stream name", "fr": "Nom du flux"}},
+    {"id": f"{int(KodiSensorStreamConfig.LANGUAGE_NAME)}", "label": {"en": "Language name", "fr": "Nom de la langue"}},
     {
-        "id": f"{KodiSensorStreamConfig.FULL}",
+        "id": f"{int(KodiSensorStreamConfig.FULL)}",
         "label": {"en": "Language and stream names", "fr": "Langue et nom du flux"},
     },
 ]
