@@ -67,7 +67,7 @@ class KodiRemote(KodiEntity, Remote):
         KODI_REMOTE_SIMPLE_COMMANDS.sort()
         super().__init__(
             entity_id,
-            config_device.name,
+            {"en": f"{config_device.name} remote", "fr": f"{config_device.name} télécommande"},
             features,
             attributes,
             simple_commands=KODI_REMOTE_SIMPLE_COMMANDS,

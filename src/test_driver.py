@@ -567,7 +567,8 @@ class WorkerThread(threading.Thread):
             data = await self._ws.get_driver_vertion()
             _LOG.debug("Driver version : %s", data)
             data = await self._ws.get_available_entities()
-            _LOG.debug("Available entities : %s", data)
+            _LOG.debug("Available entities")
+            print_json(json=json.dumps(data))
             self._entity_ids = []
             self._entities = []
             for entity in data["msg_data"]["available_entities"]:
