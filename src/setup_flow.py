@@ -28,10 +28,10 @@ from const import (
     KODI_ARTWORK_LABELS,
     KODI_ARTWORK_TVSHOWS_LABELS,
     KODI_DEFAULT_ARTWORK,
+    KODI_DEFAULT_NAME,
     KODI_DEFAULT_TVSHOW_ARTWORK,
     KODI_SENSOR_STREAM_CONFIG_LABELS,
     KodiSensorStreamConfig,
-    KODI_DEFAULT_NAME,
 )
 from discover import KodiDiscover
 from pykodi.kodi import (

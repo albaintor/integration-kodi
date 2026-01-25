@@ -15,7 +15,7 @@ from ucapi.sensor import Attributes, DeviceClasses, Options, States
 
 import kodi
 from config import KodiConfigDevice, KodiEntity, create_entity_id
-from const import KodiSensors, KODI_DEFAULT_NAME
+from const import KODI_DEFAULT_NAME, KodiSensors
 
 _LOG = logging.getLogger(__name__)
 
