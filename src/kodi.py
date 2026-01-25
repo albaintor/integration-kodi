@@ -408,7 +408,7 @@ class KodiDevice:
         """Retrieve language name from language code."""
         app_language = self._app_language
         if app_language is None:
-            _LOG.warning("[%s] App language not extracted yet, using English : %s", self._device_config.address)
+            _LOG.warning("[%s] App language not extracted yet, using English", self._device_config.address)
             app_language = "en_US"
         if lang == "":
             return lang
