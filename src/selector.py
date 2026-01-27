@@ -89,6 +89,7 @@ class KodiSelect(KodiEntity):
         }
 
     async def command(self, cmd_id: str, params: dict[str, Any] | None = None, *, websocket: Any) -> StatusCodes:
+        """Process selector command."""
         # pylint: disable=R0911
         if cmd_id == "select_option" and params:
             option = params.get("option", None)
