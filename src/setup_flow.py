@@ -31,7 +31,7 @@ from const import (
     KODI_DEFAULT_NAME,
     KODI_DEFAULT_TVSHOW_ARTWORK,
     KODI_SENSOR_STREAM_CONFIG_LABELS,
-    KodiSensorStreamConfig,
+    KodiStreamConfig,
 )
 from discover import KodiDiscover
 from pykodi.kodi import (
@@ -180,7 +180,7 @@ _user_input_manual = RequestUserInput(
         {
             "field": {
                 "dropdown": {
-                    "value": f"{int(KodiSensorStreamConfig.FULL)}",
+                    "value": f"{int(KodiStreamConfig.FULL)}",
                     "items": KODI_SENSOR_STREAM_CONFIG_LABELS,
                 }
             },
@@ -193,7 +193,7 @@ _user_input_manual = RequestUserInput(
         {
             "field": {
                 "dropdown": {
-                    "value": f"{int(KodiSensorStreamConfig.FULL)}",
+                    "value": f"{int(KodiStreamConfig.FULL)}",
                     "items": KODI_SENSOR_STREAM_CONFIG_LABELS,
                 }
             },
@@ -867,16 +867,16 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
 
     try:
         sensor_audio_stream_config = int(
-            msg.input_values.get("sensor_audio_stream_config", f"{int(KodiSensorStreamConfig.FULL)}")
+            msg.input_values.get("sensor_audio_stream_config", f"{int(KodiStreamConfig.FULL)}")
         )
     except ValueError:
-        sensor_audio_stream_config = int(KodiSensorStreamConfig.STREAM_NAME)
+        sensor_audio_stream_config = int(KodiStreamConfig.STREAM_NAME)
     try:
         sensor_subtitle_stream_config = int(
-            msg.input_values.get("sensor_subtitle_stream_config", f"{int(KodiSensorStreamConfig.FULL)}")
+            msg.input_values.get("sensor_subtitle_stream_config", f"{int(KodiStreamConfig.FULL)}")
         )
     except ValueError:
-        sensor_subtitle_stream_config = int(KodiSensorStreamConfig.STREAM_NAME)
+        sensor_subtitle_stream_config = int(KodiStreamConfig.STREAM_NAME)
 
     if device_choice:
         _LOG.debug("Configure device following discovery : %s %s", device_choice, _discovered_kodis)
@@ -1002,17 +1002,15 @@ async def _handle_device_reconfigure(msg: UserDataResponse) -> SetupComplete | S
     sensor_include_device_name = msg.input_values.get("sensor_include_device_name", "false") == "true"
     name = msg.input_values["name"]
     try:
-        sensor_audio_stream_config = int(
-            msg.input_values.get("sensor_audio_stream_config", f"{KodiSensorStreamConfig.FULL}")
-        )
+        sensor_audio_stream_config = int(msg.input_values.get("sensor_audio_stream_config", f"{KodiStreamConfig.FULL}"))
     except ValueError:
-        sensor_audio_stream_config = int(KodiSensorStreamConfig.FULL)
+        sensor_audio_stream_config = int(KodiStreamConfig.FULL)
     try:
         sensor_subtitle_stream_config = int(
-            msg.input_values.get("sensor_subtitle_stream_config", f"{KodiSensorStreamConfig.FULL}")
+            msg.input_values.get("sensor_subtitle_stream_config", f"{KodiStreamConfig.FULL}")
         )
     except ValueError:
-        sensor_subtitle_stream_config = int(KodiSensorStreamConfig.FULL)
+        sensor_subtitle_stream_config = int(KodiStreamConfig.FULL)
 
     _LOG.debug("User has changed configuration")
     _reconfigured_device.address = address

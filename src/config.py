@@ -13,13 +13,29 @@ from dataclasses import dataclass, field, fields
 from enum import Enum
 from typing import Callable, Iterator
 
-from ucapi import Entity, EntityTypes
+from ucapi import Entity
 
-from const import KodiSensorStreamConfig
+from const import KODI_DEFAULT_NAME, KodiStreamConfig
 
 _LOG = logging.getLogger(__name__)
 
 _CFG_FILENAME = "config.json"
+
+
+class PatchedEntityTypes(str, Enum):
+    """Entity types."""
+
+    COVER = "cover"
+    BUTTON = "button"
+    CLIMATE = "climate"
+    LIGHT = "light"
+    MEDIA_PLAYER = "media_player"
+    REMOTE = "remote"
+    SENSOR = "sensor"
+    SWITCH = "switch"
+    IR_EMITTER = "ir_emitter"
+    VOICE_ASSISTANT = "voice_assistant"
+    SELECT = "select"
 
 
 class KodiEntity(Entity):
@@ -31,7 +47,7 @@ class KodiEntity(Entity):
         raise NotImplementedError()
 
 
-def create_entity_id(device_id: str, entity_type: EntityTypes) -> str:
+def create_entity_id(device_id: str, entity_type: PatchedEntityTypes) -> str:
     """Create a unique entity identifier for the given receiver and entity type."""
     return f"{entity_type.value}.{device_id}"
 
@@ -63,8 +79,8 @@ class KodiConfigDevice:
     disable_keyboard_map: bool = field(default=False)
     show_stream_name: bool = field(default=True)
     show_stream_language_name: bool = field(default=True)
-    sensor_audio_stream_config: int = field(default=KodiSensorStreamConfig.FULL)
-    sensor_subtitle_stream_config: int = field(default=KodiSensorStreamConfig.FULL)
+    sensor_audio_stream_config: int = field(default=KodiStreamConfig.FULL)
+    sensor_subtitle_stream_config: int = field(default=KodiStreamConfig.FULL)
     sensor_include_device_name: bool = field(default=True)
 
     def __post_init__(self):
@@ -76,6 +92,12 @@ class KodiConfigDevice:
                 and getattr(self, attribute.name) is None
             ):
                 setattr(self, attribute.name, attribute.default)
+
+    def get_device_part(self) -> str:
+        """Return the device name part to build entity names."""
+        if self.sensor_include_device_name:
+            return self.name + " " if self.name != KODI_DEFAULT_NAME else ""
+        return ""
 
 
 class _EnhancedJSONEncoder(json.JSONEncoder):

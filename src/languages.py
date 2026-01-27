@@ -61,6 +61,15 @@ LANGUAGES_KEYS = {
 }
 
 LANGUAGES = {
+    "dis": {
+        "en": "Disabled",
+        "fr": "Désactivé",
+        "es": "Desactivado",
+        "de": "Deaktiviert",
+        "zh": "已禁用",
+        "ja": "無効",
+        "nl": "Uitgeschakeld",
+    },
     "und": {
         "en": "Undetermined",
         "fr": "indéterminé",

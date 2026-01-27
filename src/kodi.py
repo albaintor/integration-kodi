@@ -43,8 +43,9 @@ from const import (
     KODI_FEATURES,
     KODI_MEDIA_TYPES,
     ButtonKeymap,
+    KodiSelects,
     KodiSensors,
-    KodiSensorStreamConfig,
+    KodiStreamConfig,
 )
 from languages import LANGUAGES, LANGUAGES_KEYS
 from pykodi.kodi import CannotConnectError, InvalidAuthError, Kodi, KodiWSConnection
@@ -92,6 +93,19 @@ class ArtworkType(IntEnum):
     ICON = 9
 
 
+def _get_language_name(lang: str, app_language="en_US") -> str:
+    """Retrieve language name from language code."""
+    if lang == "":
+        return lang
+    app_language_code = LANGUAGES_KEYS.get(app_language, None)
+    if app_language_code is None:
+        app_language_code = "en"
+    stream_language = LANGUAGES.get(lang, None)
+    if stream_language is None:
+        return lang
+    return stream_language.get(app_language_code, stream_language.get("en", lang))
+
+
 @dataclass
 class Track:
     """Track name and index."""
@@ -100,8 +114,10 @@ class Track:
     name: str
     language_name: str
     stream_name: str
+    enabled: bool = True
     forced: bool | None = None
     impaired: bool | None = None
+    default: bool | None = None
 
     @property
     def get_full_name(self) -> str:
@@ -119,6 +135,25 @@ class Track:
     def get_language_name(self) -> str:
         """Return language name."""
         return self.language_name.title() if self.language_name else self.name
+
+    def get_track_name(self, config: KodiStreamConfig):
+        """Return computed track name."""
+        attributes = ""
+        if self.forced:
+            attributes += " (forced)"
+        if self.impaired:
+            attributes += " (impaired)"
+        if config == KodiStreamConfig.FULL:
+            return self.get_full_name + attributes
+        if config == KodiStreamConfig.STREAM_NAME:
+            return self.get_stream_name + attributes
+        return self.get_language_name + attributes
+
+    @staticmethod
+    def get_disabled_track(app_language: str | None) -> "Track":
+        """Return disabled track information."""
+        language = _get_language_name("dis", app_language)
+        return Track(name=language, index=-1, language_name=language, stream_name="", enabled=False)
 
 
 def debounce(wait):
@@ -404,33 +439,17 @@ class KodiDevice:
         ):
             self.event_loop.create_task(self._update_streams(data))
 
-    def _get_language_name(self, lang: str) -> str:
-        """Retrieve language name from language code."""
-        app_language = self._app_language
-        if app_language is None:
-            _LOG.warning("[%s] App language not extracted yet, using English", self._device_config.address)
-            app_language = "en_US"
-        if lang == "":
-            return lang
-        app_language_code = LANGUAGES_KEYS.get(app_language, None)
-        if app_language_code is None:
-            app_language_code = "en"
-        stream_language = LANGUAGES.get(lang, None)
-        if stream_language is None:
-            return lang
-        return stream_language.get(app_language_code, stream_language.get("en", lang))
-
     def _get_language(self, info: dict[str, Any], language_first: bool) -> str:
         """Retrieve language name."""
         if language_first:
-            language = self._get_language_name(info.get("language", "")).title()
+            language = _get_language_name(info.get("language", ""), self._app_language).title()
             if language != "":
                 return language
             return info.get("name", "").title()
         language = info.get("name", "").title()
         if language != "":
             return language
-        return self._get_language_name(info.get("language", "")).title()
+        return _get_language_name(info.get("language", ""), self._app_language).title()
 
     def get_streams_info(self, properties: dict[str, Any]) -> str | None:
         """Build audio/subtitles stream info."""
@@ -1029,6 +1048,10 @@ class KodiDevice:
                         if data and (chapters := data.get("chapters", [])):
                             self._chapters = chapters
                             current_chapter = self.current_chapter
+                            updated_data[KodiSelects.SELECT_CHAPTER] = {
+                                "current_option": current_chapter if current_chapter else "",
+                                "options": [x.get("name", "") for x in self.chapters] if self.chapters else [],
+                            }
                             if current_chapter:
                                 _LOG.debug(
                                     "[%s] Found chapter name to display %s", self.device_config.address, current_chapter
@@ -1043,6 +1066,18 @@ class KodiDevice:
                         updated_data[MediaAttr.MEDIA_TITLE] = self._temporary_title
                     updated_data[MediaAttr.SOURCE_LIST] = self.source_list
                     updated_data[MediaAttr.SOUND_MODE_LIST] = [track.name for track in self.audio_tracks]
+                    updated_data[KodiSelects.SELECT_AUDIO_STREAM] = {
+                        "options": [
+                            x.get_track_name(KodiStreamConfig(self._device_config.sensor_audio_stream_config))
+                            for x in self.audio_tracks
+                        ]
+                    }
+                    updated_data[KodiSelects.SELECT_SUBTITLE_STREAM] = {
+                        "options": [
+                            x.get_track_name(KodiStreamConfig(self._device_config.sensor_subtitle_stream_config))
+                            for x in self.subtitle_tracks
+                        ]
+                    }
 
                 if self.state == MediaStates.PAUSED and current_chapter:
                     await self.display_temporary_title(current_chapter)
@@ -1062,10 +1097,16 @@ class KodiDevice:
                     self._audio_stream = new_audio_track.name if new_audio_track else ""
                     updated_data[MediaAttr.SOUND_MODE] = self._audio_stream
                     updated_data[KodiSensors.SENSOR_AUDIO_STREAM] = self.sensor_audio_stream
+                    select_info = updated_data.get(KodiSelects.SELECT_AUDIO_STREAM, {})
+                    select_info["current_option"] = self.selector_audio_stream
+                    updated_data[KodiSelects.SELECT_AUDIO_STREAM] = select_info
 
                 if self._subtitle_stream != self.current_subtitle_track.name:
                     self._subtitle_stream = self.current_subtitle_track.name
                     updated_data[KodiSensors.SENSOR_SUBTITLE_STREAM] = self.sensor_subtitle_stream
+                    select_info = updated_data.get(KodiSelects.SELECT_SUBTITLE_STREAM, {})
+                    select_info["current_option"] = self.selector_subtitle_stream
+                    updated_data[KodiSelects.SELECT_SUBTITLE_STREAM] = select_info
 
                 current_state = self._attr_state
                 if current_state != self.get_state():
@@ -1103,6 +1144,18 @@ class KodiDevice:
                 updated_data[KodiSensors.SENSOR_VIDEO_INFO] = ""
                 updated_data[KodiSensors.SENSOR_VOLUME] = self._volume
                 updated_data[KodiSensors.SENSOR_VOLUME_MUTED] = self.is_volume_muted
+                updated_data[KodiSelects.SELECT_SUBTITLE_STREAM] = {
+                    "current_option": "",
+                    "options": [],
+                }
+                updated_data[KodiSelects.SELECT_AUDIO_STREAM] = {
+                    "current_option": "",
+                    "options": [],
+                }
+                updated_data[KodiSelects.SELECT_CHAPTER] = {
+                    "current_option": "",
+                    "options": [],
+                }
 
             self._position_timestamp = time.time()
             if self._attr_state != self.get_state():
@@ -1181,6 +1234,24 @@ class KodiDevice:
             KodiSensors.SENSOR_VIDEO_INFO: self.video_info,
             KodiSensors.SENSOR_VOLUME: self._volume,
             KodiSensors.SENSOR_VOLUME_MUTED: self.is_volume_muted,
+            KodiSelects.SELECT_SUBTITLE_STREAM: {
+                "current_option": self.selector_subtitle_stream,
+                "options": [
+                    x.get_track_name(KodiStreamConfig(self._device_config.sensor_subtitle_stream_config))
+                    for x in self.subtitle_tracks
+                ],
+            },
+            KodiSelects.SELECT_AUDIO_STREAM: {
+                "current_option": self.selector_audio_stream,
+                "options": [
+                    x.get_track_name(KodiStreamConfig(self._device_config.sensor_audio_stream_config))
+                    for x in self.audio_tracks
+                ],
+            },
+            KodiSelects.SELECT_CHAPTER: {
+                "current_option": self.current_chapter if self.current_chapter else "",
+                "options": [x.get("name", "") for x in self.chapters] if self.chapters else [],
+            },
         }
         return attributes
 
@@ -1259,7 +1330,7 @@ class KodiDevice:
 
     @property
     def audio_tracks(self) -> list[Track]:
-        """Return a list of available audio track names."""
+        """Return a list of available audio tracks."""
         tracks: list[Track] = []
         streams: list[dict[str, Any]] = self._properties.get("audiostreams", [])
         duplicates = False
@@ -1267,12 +1338,46 @@ class KodiDevice:
             stream_name = track.get("name", "")
             language_name = track.get("language", "")
             if language_name:
-                language_name = self._get_language_name(language_name)
+                language_name = _get_language_name(language_name, self._app_language)
             name = stream_name if stream_name else language_name
             index = track.get("index", 0)
             if name in [x.name for x in tracks]:
                 duplicates = True
             tracks.append(Track(name=name, index=index, language_name=language_name, stream_name=stream_name))
+        if duplicates:
+            for track in tracks:
+                track.name = f"{track.index}:{track.name}"
+        return tracks
+
+    @property
+    def subtitle_tracks(self) -> list[Track]:
+        """Return a list of available subtitle tracks."""
+        tracks: list[Track] = [Track.get_disabled_track(self._app_language)]
+        streams: list[dict[str, Any]] = self._properties.get("subtitles", [])
+        duplicates = False
+        for track in streams:
+            stream_name = track.get("name", "")
+            language_name = track.get("language", "")
+            if language_name:
+                language_name = _get_language_name(language_name, self._app_language)
+            name = stream_name if stream_name else language_name
+            index = track.get("index", 0)
+            if name in [x.name for x in tracks]:
+                duplicates = True
+            isdefault = track.get("isdefault", False)
+            isforced = track.get("isforced", False)
+            isimpaired = track.get("isimpaired", False)
+            tracks.append(
+                Track(
+                    name=name,
+                    index=index,
+                    language_name=language_name,
+                    stream_name=stream_name,
+                    forced=isforced,
+                    impaired=isimpaired,
+                    default=isdefault,
+                )
+            )
         if duplicates:
             for track in tracks:
                 track.name = f"{track.index}:{track.name}"
@@ -1295,23 +1400,18 @@ class KodiDevice:
         current_track = self.current_audio_track
         if current_track is None:
             return ""
-        if self._device_config.sensor_audio_stream_config == KodiSensorStreamConfig.FULL:
-            return current_track.get_full_name
-        if self._device_config.sensor_audio_stream_config == KodiSensorStreamConfig.STREAM_NAME:
-            return current_track.get_stream_name
-        # if self._device_config.sensor_audio_stream_config == KodiSensorStreamConfig.LANGUAGE_NAME:
-        return current_track.get_language_name
+        return current_track.get_track_name(KodiStreamConfig(self.device_config.sensor_audio_stream_config))
 
     @property
-    def current_subtitle_track(self) -> Track | None:
+    def current_subtitle_track(self) -> Track:
         """Return the current subtitle track name."""
         subtitles_enabled: bool = self._properties.get("subtitleenabled", False)
         if not subtitles_enabled:
-            return None
+            return Track.get_disabled_track(self._app_language)
         current_subtitle_stream: dict[str, Any] = self._properties.get("currentsubtitle", {})
         if current_subtitle_stream is None:
-            return None
-        language_name = self._get_language_name(current_subtitle_stream.get("language", ""))
+            return Track.get_disabled_track(self._app_language)
+        language_name = _get_language_name(current_subtitle_stream.get("language", ""), self._app_language)
         stream_name = current_subtitle_stream.get("name", "")
         if language_name and language_name != stream_name:
             name = f"{language_name.title()} {stream_name}"
@@ -1323,6 +1423,8 @@ class KodiDevice:
             track.forced = True
         if current_subtitle_stream.get("isimpaired", False):
             track.impaired = True
+        if current_subtitle_stream.get("isdefault", False):
+            track.default = True
         return track
 
     @property
@@ -1331,16 +1433,17 @@ class KodiDevice:
         current_track = self.current_subtitle_track
         if current_track is None:
             return ""
-        attributes = ""
-        if current_track.forced:
-            attributes += " (forced)"
-        if current_track.impaired:
-            attributes += " (impaired)"
-        if self._device_config.sensor_audio_stream_config == KodiSensorStreamConfig.FULL:
-            return current_track.get_full_name + attributes
-        if self._device_config.sensor_audio_stream_config == KodiSensorStreamConfig.STREAM_NAME:
-            return current_track.get_stream_name + attributes
-        return current_track.get_language_name + attributes
+        return current_track.get_track_name(KodiStreamConfig(self.device_config.sensor_subtitle_stream_config))
+
+    @property
+    def selector_subtitle_stream(self) -> str:
+        """Return the sensor subtitle stream."""
+        return self.sensor_subtitle_stream
+
+    @property
+    def selector_audio_stream(self) -> str:
+        """Return the sensor subtitle stream."""
+        return self.sensor_audio_stream
 
     @property
     def source(self) -> str:
@@ -1393,6 +1496,11 @@ class KodiDevice:
     def player_id(self) -> int:
         """Return current player ID."""
         return self._players[0]["playerid"]
+
+    @property
+    def chapters(self) -> list[dict[str, Any]]:
+        """Return chapters list."""
+        return self._chapters
 
     @property
     def current_chapter(self) -> str | None:
@@ -1554,6 +1662,7 @@ class KodiDevice:
             },
         )
 
+    @retry()
     async def select_chapter(self, chapter_name: str):
         """Skip to given chapter name."""
         if self._no_active_players or self._chapters is None:
@@ -1568,15 +1677,41 @@ class KodiDevice:
 
     @retry()
     async def select_audio_track(self, track_name: str):
-        """Skip to given chapter name."""
+        """Skip to given audio track name."""
         if self._no_active_players:
             return
         for track in self.audio_tracks:
-            if track.name == track_name:
+            if (
+                track.name == track_name
+                or track.get_track_name(KodiStreamConfig(self._device_config.sensor_audio_stream_config)) == track_name
+            ):
                 _LOG.debug("[%s] Switch audio track to %s (%s)", self.device_config.address, track.name, track.index)
                 await self._kodi.set_audio_stream(track.index)
                 return
         _LOG.warning("[%s] Switch audio track to %s : not found", self.device_config.address, track_name)
+
+    @retry()
+    async def select_subtitle_track(self, track_name: str):
+        """Skip to given subtitle track name."""
+        if self._no_active_players:
+            return
+        for track in self.subtitle_tracks:
+            if (
+                track.name == track_name
+                or track.get_track_name(KodiStreamConfig(self._device_config.sensor_subtitle_stream_config))
+                == track_name
+            ):
+                if not track.enabled:
+                    _LOG.debug("[%s] Disable subtitles", self.device_config.address)
+                    await self.command_action("showsubtitles")
+                    # await self._kodi.set_subtitle_stream(self.current_subtitle_track.index, False)
+                else:
+                    _LOG.debug(
+                        "[%s] Switch subtitle track to %s (%s)", self.device_config.address, track.name, track.index
+                    )
+                    await self._kodi.set_subtitle_stream(track.index)
+                return
+        _LOG.warning("[%s] Switch subtitle track to %s : not found", self.device_config.address, track_name)
 
     @retry()
     async def zoom(self, mode: Literal["in", "out"] | int):

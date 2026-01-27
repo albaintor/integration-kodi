@@ -448,6 +448,14 @@ class Kodi:
         if players:
             await self._server.Player.SetAudioStream(**{"playerid": players[0]["playerid"], "stream": stream_index})
 
+    async def set_subtitle_stream(self, stream_index: int, enable: bool = True):
+        """Set the subtitle stream of the running player."""
+        players = await self.get_players()
+        if players:
+            await self._server.Player.SetSubtitle(
+                **{"playerid": players[0]["playerid"], "subtitle": stream_index, "enable": enable}
+            )
+
 
 def _build_query(**kwargs):
     """Build query."""

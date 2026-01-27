@@ -20,7 +20,6 @@ from ucapi import Events
 import kodi
 from config import KodiConfigDevice
 from kodi import KodiDevice
-from media_player import KodiMediaPlayer
 
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -85,6 +84,23 @@ async def main():
     properties = await client.get_app_language()
     print_json(data=properties)
     properties = await client.get_name()
+    print_json(data=properties)
+
+    properties = await client._kodi.get_player_properties(
+        client._players[0],
+        [
+            "time",
+            "totaltime",
+            "speed",
+            "live",
+            "currentaudiostream",
+            "currentsubtitle",
+            "subtitleenabled",
+            "audiostreams",
+            "subtitles",
+            "currentvideostream",
+        ],
+    )
     print_json(data=properties)
 
     await asyncio.sleep(600)

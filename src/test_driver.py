@@ -19,6 +19,7 @@ import threading
 import tkinter as tk
 from asyncio import AbstractEventLoop, Future, Queue, Task
 from contextlib import suppress
+from dataclasses import dataclass
 from enum import StrEnum
 from tkinter import ttk
 from typing import Any, Callable
@@ -34,6 +35,13 @@ class Events(StrEnum):
     """Internal events."""
 
     EXITING = "EXITING"
+
+
+@dataclass
+class Selector:
+    name: str
+    current_option: str
+    options: list[str]
 
 
 def get_local_ip() -> str:
@@ -375,6 +383,7 @@ class RemoteInterface(tk.Tk):
         command.grid(row=self._row, column=1)
         self._row += 1
         self._sensors: dict[str, ttk.Label] = {}
+        self._selectors: dict[str, ttk.Combobox] = {}
         self._info_label = ttk.Label(self._left_frame, text="")
         self._info_label.grid(row=self._row, column=0, columnspan=3)
         self._row += 1
@@ -407,6 +416,34 @@ class RemoteInterface(tk.Tk):
                         "entity_id": entity_id,
                         "entity_type": "media_player",
                         "params": {},
+                    }
+                ),
+                self._worker._loop,
+            )
+        except Exception as ex:
+            _LOG.exception("Send command error %s", ex)
+
+    def selector_command(self, event: Any, entity_id: str, cmd_id: str) -> None:
+        _LOG.debug(
+            "Selector Command %s",
+            {
+                "cmd_id": cmd_id,
+                "entity_id": entity_id,
+                "entity_type": "select",
+                "params": {"option": event.widget.get()},
+            },
+        )
+        if self._worker is None:
+            _LOG.error("Selector Command undefined worker")
+            return
+        try:
+            asyncio.run_coroutine_threadsafe(
+                self.send_command(
+                    {
+                        "cmd_id": cmd_id,
+                        "entity_id": entity_id,
+                        "entity_type": "select",
+                        "params": {"option": event.widget.get()},
                     }
                 ),
                 self._worker._loop,
@@ -480,6 +517,25 @@ class RemoteInterface(tk.Tk):
         self._sensors[entity_id]["text"] = f"{name}: {value}"
         self.update()
 
+    def set_selector(self, entity_id: str, name: str, selector: Selector) -> None:
+        _LOG.debug("Setting selector %s %s", entity_id, selector)
+        if entity_id not in self._selectors:
+            label = ttk.Label(self._left_frame, text=f"{name} :")
+            label.grid(row=self._row, column=0, columnspan=3)
+            self._row += 1
+            combo = self._selectors[entity_id] = ttk.Combobox(self._left_frame, state="readonly")
+            combo.bind(
+                "<<ComboboxSelected>>",
+                lambda event, eid=entity_id, cmd_id="select_option": self.selector_command(event, eid, cmd_id),
+            )
+            combo.grid(row=self._row, column=0, columnspan=3)
+            self._row += 1
+            self._selectors[entity_id] = combo
+        combo = self._selectors[entity_id]
+        combo["values"] = selector.options
+        combo.set(selector.current_option)
+        self.update()
+
 
 class WorkerThread(threading.Thread):
 
@@ -491,6 +547,7 @@ class WorkerThread(threading.Thread):
         self._ws: RemoteWebsocket | None = None
         self._entity_ids: list[str] = []
         self._sensors: dict[str, str] = {}
+        self._selectors: dict[str, Selector] = {}
         self._entities: list[dict[str, Any]] = []
         # self.start()
 
@@ -543,6 +600,17 @@ class WorkerThread(threading.Thread):
             )
             return
 
+        if updated_data.get("entity_type", "") == "select" and entity_id in self._selectors:
+            entry = self._selectors[entity_id]
+            if "current_option" in attributes:
+                entry.current_option = attributes["current_option"]
+            if "options" in attributes:
+                entry.options = attributes["options"]
+            self._interface._ui_queue.put(
+                lambda eid=entity_id, name=entry.name: self._interface.set_selector(eid, name, entry)
+            )
+            return
+
         if updated_data.get("entity_type", "") != "media_player":
             return
         if "media_image_url" in attributes:
@@ -579,6 +647,11 @@ class WorkerThread(threading.Thread):
                     media_player_entity_id = entity_id
                 if entity.get("entity_type", "") == "sensor":
                     self._sensors[entity_id] = entity["name"].get("en", entity_id)
+                if entity.get("entity_type", "") == "select":
+                    self._selectors[entity_id] = Selector(
+                        name=entity["name"].get("en", entity_id), current_option="", options=[]
+                    )
+
             data = await self._ws.subscribe_entities(self._entity_ids)
             _LOG.debug("Subscribed entities : %s", data)
             await asyncio.sleep(5)

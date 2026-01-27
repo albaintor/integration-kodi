@@ -19,6 +19,7 @@ import config
 import kodi
 import media_player
 import remote
+import selector
 import sensor
 import setup_flow
 from config import KodiEntity
@@ -152,6 +153,8 @@ async def on_subscribe_entities(entity_ids: list[str]) -> None:
                     entity_id, {ucapi.remote.Attributes.STATE: remote.KODI_REMOTE_STATE_MAPPING.get(state)}
                 )
             elif isinstance(entity, sensor.KodiSensor):
+                api.configured_entities.update_attributes(entity_id, entity.update_attributes())
+            elif isinstance(entity, selector.KodiSelect):
                 api.configured_entities.update_attributes(entity_id, entity.update_attributes())
             continue
 
@@ -302,6 +305,8 @@ async def on_device_update(device_id: str, update: dict[str, Any] | None) -> lis
             attributes = configured_entity.filter_changed_attributes(update)
         elif isinstance(configured_entity, sensor.KodiSensor):
             attributes = configured_entity.update_attributes(update)
+        elif isinstance(configured_entity, selector.KodiSelect):
+            attributes = configured_entity.update_attributes(update)
 
         if attributes:
             api.configured_entities.update_attributes(entity_id, attributes)
@@ -323,6 +328,9 @@ def _entities_from_device_id(device_id: str) -> list[str]:
     return [
         f"media_player.{device_id}",
         f"remote.{device_id}",
+        f"select.{device_id}.{selector.KodiAudioStreamSelect.ENTITY_NAME}",
+        f"select.{device_id}.{selector.KodiSubtitleStreamSelect.ENTITY_NAME}",
+        f"select.{device_id}.{selector.KodiChapterSelect.ENTITY_NAME}",
         f"sensor.{device_id}.{KodiAudioStream.ENTITY_NAME}",
         f"sensor.{device_id}.{KodiSubtitleStream.ENTITY_NAME}",
         f"sensor.{device_id}.{KodiChapter.ENTITY_NAME}",
@@ -385,6 +393,9 @@ def _register_available_entities(device_config: config.KodiConfigDevice, device:
         sensor.KodiVideoInfo(device_config, device),
         sensor.KodiSensorVolume(device_config, device),
         sensor.KodiSensorMuted(device_config, device),
+        selector.KodiAudioStreamSelect(device_config, device),
+        selector.KodiSubtitleStreamSelect(device_config, device),
+        selector.KodiChapterSelect(device_config, device),
     ]
     for entity in entities:
         if api.available_entities.contains(entity.id):
@@ -439,6 +450,7 @@ async def main():
     logging.getLogger("media_player").setLevel(level)
     logging.getLogger("remote").setLevel(level)
     logging.getLogger("sensor").setLevel(level)
+    logging.getLogger("selector").setLevel(level)
     logging.getLogger("kodi").setLevel(level)
     logging.getLogger("setup_flow").setLevel(level)
     logging.getLogger("config").setLevel(level)

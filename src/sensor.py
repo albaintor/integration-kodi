@@ -1,7 +1,7 @@
 """
-Media-player entity functions.
+Sensor entity functions.
 
-:copyright: (c) 2023 by Unfolded Circle ApS.
+:copyright: (c) 2026 by Albaintor
 :license: Mozilla Public License Version 2.0, see LICENSE for more details.
 """
 
@@ -15,7 +15,7 @@ from ucapi.sensor import Attributes, DeviceClasses, Options, States
 
 import kodi
 from config import KodiConfigDevice, KodiEntity, create_entity_id
-from const import KODI_DEFAULT_NAME, KodiSensors
+from const import KodiSensors
 
 _LOG = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ KODI_SENSOR_STATE_MAPPING = {
 }
 
 
-# pylint: disable=R0917
+# pylint: disable=R0917,R0801
 class KodiSensor(KodiEntity, Sensor):
     """Representation of a Kodi Sensor entity."""
 
@@ -47,12 +47,10 @@ class KodiSensor(KodiEntity, Sensor):
         device_class: DeviceClasses = DeviceClasses.CUSTOM,
     ):
         """Initialize the class."""
-        # pylint: disable = R0801
         self._device: kodi.KodiDevice = device
         features = []
         attributes = dict[Any, Any]()
         self._config_device = config_device
-        self._device: kodi.KodiDevice = device
         self._state: States = States.UNAVAILABLE
         super().__init__(entity_id, name, features, attributes, device_class=device_class, options=options)
 
@@ -99,13 +97,15 @@ class KodiAudioStream(KodiSensor):
         """Initialize the class."""
         entity_id = f"{create_entity_id(config_device.id, EntityTypes.SENSOR)}.{self.ENTITY_NAME}"
         # TODO : dict instead of name to report language names
-        self._device = device
-        self._config_device = config_device
-        if self._config_device.sensor_include_device_name:
-            name = config_device.name + " " if config_device.name != KODI_DEFAULT_NAME else ""
-        else:
-            name = ""
-        super().__init__(entity_id, {"en": f"{name}Audio stream", "fr": f"{name}Piste audio"}, config_device, device)
+        super().__init__(
+            entity_id,
+            {
+                "en": f"{config_device.get_device_part()}Audio stream",
+                "fr": f"{config_device.get_device_part()}Piste audio",
+            },
+            config_device,
+            device,
+        )
 
     @property
     def sensor_value(self) -> str:
@@ -122,11 +122,15 @@ class KodiSubtitleStream(KodiSensor):
     def __init__(self, config_device: KodiConfigDevice, device: kodi.KodiDevice):
         """Initialize the class."""
         entity_id = f"{create_entity_id(config_device.id, EntityTypes.SENSOR)}.{self.ENTITY_NAME}"
-        if config_device.sensor_include_device_name:
-            name = config_device.name + " " if config_device.name != KODI_DEFAULT_NAME else ""
-        else:
-            name = ""
-        super().__init__(entity_id, {"en": f"{name}Subtitle stream", "fr": f"{name}Sous-titres"}, config_device, device)
+        super().__init__(
+            entity_id,
+            {
+                "en": f"{config_device.get_device_part()}Subtitle stream",
+                "fr": f"{config_device.get_device_part()}Sous-titres",
+            },
+            config_device,
+            device,
+        )
 
     @property
     def sensor_value(self) -> str:
@@ -143,11 +147,15 @@ class KodiChapter(KodiSensor):
     def __init__(self, config_device: KodiConfigDevice, device: kodi.KodiDevice):
         """Initialize the class."""
         entity_id = f"{create_entity_id(config_device.id, EntityTypes.SENSOR)}.{self.ENTITY_NAME}"
-        if config_device.sensor_include_device_name:
-            name = config_device.name + " " if config_device.name != KODI_DEFAULT_NAME else ""
-        else:
-            name = ""
-        super().__init__(entity_id, {"en": f"{name}Chapter", "fr": f"{name}Chapitre"}, config_device, device)
+        super().__init__(
+            entity_id,
+            {
+                "en": f"{config_device.get_device_part()}Chapter",
+                "fr": f"{config_device.get_device_part()}Chapitre",
+            },
+            config_device,
+            device,
+        )
 
     @property
     def sensor_value(self) -> str:
@@ -164,11 +172,15 @@ class KodiVideoInfo(KodiSensor):
     def __init__(self, config_device: KodiConfigDevice, device: kodi.KodiDevice):
         """Initialize the class."""
         entity_id = f"{create_entity_id(config_device.id, EntityTypes.SENSOR)}.{self.ENTITY_NAME}"
-        if config_device.sensor_include_device_name:
-            name = config_device.name + " " if config_device.name != KODI_DEFAULT_NAME else ""
-        else:
-            name = ""
-        super().__init__(entity_id, {"en": f"{name}Video info", "fr": f"{name}Info vidéo"}, config_device, device)
+        super().__init__(
+            entity_id,
+            {
+                "en": f"{config_device.get_device_part()}Video info",
+                "fr": f"{config_device.get_device_part()}Info vidéo",
+            },
+            config_device,
+            device,
+        )
 
     @property
     def sensor_value(self) -> str:
@@ -185,18 +197,21 @@ class KodiSensorVolume(KodiSensor):
     def __init__(self, config_device: KodiConfigDevice, device: kodi.KodiDevice):
         """Initialize the class."""
         entity_id = f"{create_entity_id(config_device.id, EntityTypes.SENSOR)}.{self.ENTITY_NAME}"
-        self._device = device
-        self._config_device = config_device
         options = {
             Options.CUSTOM_UNIT: "%",
             Options.MIN_VALUE: 0,
             Options.MAX_VALUE: 100,
         }
-        if config_device.sensor_include_device_name:
-            name = config_device.name + " " if config_device.name != KODI_DEFAULT_NAME else ""
-        else:
-            name = ""
-        super().__init__(entity_id, {"en": f"{name}Volume", "fr": f"{name}Volume"}, config_device, device, options)
+        super().__init__(
+            entity_id,
+            {
+                "en": f"{config_device.get_device_part()}Volume",
+                "fr": f"{config_device.get_device_part()}Volume",
+            },
+            config_device,
+            device,
+            options,
+        )
 
     @property
     def sensor_value(self) -> str | float:
@@ -213,15 +228,12 @@ class KodiSensorMuted(KodiSensor):
     def __init__(self, config_device: KodiConfigDevice, device: kodi.KodiDevice):
         """Initialize the class."""
         entity_id = f"{create_entity_id(config_device.id, EntityTypes.SENSOR)}.{self.ENTITY_NAME}"
-        self._device = device
-        self._config_device = config_device
-        if config_device.sensor_include_device_name:
-            name = config_device.name + " " if config_device.name != KODI_DEFAULT_NAME else ""
-        else:
-            name = ""
         super().__init__(
             entity_id,
-            {"en": f"{name}Muted", "fr": f"{name}Son coupé"},
+            {
+                "en": f"{config_device.get_device_part()}Muted",
+                "fr": f"{config_device.get_device_part()}Son coupé",
+            },
             config_device,
             device,
             None,
