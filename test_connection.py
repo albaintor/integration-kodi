@@ -13,6 +13,8 @@ import logging
 import sys
 from typing import Any
 
+sys.path.insert(1, "src")
+
 import jsonrpc_base
 from rich import print_json
 from ucapi import Events

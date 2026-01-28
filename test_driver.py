@@ -15,6 +15,8 @@ import logging
 import queue
 import socket
 import sys
+
+sys.path.insert(1, "src")
 import threading
 import tkinter as tk
 from asyncio import AbstractEventLoop, Future, Queue, Task
