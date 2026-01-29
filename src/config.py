@@ -82,6 +82,7 @@ class KodiConfigDevice:
     sensor_audio_stream_config: int = field(default=KodiStreamConfig.FULL)
     sensor_subtitle_stream_config: int = field(default=KodiStreamConfig.FULL)
     sensor_include_device_name: bool = field(default=True)
+    log_additional_data: bool = field(default=False)
 
     def __post_init__(self):
         """Apply default values on missing fields."""

@@ -361,15 +361,16 @@ def _register_available_entities(device_config: config.KodiConfigDevice, device:
     entities = [
         media_player.KodiMediaPlayer(device_config, device),
         remote.KodiRemote(device_config, device),
+        selector.KodiAudioStreamSelect(device_config, device),
+        selector.KodiSubtitleStreamSelect(device_config, device),
+        selector.KodiChapterSelect(device_config, device),
         sensor.KodiAudioStream(device_config, device),
         sensor.KodiSubtitleStream(device_config, device),
         sensor.KodiChapter(device_config, device),
         sensor.KodiVideoInfo(device_config, device),
+        sensor.KodiAudioInfo(device_config, device),
         sensor.KodiSensorVolume(device_config, device),
         sensor.KodiSensorMuted(device_config, device),
-        selector.KodiAudioStreamSelect(device_config, device),
-        selector.KodiSubtitleStreamSelect(device_config, device),
-        selector.KodiChapterSelect(device_config, device),
     ]
     for entity in entities:
         if api.available_entities.contains(entity.id):

@@ -35,16 +35,24 @@ Note : this release requires remote firmware `>= 1.7.10`
 - Predefined buttons mapping and interface buttons
 - State (On / Off)
 
+**Selectors**
+- Audio stream selector
+- Subtitle stream selector
+- Chapter selector (Kodi >=22)
+
 **Sensors**
 Several sensors are available with the following attributes exposed :
 - Current audio stream name
 - Current subtitle stream name
 - Current chapter name (Kodi >=22)
 - Current video information (resolution, codec)
+- Current audio information (codec, bitrate, channels, frequency)
 - Current volume level
 - Current volume muted state
 
-Note: the audio/subtitle streams names are available prior Kodi 22 but are not updated instantly (I pushed a patch recently in Kodi 22 to get instant updates)
+Notes: 
+- The audio/subtitle streams names are available prior Kodi 22 but are not updated instantly (I pushed a patch recently in Kodi 22 to get instant updates)
+- Selectors (dropdown list) are available with UC Firmware `>= 2.8.3`
 
 
 ### Supported commands for Media Player entity

@@ -164,7 +164,7 @@ class KodiChapter(KodiSensor):
 
 
 class KodiVideoInfo(KodiSensor):
-    """Current chapter sensor entity."""
+    """Video info sensor entity."""
 
     ENTITY_NAME = "video_info"
     SENSOR_NAME = KodiSensors.SENSOR_VIDEO_INFO
@@ -186,6 +186,31 @@ class KodiVideoInfo(KodiSensor):
     def sensor_value(self) -> str:
         """Return sensor value."""
         return self._device.video_info
+
+
+class KodiAudioInfo(KodiSensor):
+    """Audio info sensor entity."""
+
+    ENTITY_NAME = "audio_info"
+    SENSOR_NAME = KodiSensors.SENSOR_AUDIO_INFO
+
+    def __init__(self, config_device: KodiConfigDevice, device: kodi.KodiDevice):
+        """Initialize the class."""
+        entity_id = f"{create_entity_id(config_device.id, EntityTypes.SENSOR)}.{self.ENTITY_NAME}"
+        super().__init__(
+            entity_id,
+            {
+                "en": f"{config_device.get_device_part()}Audio info",
+                "fr": f"{config_device.get_device_part()}Info audio",
+            },
+            config_device,
+            device,
+        )
+
+    @property
+    def sensor_value(self) -> str:
+        """Return sensor value."""
+        return self._device.audio_info
 
 
 class KodiSensorVolume(KodiSensor):
