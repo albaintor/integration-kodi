@@ -9,11 +9,11 @@ import logging
 from enum import Enum
 from typing import Any
 
-from ucapi import StatusCodes
+from ucapi import StatusCodes, Select, EntityTypes
 from ucapi.api_definitions import CommandHandler
 
 import kodi
-from config import KodiConfigDevice, KodiEntity, PatchedEntityTypes, create_entity_id
+from config import KodiConfigDevice, KodiEntity, create_entity_id
 from const import KodiSelects, KodiStreamConfig
 
 
@@ -27,7 +27,7 @@ _LOG = logging.getLogger(__name__)
 
 
 # pylint: disable=W1405,R0801
-class KodiSelect(KodiEntity):
+class KodiSelect(KodiEntity, Select):
     """Representation of a Kodi select entity."""
 
     ENTITY_NAME = "select"
@@ -50,17 +50,7 @@ class KodiSelect(KodiEntity):
         self._device: kodi.KodiDevice = device
         self._state: States = States.ON
         self._select_handler: CommandHandler = select_handler
-        super().__init__(
-            identifier=entity_id,
-            name=name,
-            entity_type=PatchedEntityTypes.SELECT,
-            features=features,
-            attributes=attributes,
-            device_class=None,
-            options=None,
-            area=None,
-            cmd_handler=self.command,
-        )
+        super().__init__(identifier=entity_id, name=name, attributes=attributes)
 
     @property
     def deviceid(self) -> str:
@@ -147,7 +137,7 @@ class KodiAudioStreamSelect(KodiSelect):
     def __init__(self, config_device: KodiConfigDevice, device: kodi.KodiDevice):
         """Initialize the class."""
         # pylint: disable=W1405,R0801
-        entity_id = f"{create_entity_id(config_device.id, PatchedEntityTypes.SELECT)}.{self.ENTITY_NAME}"
+        entity_id = f"{create_entity_id(config_device.id, EntityTypes.SELECT)}.{self.ENTITY_NAME}"
         super().__init__(
             entity_id,
             {
@@ -182,7 +172,7 @@ class KodiSubtitleStreamSelect(KodiSelect):
     def __init__(self, config_device: KodiConfigDevice, device: kodi.KodiDevice):
         """Initialize the class."""
         # pylint: disable=W1405
-        entity_id = f"{create_entity_id(config_device.id, PatchedEntityTypes.SELECT)}.{self.ENTITY_NAME}"
+        entity_id = f"{create_entity_id(config_device.id, EntityTypes.SELECT)}.{self.ENTITY_NAME}"
         super().__init__(
             entity_id,
             {
@@ -216,7 +206,7 @@ class KodiChapterSelect(KodiSelect):
 
     def __init__(self, config_device: KodiConfigDevice, device: kodi.KodiDevice):
         """Initialize the class."""
-        entity_id = f"{create_entity_id(config_device.id, PatchedEntityTypes.SELECT)}.{self.ENTITY_NAME}"
+        entity_id = f"{create_entity_id(config_device.id, EntityTypes.SELECT)}.{self.ENTITY_NAME}"
         super().__init__(
             entity_id,
             {

@@ -1,5 +1,5 @@
 pyee~=13.0.0
-ucapi~=0.5.1
+ucapi~=0.5.2
 httpx~=0.28.1
 defusedxml~=0.7.1
 jsonrpc-async>=2.1.3

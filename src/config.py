@@ -13,29 +13,13 @@ from dataclasses import dataclass, field, fields
 from enum import Enum
 from typing import Callable, Iterator
 
-from ucapi import Entity
+from ucapi import Entity, EntityTypes
 
 from const import KODI_DEFAULT_NAME, KodiStreamConfig
 
 _LOG = logging.getLogger(__name__)
 
 _CFG_FILENAME = "config.json"
-
-
-class PatchedEntityTypes(str, Enum):
-    """Entity types."""
-
-    COVER = "cover"
-    BUTTON = "button"
-    CLIMATE = "climate"
-    LIGHT = "light"
-    MEDIA_PLAYER = "media_player"
-    REMOTE = "remote"
-    SENSOR = "sensor"
-    SWITCH = "switch"
-    IR_EMITTER = "ir_emitter"
-    VOICE_ASSISTANT = "voice_assistant"
-    SELECT = "select"
 
 
 class KodiEntity(Entity):
@@ -47,7 +31,7 @@ class KodiEntity(Entity):
         raise NotImplementedError()
 
 
-def create_entity_id(device_id: str, entity_type: PatchedEntityTypes) -> str:
+def create_entity_id(device_id: str, entity_type: EntityTypes) -> str:
     """Create a unique entity identifier for the given receiver and entity type."""
     return f"{entity_type.value}.{device_id}"
 
