@@ -16,7 +16,6 @@ import kodi
 from config import KodiConfigDevice, KodiEntity, create_entity_id
 from const import KodiSelects, KodiStreamConfig
 
-
 _LOG = logging.getLogger(__name__)
 
 
