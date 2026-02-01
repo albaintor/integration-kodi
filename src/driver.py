@@ -15,6 +15,7 @@ from typing import Any, Type
 
 # sys.path.insert(0, os.path.abspath("../integration-python-library"))
 import ucapi
+from ucapi import EntityTypes
 
 import config
 import kodi
@@ -36,11 +37,13 @@ api = ucapi.IntegrationAPI(_LOOP)
 # Map of id -> device instance
 _configured_kodis: dict[str, kodi.KodiDevice] = {}
 _remote_in_standby = False  # pylint: disable=C0103
+_supported_entity_types: list[EntityTypes] | None = None
 
 
 @api.listens_to(ucapi.Events.CONNECT)
 async def on_connect_cmd() -> None:
     """Connect all configured TVs when the Remote sends the connect command."""
+    global _supported_entity_types
     await api.set_device_state(ucapi.DeviceStates.CONNECTED)
     # TODO check if we were in standby and ignore the call? We'll also get an EXIT_STANDBY
     _LOG.debug("Connect command: connecting device(s)")
@@ -357,9 +360,10 @@ def _register_available_entities(device_config: config.KodiConfigDevice, device:
 
     :param device_config: Receiver
     """
+    global _supported_entity_types
     # plain and simple for now: only one media_player per device
     # entity = media_player.create_entity(device)
-    entities = [
+    entities: list[KodiEntity] = [
         media_player.KodiMediaPlayer(device_config, device),
         remote.KodiRemote(device_config, device),
         selector.KodiAudioStreamSelect(device_config, device),
@@ -373,6 +377,11 @@ def _register_available_entities(device_config: config.KodiConfigDevice, device:
         sensor.KodiSensorVolume(device_config, device),
         sensor.KodiSensorMuted(device_config, device),
     ]
+
+    if _supported_entity_types:
+        _LOG.debug("Filtering supported entity types: %s", _supported_entity_types)
+        entities = [x for x in entities if x.entity_type in _supported_entity_types]
+
     for entity in entities:
         if api.available_entities.contains(entity.id):
             api.available_entities.remove(entity.id)
@@ -382,7 +391,16 @@ def _register_available_entities(device_config: config.KodiConfigDevice, device:
 def on_device_added(device: config.KodiConfigDevice) -> None:
     """Handle a newly added device in the configuration."""
     _LOG.debug("New device added: %s", device)
-    _configure_new_device(device, connect=False)
+
+    async def _add_device(device: config.KodiConfigDevice) -> None:
+        global _supported_entity_types
+        if _supported_entity_types is None:
+            _supported_entity_types = await api.get_supported_entity_types()
+            _LOG.debug("Supported entity types: %s", _supported_entity_types)
+        _configure_new_device(device, connect=False)
+        await on_device_connected(device.id)
+
+    asyncio.create_task(_add_device(device))
 
 
 def on_device_updated(device: config.KodiConfigDevice) -> None:
