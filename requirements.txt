@@ -1,5 +1,6 @@
 pyee~=13.0.0
-ucapi~=0.5.2
+ucapi
+ file:./src/ucapi-0.5.3.dev5+g40e7957a0.d20260201-py3-none-any.whl
 httpx~=0.28.1
 defusedxml~=0.7.1
 jsonrpc-async>=2.1.3

@@ -189,6 +189,78 @@ class RemoteWebsocket:
         )
         self._id += 1
 
+    async def _handle_request(self, msg: dict[str, Any]):
+        # {"kind": "req", "msg": "get_supported_entity_types"}
+        msg_type = msg.get("msg", "")
+        req_id = msg.get("id", "")
+        if msg_type == "get_supported_entity_types":
+            await self._send_json(
+                {
+                    "kind": "resp",
+                    "req_id": req_id,
+                    "code": 200,
+                    "msg": "supported_entity_types",
+                    "msg_data": [
+                        "cover",
+                        "button",
+                        "climate",
+                        "light",
+                        "media_player",
+                        "remote",
+                        "select",
+                        "sensor",
+                        "switch",
+                        "ir_emitter",
+                        "voice_assistant",
+                    ],
+                }
+            )
+        elif msg_type == "get_version":
+            await self._send_json(
+                {
+                    "kind": "resp",
+                    "req_id": req_id,
+                    "code": 200,
+                    "msg": "version",
+                    "msg_data": {
+                        "address": "AA:BB:CC:DD:EE:FF",
+                        "api": "0.16.0",
+                        "core": "0.69.1-bt",
+                        "device_name": "Remote 3",
+                        "hostname": "Remote3-aabbccdd.local",
+                        "model": "UCR3",
+                        "os": "2.8.3",
+                        "ui": "0.69.1",
+                    },
+                }
+            )
+        elif msg_type == "get_localization_cfg":
+            await self._send_json(
+                {
+                    "kind": "resp",
+                    "req_id": req_id,
+                    "code": 200,
+                    "msg": "localization_cfg",
+                    "msg_data": {
+                        "country_code": "EN",
+                        "language_code": "en_US",
+                        "measurement_unit": "METRIC",
+                        "time_format_24h": True,
+                        "time_zone": "Europe/Paris",
+                    },
+                }
+            )
+        else:
+            await self._send_json(
+                {
+                    "kind": "resp",
+                    "req_id": req_id,
+                    "code": 400,
+                    "msg": f"{msg_type}",
+                    "msg_data": f"Unknown message type: {msg_type}",
+                }
+            )
+
     async def _send_json(self, msg: dict) -> None:
         _LOG.debug("Send json: %s", msg)
         await self.client_websocket.send_json(msg)
@@ -234,6 +306,8 @@ class RemoteWebsocket:
         kind = msg.get("kind", "")
         if kind == "event" and (callback_queue := self.callback_queues.get(msg_type)):
             callback_queue.put_nowait(msg)
+        elif kind == "req":
+            asyncio.create_task(self._handle_request(msg))
         else:
             uid = msg.get("req_id", None)
             if uid is None:

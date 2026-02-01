@@ -9,7 +9,7 @@ import logging
 from enum import Enum
 from typing import Any
 
-from ucapi import StatusCodes, Select, EntityTypes
+from ucapi import EntityTypes, Select, StatusCodes
 from ucapi.api_definitions import CommandHandler
 
 import kodi
@@ -44,7 +44,6 @@ class KodiSelect(KodiEntity, Select):
     ):
         """Initialize the class."""
         # pylint: disable = R0801
-        features = []
         attributes = dict[Any, Any]()
         self._config_device = config_device
         self._device: kodi.KodiDevice = device

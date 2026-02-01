@@ -60,7 +60,7 @@ _LOG = logging.getLogger(__name__)
 DEFAULT_TIMEOUT = 8.0
 ARTWORK_TIMEOUT = 5.0
 WEBSOCKET_WATCHDOG_INTERVAL = 10
-CONNECTION_RETRIES = 10
+CONNECTION_RETRIES = 30
 UPDATE_POSITION_INTERVAL = 300
 UPDATE_STATE_RETRY = 2
 UPDATE_LOCK_TIMEOUT = 10.0
@@ -194,6 +194,7 @@ async def retry_call_command(
     if not obj._connection_status:
         obj._connection_status = obj.event_loop.create_future()
     if not obj._connect_lock.locked():
+        obj._reconnect_retry = 0
         obj.event_loop.create_task(obj.connect())
         await asyncio.sleep(0)
 
@@ -706,7 +707,9 @@ class KodiDevice:
         try:
             if self._websocket_task:
                 self._websocket_task.cancel()
-            await self._kodi_connection.close()
+            if self._kodi_connection:
+                await self._kodi_connection.close()
+                self._kodi_connection = None
             self._attr_state = MediaStates.OFF
         except CannotConnectError as er:
             _LOG.error(
