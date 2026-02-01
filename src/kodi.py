@@ -37,6 +37,7 @@ from pyee.asyncio import AsyncIOEventEmitter
 from ucapi.media_player import Attributes as MediaAttr
 from ucapi.media_player import Features, MediaType
 from ucapi.media_player import States as MediaStates
+from ucapi.select import Attributes as SelectAttributes
 
 from config import KodiConfigDevice
 from const import (
@@ -1058,8 +1059,10 @@ class KodiDevice:
                             self._chapters = chapters
                             current_chapter = self.current_chapter
                             updated_data[KodiSelects.SELECT_CHAPTER] = {
-                                "current_option": current_chapter if current_chapter else "",
-                                "options": [x.get("name", "") for x in self.chapters] if self.chapters else [],
+                                SelectAttributes.CURRENT_OPTION: current_chapter if current_chapter else "",
+                                SelectAttributes.OPTIONS: (
+                                    [x.get("name", "") for x in self.chapters] if self.chapters else []
+                                ),
                             }
                             if current_chapter:
                                 _LOG.debug(
@@ -1079,13 +1082,13 @@ class KodiDevice:
                         for track in self.audio_tracks
                     ]
                     updated_data[KodiSelects.SELECT_AUDIO_STREAM] = {
-                        "options": [
+                        SelectAttributes.OPTIONS: [
                             x.get_track_name(KodiStreamConfig(self._device_config.sensor_audio_stream_config))
                             for x in self.audio_tracks
                         ]
                     }
                     updated_data[KodiSelects.SELECT_SUBTITLE_STREAM] = {
-                        "options": [
+                        SelectAttributes.OPTIONS: [
                             x.get_track_name(KodiStreamConfig(self._device_config.sensor_subtitle_stream_config))
                             for x in self.subtitle_tracks
                         ]
@@ -1116,7 +1119,7 @@ class KodiDevice:
                     updated_data[MediaAttr.SOUND_MODE] = self._audio_stream
                     updated_data[KodiSensors.SENSOR_AUDIO_STREAM] = self.sensor_audio_stream
                     select_info = updated_data.get(KodiSelects.SELECT_AUDIO_STREAM, {})
-                    select_info["current_option"] = self.selector_audio_stream
+                    select_info[SelectAttributes.CURRENT_OPTION] = self.selector_audio_stream
                     updated_data[KodiSelects.SELECT_AUDIO_STREAM] = select_info
 
                 if self._subtitle_stream != self.current_subtitle_track.get_track_name(
@@ -1127,7 +1130,7 @@ class KodiDevice:
                     )
                     updated_data[KodiSensors.SENSOR_SUBTITLE_STREAM] = self.sensor_subtitle_stream
                     select_info = updated_data.get(KodiSelects.SELECT_SUBTITLE_STREAM, {})
-                    select_info["current_option"] = self.selector_subtitle_stream
+                    select_info[SelectAttributes.CURRENT_OPTION] = self.selector_subtitle_stream
                     updated_data[KodiSelects.SELECT_SUBTITLE_STREAM] = select_info
 
                 current_state = self._attr_state
@@ -1168,16 +1171,16 @@ class KodiDevice:
                 updated_data[KodiSensors.SENSOR_VOLUME] = self._volume
                 updated_data[KodiSensors.SENSOR_VOLUME_MUTED] = self.is_volume_muted
                 updated_data[KodiSelects.SELECT_SUBTITLE_STREAM] = {
-                    "current_option": "",
-                    "options": [],
+                    SelectAttributes.CURRENT_OPTION: "",
+                    SelectAttributes.OPTIONS: [],
                 }
                 updated_data[KodiSelects.SELECT_AUDIO_STREAM] = {
-                    "current_option": "",
-                    "options": [],
+                    SelectAttributes.CURRENT_OPTION: "",
+                    SelectAttributes.OPTIONS: [],
                 }
                 updated_data[KodiSelects.SELECT_CHAPTER] = {
-                    "current_option": "",
-                    "options": [],
+                    SelectAttributes.CURRENT_OPTION: "",
+                    SelectAttributes.OPTIONS: [],
                 }
 
             self._position_timestamp = time.time()
@@ -1268,22 +1271,22 @@ class KodiDevice:
             KodiSensors.SENSOR_VOLUME: self._volume,
             KodiSensors.SENSOR_VOLUME_MUTED: self.is_volume_muted,
             KodiSelects.SELECT_SUBTITLE_STREAM: {
-                "current_option": self.selector_subtitle_stream,
-                "options": [
+                SelectAttributes.CURRENT_OPTION: self.selector_subtitle_stream,
+                SelectAttributes.OPTIONS: [
                     x.get_track_name(KodiStreamConfig(self._device_config.sensor_subtitle_stream_config))
                     for x in self.subtitle_tracks
                 ],
             },
             KodiSelects.SELECT_AUDIO_STREAM: {
-                "current_option": self.selector_audio_stream,
-                "options": [
+                SelectAttributes.CURRENT_OPTION: self.selector_audio_stream,
+                SelectAttributes.OPTIONS: [
                     x.get_track_name(KodiStreamConfig(self._device_config.sensor_audio_stream_config))
                     for x in self.audio_tracks
                 ],
             },
             KodiSelects.SELECT_CHAPTER: {
-                "current_option": self.current_chapter if self.current_chapter else "",
-                "options": [x.get("name", "") for x in self.chapters] if self.chapters else [],
+                SelectAttributes.CURRENT_OPTION: self.current_chapter if self.current_chapter else "",
+                SelectAttributes.OPTIONS: [x.get("name", "") for x in self.chapters] if self.chapters else [],
             },
         }
         return attributes
