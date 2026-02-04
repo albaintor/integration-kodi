@@ -12,6 +12,7 @@ WORKDIR /app
 COPY requirements.txt .
 
 # Install Python dependencies
+COPY src/*.whl ./src/
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy source code
