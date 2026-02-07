@@ -38,6 +38,7 @@ from ucapi.media_player import Attributes as MediaAttr
 from ucapi.media_player import Features, MediaType
 from ucapi.media_player import States as MediaStates
 from ucapi.select import Attributes as SelectAttributes
+from ucapi.select import States as SelectStates
 
 from config import KodiConfigDevice
 from const import (
@@ -1276,6 +1277,7 @@ class KodiDevice:
                     x.get_track_name(KodiStreamConfig(self._device_config.sensor_subtitle_stream_config))
                     for x in self.subtitle_tracks
                 ],
+                SelectAttributes.STATE: SelectStates.ON,
             },
             KodiSelects.SELECT_AUDIO_STREAM: {
                 SelectAttributes.CURRENT_OPTION: self.selector_audio_stream,
@@ -1283,10 +1285,12 @@ class KodiDevice:
                     x.get_track_name(KodiStreamConfig(self._device_config.sensor_audio_stream_config))
                     for x in self.audio_tracks
                 ],
+                SelectAttributes.STATE: SelectStates.ON,
             },
             KodiSelects.SELECT_CHAPTER: {
                 SelectAttributes.CURRENT_OPTION: self.current_chapter if self.current_chapter else "",
                 SelectAttributes.OPTIONS: [x.get("name", "") for x in self.chapters] if self.chapters else [],
+                SelectAttributes.STATE: SelectStates.ON,
             },
         }
         return attributes
