@@ -193,10 +193,10 @@ async def retry_call_command(
     """Retry call command when failed."""
     # pylint: disable=W0212
     # Launch reconnection task if not active
+    obj._reconnect_retry = 0
     if not obj._connection_status:
         obj._connection_status = obj.event_loop.create_future()
     if not obj._connect_lock.locked():
-        obj._reconnect_retry = 0
         obj.event_loop.create_task(obj.connect())
         await asyncio.sleep(0)
 
@@ -683,7 +683,6 @@ class KodiDevice:
             _LOG.error("[%s] Unknown exception connect : %s", self.device_config.address, ex)
             return False
         finally:
-            # After 10 retries, reconnection delay will go from 10 to 30s and stop logging
             if self._reconnect_retry >= CONNECTION_RETRIES and self._connect_error:
                 _LOG.debug("[%s] Kodi websocket not connected, abort retries", self.device_config.address)
                 if self._websocket_task:
@@ -729,6 +728,7 @@ class KodiDevice:
             self._available = False
             self._websocket_task = None
             self._app_language = None
+            self._reconnect_retry = 0
             try:
                 self._update_lock.release()
             except RuntimeError:
