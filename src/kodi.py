@@ -169,7 +169,7 @@ class Track:
         return Track(index=-1, language_name=language, stream_name="", enabled=False)
 
 
-def debounce(wait):
+def debounce(wait: float):
     """Debounce function."""
 
     def decorator(func):
@@ -344,6 +344,7 @@ class KodiDevice:
         self._audio_stream: str = ""
         self._subtitle_stream = ""
         self._app_language: str | None = None
+        self._chapter_update_task: Task | None = None
 
     async def init_connection(self):
         """Initialize connection to device."""
@@ -778,6 +779,13 @@ class KodiDevice:
             self._update_lock.release()
         except RuntimeError:
             pass
+        if self._chapter_update_task:
+            try:
+                self._chapter_update_task.cancel()
+            # pylint: disable = W0718
+            except Exception:
+                pass
+            self._chapter_update_task = None
 
     async def start_update_position_task(self):
         """Start update media position task."""
@@ -788,6 +796,41 @@ class KodiDevice:
             # pylint: disable = W0718
             except Exception as ex:
                 _LOG.error("[%s] Unknown exception %s", self.device_config.address, ex)
+
+    @debounce(2)
+    async def update_chapter_task(self):
+        """Update chapter task."""
+        if self._chapter_update_task:
+            try:
+                self._chapter_update_task.cancel()
+            # pylint: disable = W0718
+            except Exception:
+                pass
+            self._chapter_update_task = None
+        self._chapter_update_task = asyncio.create_task(self._update_chapter_task())
+
+    async def _update_chapter_task(self):
+        """Update current chapter task."""
+        if len(self.chapters) == 0:
+            self._chapter_update_task = None
+            return
+        position = self.current_media_position
+        next_chapter: dict[str, Any] | None = None
+        for chapter in self._chapters:
+            if position <= chapter.get("time", 0):
+                next_chapter = chapter
+                break
+        if next_chapter is None:
+            self._chapter_update_task = None
+            return
+        sleep_time = next_chapter.get("time", 0) - position
+        if sleep_time < 0:
+            self._chapter_update_task = None
+            return
+        _LOG.debug("[%s] Next update of chapter in %s seconds", self.device_config.address, sleep_time)
+        await asyncio.sleep(sleep_time + 1)
+        self._chapter_update_task = None
+        await self._update_states()
 
     @debounce(2)
     async def _update_position(self) -> None:
@@ -1122,19 +1165,27 @@ class KodiDevice:
                 if self.state == MediaStates.PAUSED and current_chapter:
                     await self.display_temporary_title(current_chapter)
                     updated_data[MediaAttr.MEDIA_TITLE] = self._temporary_title
+                    if self._chapter_update_task:
+                        try:
+                            self._chapter_update_task.cancel()
+                        # pylint: disable = W0718
+                        except Exception:
+                            pass
+                        self._chapter_update_task = None
 
-                # TODO create deferred update chapter task when next position will be reached
                 if self._current_chapter != current_chapter:
                     self._current_chapter = current_chapter
                     updated_data[MediaAttr.SOURCE] = current_chapter
                     await self.display_temporary_title(current_chapter)
                     updated_data[MediaAttr.MEDIA_TITLE] = self._temporary_title
                     updated_data[KodiSensors.SENSOR_CHAPTER] = self.current_chapter
-                    if updated_data[KodiSelects.SELECT_CHAPTER] is None:
+                    if updated_data.get(KodiSelects.SELECT_CHAPTER, None) is None:
                         updated_data[KodiSelects.SELECT_CHAPTER] = {}
                     updated_data[KodiSelects.SELECT_CHAPTER][SelectAttributes.CURRENT_OPTION] = (
                         current_chapter if current_chapter else ""
                     )
+                if self.state == MediaStates.PLAYING and len(self.chapters) > 0 and self._chapter_update_task is None:
+                    await self.update_chapter_task()
 
                 new_audio_track = self.current_audio_track
                 if (
@@ -1394,9 +1445,7 @@ class KodiDevice:
     @property
     def source_list(self) -> list[str]:
         """Return a list of available input sources."""
-        if self._chapters is None:
-            return []
-        return [chapter.get("name", "") for chapter in self._chapters]
+        return self.chapters
 
     @staticmethod
     def _get_stream_info(stream: dict[str, Any]) -> str:
@@ -1679,16 +1728,19 @@ class KodiDevice:
     async def next(self):
         """Send next-track command to Kodi."""
         await self._kodi.next_track()
+        await self.update_chapter_task()
 
     @retry()
     async def previous(self):
         """Send previous-track command to Kodi."""
         await self._kodi.previous_track()
+        await self.update_chapter_task()
 
     @retry()
     async def media_seek(self, position: float):
         """Send seek command."""
         await self._kodi.media_seek(position)
+        await self.update_chapter_task()
 
     @retry()
     async def context_menu(self):
@@ -1760,6 +1812,7 @@ class KodiDevice:
                 "value": {"time": {"hours": h, "minutes": m, "seconds": s, "milliseconds": 0}},
             },
         )
+        await self.update_chapter_task()
 
     @retry()
     async def select_chapter(self, chapter_name: str):
