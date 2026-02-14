@@ -340,7 +340,7 @@ class KodiDevice:
         self._update_state_retry = 0
         self._temporary_title: str | None = None
         self._chapters: list[dict[str, Any]] | None = None
-        self._source: str | None = None
+        self._current_chapter: str | None = None
         self._audio_stream: str = ""
         self._subtitle_stream = ""
         self._app_language: str | None = None
@@ -771,7 +771,7 @@ class KodiDevice:
         self._temporary_title = None
         self._update_state_retry = 0
         self._chapters = None
-        self._source = None
+        self._current_chapter = None
         self._audio_stream = ""
         self._subtitle_stream = ""
         try:
@@ -1123,12 +1123,18 @@ class KodiDevice:
                     await self.display_temporary_title(current_chapter)
                     updated_data[MediaAttr.MEDIA_TITLE] = self._temporary_title
 
-                if self._source != current_chapter:
-                    self._source = current_chapter
+                # TODO create deferred update chapter task when next position will be reached
+                if self._current_chapter != current_chapter:
+                    self._current_chapter = current_chapter
                     updated_data[MediaAttr.SOURCE] = current_chapter
                     await self.display_temporary_title(current_chapter)
                     updated_data[MediaAttr.MEDIA_TITLE] = self._temporary_title
                     updated_data[KodiSensors.SENSOR_CHAPTER] = self.current_chapter
+                    if updated_data[KodiSelects.SELECT_CHAPTER] is None:
+                        updated_data[KodiSelects.SELECT_CHAPTER] = {}
+                    updated_data[KodiSelects.SELECT_CHAPTER][SelectAttributes.CURRENT_OPTION] = (
+                        current_chapter if current_chapter else ""
+                    )
 
                 new_audio_track = self.current_audio_track
                 if (
