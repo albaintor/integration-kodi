@@ -193,10 +193,10 @@ async def retry_call_command(
     """Retry call command when failed."""
     # pylint: disable=W0212
     # Launch reconnection task if not active
+    obj._reset_retries()
     if not obj._connection_status:
         obj._connection_status = obj.event_loop.create_future()
     if not obj._connect_lock.locked():
-        obj._reset_retries()
         obj.event_loop.create_task(obj.connect())
         await asyncio.sleep(0)
 
@@ -575,8 +575,8 @@ class KodiDevice:
         else:
             self._connect_error = False
 
-    async def _ping_and_reconnect(self, *_) -> bool:
-        """Reconnect the websocket if it fails.
+    async def _ping_and_reconnect(self) -> bool:
+        """Reconnect the websocket if it fails or sends ping to websocket.
 
         :returns: True if device is connected or if the connection retries has not reached it limit"""
         if not self._kodi_connection.connected and self._reconnect_retry >= CONNECTION_RETRIES:
