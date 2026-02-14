@@ -219,4 +219,4 @@ class KodiChapterSelect(KodiSelect):
     @property
     def select_options(self) -> list[str]:
         """Return selection list."""
-        return [x.get("name", "") for x in self._device.chapters] if self._device.chapters else []
+        return self._device.chapters

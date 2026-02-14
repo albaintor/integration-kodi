@@ -108,6 +108,18 @@ def _get_language_name(lang: str, app_language="en_US") -> str:
     return stream_language.get(app_language_code, stream_language.get("en", lang))
 
 
+def _get_chapter_name(chapter: dict[str, Any]) -> str:
+    """Extract chapter name."""
+    # pylint: disable=W1405
+    name = chapter.get("name", None)
+    if name:
+        return name
+    position = chapter.get("time", -1)
+    if position != -1:
+        name = " - " + time.strftime("%H:%M:%S", time.gmtime(position))
+    return f"{chapter.get('index', 0)}{name}"
+
+
 @dataclass
 class Track:
     """Track name and index."""
@@ -582,7 +594,7 @@ class KodiDevice:
         """
         if not self._kodi_connection.connected and self._reconnect_retry >= CONNECTION_RETRIES:
             return False
-        if not self._kodi_connection.connected:
+        if self._kodi_connection is None or not self._kodi_connection.connected:
             self._reconnect_retry += 1
             self._available = False
             _LOG.debug(
@@ -620,7 +632,11 @@ class KodiDevice:
     async def start_watchdog(self):
         """Start websocket watchdog."""
         while True:
-            if not self._kodi_connection.connected and self._reconnect_retry >= 20:
+            if (
+                self._kodi_connection is not None
+                and not self._kodi_connection.connected
+                and self._reconnect_retry >= 20
+            ):
                 await asyncio.sleep(WEBSOCKET_WATCHDOG_INTERVAL * 3)
             else:
                 await asyncio.sleep(WEBSOCKET_WATCHDOG_INTERVAL)
@@ -1071,9 +1087,7 @@ class KodiDevice:
                             current_chapter = self.current_chapter
                             updated_data[KodiSelects.SELECT_CHAPTER] = {
                                 SelectAttributes.CURRENT_OPTION: current_chapter if current_chapter else "",
-                                SelectAttributes.OPTIONS: (
-                                    [x.get("name", "") for x in self.chapters] if self.chapters else []
-                                ),
+                                SelectAttributes.OPTIONS: self.chapters,
                             }
                             if current_chapter:
                                 _LOG.debug(
@@ -1299,7 +1313,7 @@ class KodiDevice:
             },
             KodiSelects.SELECT_CHAPTER: {
                 SelectAttributes.CURRENT_OPTION: self.current_chapter if self.current_chapter else "",
-                SelectAttributes.OPTIONS: [x.get("name", "") for x in self.chapters] if self.chapters else [],
+                SelectAttributes.OPTIONS: self.chapters,
                 SelectAttributes.STATE: SelectStates.ON,
             },
         }
@@ -1566,9 +1580,11 @@ class KodiDevice:
         return self._players[0]["playerid"]
 
     @property
-    def chapters(self) -> list[dict[str, Any]]:
-        """Return chapters list."""
-        return self._chapters
+    def chapters(self) -> list[str]:
+        """Return chapters names."""
+        if self._chapters is None:
+            return []
+        return [_get_chapter_name(x) for x in self._chapters]
 
     @property
     def current_chapter(self) -> str | None:
@@ -1581,7 +1597,7 @@ class KodiDevice:
             if position <= chapter.get("time", 0):
                 break
             found_chapter = chapter
-        return found_chapter.get("name", "")
+        return _get_chapter_name(found_chapter)
 
     @property
     def video_info(self) -> str:
@@ -1840,8 +1856,9 @@ class KodiDevice:
 
     async def get_chapters(self) -> dict[str, Any]:
         """Return chapters of running video."""
-        _LOG.debug("[%s] Extract video chapters", self.device_config.address)
-        return await self._kodi.get_player_chapters(self._players[0])
+        chapters = await self._kodi.get_player_chapters(self._players[0])
+        _LOG.debug("[%s] Extract video chapters %s", self.device_config.address, chapters)
+        return chapters
 
     async def get_app_language(self) -> str | None:
         """Return current app language."""
