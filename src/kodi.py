@@ -578,7 +578,8 @@ class KodiDevice:
     async def _ping_and_reconnect(self) -> bool:
         """Reconnect the websocket if it fails or sends ping to websocket.
 
-        :returns: True if device is connected or if the connection retries has not reached it limit"""
+        :returns: True if device is connected or if the connection retries has not reached it limit
+        """
         if not self._kodi_connection.connected and self._reconnect_retry >= CONNECTION_RETRIES:
             return False
         if not self._kodi_connection.connected:
