@@ -196,7 +196,7 @@ async def retry_call_command(
     if not obj._connection_status:
         obj._connection_status = obj.event_loop.create_future()
     if not obj._connect_lock.locked():
-        obj._reconnect_retry = 0
+        obj._reset_retries()
         obj.event_loop.create_task(obj.connect())
         await asyncio.sleep(0)
 
@@ -370,6 +370,10 @@ class KodiDevice:
             session=self._session,
         )
         self._kodi = Kodi(self._kodi_connection)
+
+    def _reset_retries(self):
+        """Reset connection retries."""
+        self._reconnect_retry = 0
 
     def get_state(self) -> MediaStates:
         """Get state of device."""
@@ -571,8 +575,10 @@ class KodiDevice:
         else:
             self._connect_error = False
 
-    async def _reconnect_websocket_if_disconnected(self, *_) -> bool:
-        """Reconnect the websocket if it fails."""
+    async def _ping_and_reconnect(self, *_) -> bool:
+        """Reconnect the websocket if it fails.
+
+        :returns: True if device is connected or if the connection retries has not reached it limit"""
         if not self._kodi_connection.connected and self._reconnect_retry >= CONNECTION_RETRIES:
             return False
         if not self._kodi_connection.connected:
@@ -588,12 +594,12 @@ class KodiDevice:
             if not self._connection_status or self._connection_status.done():
                 self._connection_status = self.event_loop.create_future()
             try:
-                await asyncio.wait_for(shield(self.connect()), DEFAULT_TIMEOUT * 2)
+                await asyncio.wait_for(shield(self.connect()), DEFAULT_TIMEOUT)
             except asyncio.TimeoutError:
                 _LOG.debug("[%s] Kodi websocket too slow to reconnect", self._device_config.address)
         else:
             if self._reconnect_retry > 0:
-                self._reconnect_retry = 0
+                self._reset_retries()
                 _LOG.debug("[%s] Kodi websocket is connected", self.device_config.address)
             await self._ping()
         return True
@@ -613,9 +619,12 @@ class KodiDevice:
     async def start_watchdog(self):
         """Start websocket watchdog."""
         while True:
-            await asyncio.sleep(WEBSOCKET_WATCHDOG_INTERVAL)
+            if not self._kodi_connection.connected and self._reconnect_retry >= 20:
+                await asyncio.sleep(WEBSOCKET_WATCHDOG_INTERVAL * 3)
+            else:
+                await asyncio.sleep(WEBSOCKET_WATCHDOG_INTERVAL)
             try:
-                if not await self._reconnect_websocket_if_disconnected():
+                if not await self._ping_and_reconnect():
                     _LOG.debug("[%s] Stop watchdog", self.device_config.address)
                     self._websocket_task = None
                     break
@@ -754,7 +763,7 @@ class KodiDevice:
             pass
 
     async def start_update_position_task(self):
-        """Start websocket watchdog."""
+        """Start update media position task."""
         while True:
             await asyncio.sleep(UPDATE_POSITION_INTERVAL)
             try:
@@ -1673,6 +1682,7 @@ class KodiDevice:
 
     async def power_on(self):
         """Handle connection to Kodi device."""
+        self._reset_retries()
         self.event_loop.create_task(self.connect())
         await asyncio.sleep(0)
         return ucapi.StatusCodes.OK
