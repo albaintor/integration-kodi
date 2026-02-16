@@ -31,6 +31,7 @@ from const import (
     KODI_DEFAULT_NAME,
     KODI_DEFAULT_TVSHOW_ARTWORK,
     KODI_SENSOR_STREAM_CONFIG_LABELS,
+    KodiPowerOffCommands,
     KodiStreamConfig,
 )
 from discover import KodiDiscover
@@ -209,6 +210,19 @@ _user_input_manual = RequestUserInput(
             "label": {
                 "en": "Include device name in sensors names",
                 "fr": "Inclure le nom de l'appareil dans le nom des capteurs",
+            },
+        },
+        {
+            "field": {
+                "dropdown": {
+                    "value": next(iter(KodiPowerOffCommands)),
+                    "items": [{"id": key, "label": value} for key, value in KodiPowerOffCommands.items()],
+                }
+            },
+            "id": "power_off_command",
+            "label": {
+                "en": "Power off command",
+                "fr": "Commande d'arrêt",
             },
         },
     ],
@@ -613,6 +627,19 @@ async def handle_configuration_mode(msg: UserDataResponse) -> RequestUserInput |
                             "fr": "Inclure le nom de l'appareil dans le nom des capteurs",
                         },
                     },
+                    {
+                        "field": {
+                            "dropdown": {
+                                "value": _reconfigured_device.power_off_command,
+                                "items": [{"id": key, "label": value} for key, value in KodiPowerOffCommands.items()],
+                            }
+                        },
+                        "id": "power_off_command",
+                        "label": {
+                            "en": "Power off command",
+                            "fr": "Commande d'arrêt",
+                        },
+                    },
                 ],
             )
         case "reset":
@@ -864,6 +891,7 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
     show_stream_name = msg.input_values.get("show_stream_name", "false") == "true"
     show_stream_language_name = msg.input_values.get("show_stream_language_name", "false") == "true"
     sensor_include_device_name = msg.input_values.get("sensor_include_device_name", "false") == "true"
+    power_off_command = msg.input_values.get("power_off_command", next(iter(KodiPowerOffCommands)))
 
     try:
         sensor_audio_stream_config = int(
@@ -961,6 +989,7 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
             sensor_audio_stream_config=sensor_audio_stream_config,
             sensor_subtitle_stream_config=sensor_subtitle_stream_config,
             sensor_include_device_name=sensor_include_device_name,
+            power_off_command=power_off_command,
         )
     )  # triggers SonyLG TV instance creation
     config.devices.store()
@@ -1000,6 +1029,7 @@ async def _handle_device_reconfigure(msg: UserDataResponse) -> SetupComplete | S
     show_stream_name = msg.input_values.get("show_stream_name", "false") == "true"
     show_stream_language_name = msg.input_values.get("show_stream_language_name", "false") == "true"
     sensor_include_device_name = msg.input_values.get("sensor_include_device_name", "false") == "true"
+    power_off_command = msg.input_values.get("power_off_command", next(iter(KodiPowerOffCommands)))
     name = msg.input_values["name"]
     try:
         sensor_audio_stream_config = int(msg.input_values.get("sensor_audio_stream_config", f"{KodiStreamConfig.FULL}"))
@@ -1030,6 +1060,7 @@ async def _handle_device_reconfigure(msg: UserDataResponse) -> SetupComplete | S
     _reconfigured_device.sensor_audio_stream_config = sensor_audio_stream_config
     _reconfigured_device.sensor_subtitle_stream_config = sensor_subtitle_stream_config
     _reconfigured_device.sensor_include_device_name = sensor_include_device_name
+    _reconfigured_device.power_off_command = power_off_command
 
     config.devices.add_or_update(_reconfigured_device)  # triggers ATV instance update
     await asyncio.sleep(1)

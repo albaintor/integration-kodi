@@ -1766,7 +1766,7 @@ class KodiDevice:
     async def power_off(self):
         """Send Power Off command."""
         try:
-            await self._kodi.call_method("Application.Quit")
+            await self._kodi.call_method(self._device_config.power_off_command)
         except TransportError as ex:
             _LOG.info("[%s] Power off : client is already disconnected %s", self.device_config.address, ex)
             try:

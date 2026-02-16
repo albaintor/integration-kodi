@@ -55,6 +55,14 @@ class KodiStreamConfig(int, Enum):
     FULL = 3
 
 
+KodiPowerOffCommands: dict[str, dict[str, str]] = {
+    "Application.Quit": {"en": "Quit application", "fr": "Quitter l'application"},
+    "System.Shutdown": {"en": "Shutdown", "fr": "Eteindre"},
+    "System.Hibernate": {"en": "Hibernate", "fr": "Veille prolongée"},
+    "System.Suspend": {"en": "Suspend", "fr": "Veille"},
+    "System.Reboot": {"en": "Reboot", "fr": "Redémarrer"},
+}
+
 KODI_SENSOR_STREAM_CONFIG_LABELS = [
     {"id": f"{int(KodiStreamConfig.STREAM_NAME)}", "label": {"en": "Stream name", "fr": "Nom du flux"}},
     {"id": f"{int(KodiStreamConfig.LANGUAGE_NAME)}", "label": {"en": "Language name", "fr": "Nom de la langue"}},

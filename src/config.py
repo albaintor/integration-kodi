@@ -67,6 +67,7 @@ class KodiConfigDevice:
     sensor_subtitle_stream_config: int = field(default=KodiStreamConfig.FULL)
     sensor_include_device_name: bool = field(default=True)
     log_additional_data: bool = field(default=False)
+    power_off_command: str = field(default="Application.Quit")
 
     def __post_init__(self):
         """Apply default values on missing fields."""
@@ -188,6 +189,8 @@ class Devices:
                 item.sensor_audio_stream_config = device.sensor_audio_stream_config
                 item.sensor_subtitle_stream_config = device.sensor_subtitle_stream_config
                 item.sensor_include_device_name = device.sensor_include_device_name
+                item.log_additional_data = device.log_additional_data
+                item.power_off_command = device.power_off_command
                 return self.store()
         return False
 
