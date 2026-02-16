@@ -31,7 +31,7 @@ from const import (
     KODI_DEFAULT_NAME,
     KODI_DEFAULT_TVSHOW_ARTWORK,
     KODI_SENSOR_STREAM_CONFIG_LABELS,
-    KodiPowerOffCommands,
+    KODI_POWEROFF_COMMANDS,
     KodiStreamConfig,
 )
 from discover import KodiDiscover
@@ -215,8 +215,8 @@ _user_input_manual = RequestUserInput(
         {
             "field": {
                 "dropdown": {
-                    "value": next(iter(KodiPowerOffCommands)),
-                    "items": [{"id": key, "label": value} for key, value in KodiPowerOffCommands.items()],
+                    "value": next(iter(KODI_POWEROFF_COMMANDS)),
+                    "items": [{"id": key, "label": value} for key, value in KODI_POWEROFF_COMMANDS.items()],
                 }
             },
             "id": "power_off_command",
@@ -631,7 +631,7 @@ async def handle_configuration_mode(msg: UserDataResponse) -> RequestUserInput |
                         "field": {
                             "dropdown": {
                                 "value": _reconfigured_device.power_off_command,
-                                "items": [{"id": key, "label": value} for key, value in KodiPowerOffCommands.items()],
+                                "items": [{"id": key, "label": value} for key, value in KODI_POWEROFF_COMMANDS.items()],
                             }
                         },
                         "id": "power_off_command",
@@ -891,7 +891,7 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
     show_stream_name = msg.input_values.get("show_stream_name", "false") == "true"
     show_stream_language_name = msg.input_values.get("show_stream_language_name", "false") == "true"
     sensor_include_device_name = msg.input_values.get("sensor_include_device_name", "false") == "true"
-    power_off_command = msg.input_values.get("power_off_command", next(iter(KodiPowerOffCommands)))
+    power_off_command = msg.input_values.get("power_off_command", next(iter(KODI_POWEROFF_COMMANDS)))
 
     try:
         sensor_audio_stream_config = int(
@@ -1029,7 +1029,7 @@ async def _handle_device_reconfigure(msg: UserDataResponse) -> SetupComplete | S
     show_stream_name = msg.input_values.get("show_stream_name", "false") == "true"
     show_stream_language_name = msg.input_values.get("show_stream_language_name", "false") == "true"
     sensor_include_device_name = msg.input_values.get("sensor_include_device_name", "false") == "true"
-    power_off_command = msg.input_values.get("power_off_command", next(iter(KodiPowerOffCommands)))
+    power_off_command = msg.input_values.get("power_off_command", next(iter(KODI_POWEROFF_COMMANDS)))
     name = msg.input_values["name"]
     try:
         sensor_audio_stream_config = int(msg.input_values.get("sensor_audio_stream_config", f"{KodiStreamConfig.FULL}"))

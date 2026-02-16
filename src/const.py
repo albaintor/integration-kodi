@@ -55,7 +55,7 @@ class KodiStreamConfig(int, Enum):
     FULL = 3
 
 
-KodiPowerOffCommands: dict[str, dict[str, str]] = {
+KODI_POWEROFF_COMMANDS: dict[str, dict[str, str]] = {
     "Application.Quit": {"en": "Quit application", "fr": "Quitter l'application"},
     "System.Shutdown": {"en": "Shutdown", "fr": "Eteindre"},
     "System.Hibernate": {"en": "Hibernate", "fr": "Veille prolongée"},
