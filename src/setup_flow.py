@@ -30,8 +30,8 @@ from const import (
     KODI_DEFAULT_ARTWORK,
     KODI_DEFAULT_NAME,
     KODI_DEFAULT_TVSHOW_ARTWORK,
-    KODI_SENSOR_STREAM_CONFIG_LABELS,
     KODI_POWEROFF_COMMANDS,
+    KODI_SENSOR_STREAM_CONFIG_LABELS,
     KodiStreamConfig,
 )
 from discover import KodiDiscover
