@@ -27,11 +27,13 @@ from config import ConfigImportResult, KodiConfigDevice
 from const import (
     KODI_ARTWORK_LABELS,
     KODI_ARTWORK_TVSHOWS_LABELS,
+    KODI_BROWSING_SORT,
     KODI_DEFAULT_ARTWORK,
     KODI_DEFAULT_NAME,
     KODI_DEFAULT_TVSHOW_ARTWORK,
     KODI_POWEROFF_COMMANDS,
     KODI_SENSOR_STREAM_CONFIG_LABELS,
+    KodiObjectType,
     KodiStreamConfig,
 )
 from discover import KodiDiscover
@@ -556,6 +558,54 @@ async def handle_configuration_mode(msg: UserDataResponse) -> RequestUserInput |
                         },
                     },
                     {
+                        "field": {
+                            "dropdown": {
+                                "value": _reconfigured_device.browsing_video_sort,
+                                "items": [
+                                    {"id": key, "label": value}
+                                    for key, value in KODI_BROWSING_SORT[KodiObjectType.MOVIE].items()
+                                ],
+                            }
+                        },
+                        "id": "browsing_video_sort",
+                        "label": {
+                            "en": "Sorting method for video browsing",
+                            "fr": "Méthode de tri pour la navigation vidéo",
+                        },
+                    },
+                    {
+                        "field": {
+                            "dropdown": {
+                                "value": _reconfigured_device.browsing_album_sort,
+                                "items": [
+                                    {"id": key, "label": value}
+                                    for key, value in KODI_BROWSING_SORT[KodiObjectType.ALBUM].items()
+                                ],
+                            }
+                        },
+                        "id": "browsing_album_sort",
+                        "label": {
+                            "en": "Sorting method for albums browsing",
+                            "fr": "Méthode de tri pour la navigation des albums",
+                        },
+                    },
+                    {
+                        "field": {
+                            "dropdown": {
+                                "value": _reconfigured_device.browsing_files_sort,
+                                "items": [
+                                    {"id": key, "label": value}
+                                    for key, value in KODI_BROWSING_SORT[KodiObjectType.FILE].items()
+                                ],
+                            }
+                        },
+                        "id": "browsing_files_sort",
+                        "label": {
+                            "en": "Sorting method for files browsing",
+                            "fr": "Méthode de tri pour la navigation de fichiers",
+                        },
+                    },
+                    {
                         "field": {"checkbox": {"value": _reconfigured_device.show_stream_name}},
                         "id": "show_stream_name",
                         "label": {
@@ -772,6 +822,54 @@ async def handle_discovery(_msg: UserDataResponse) -> RequestUserInput | SetupEr
                 },
             },
             {
+                "field": {
+                    "dropdown": {
+                        "value": "title",
+                        "items": [
+                            {"id": key, "label": value}
+                            for key, value in KODI_BROWSING_SORT[KodiObjectType.MOVIE].items()
+                        ],
+                    }
+                },
+                "id": "browsing_video_sort",
+                "label": {
+                    "en": "Sorting method for video browsing",
+                    "fr": "Méthode de tri pour la navigation vidéo",
+                },
+            },
+            {
+                "field": {
+                    "dropdown": {
+                        "value": "album",
+                        "items": [
+                            {"id": key, "label": value}
+                            for key, value in KODI_BROWSING_SORT[KodiObjectType.ALBUM].items()
+                        ],
+                    }
+                },
+                "id": "browsing_album_sort",
+                "label": {
+                    "en": "Sorting method for albums browsing",
+                    "fr": "Méthode de tri pour la navigation des albums",
+                },
+            },
+            {
+                "field": {
+                    "dropdown": {
+                        "value": "",
+                        "items": [
+                            {"id": key, "label": value}
+                            for key, value in KODI_BROWSING_SORT[KodiObjectType.FILE].items()
+                        ],
+                    }
+                },
+                "id": "browsing_files_sort",
+                "label": {
+                    "en": "Sorting method for files browsing",
+                    "fr": "Méthode de tri pour la navigation de fichiers",
+                },
+            },
+            {
                 "field": {"checkbox": {"value": True}},
                 "id": "show_stream_name",
                 "label": {
@@ -883,6 +981,9 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
     username = msg.input_values["username"]
     password = msg.input_values["password"]
     ssl = msg.input_values.get("ssl", "false") == "true"
+    browsing_video_sort = msg.input_values.get("browsing_video_sort", "")
+    browsing_album_sort = msg.input_values.get("browsing_album_sort", "")
+    browsing_files_sort = msg.input_values.get("browsing_files_sort", "")
     artwork_type = msg.input_values.get("artwork_type", KODI_DEFAULT_ARTWORK)
     artwork_type_tvshows = msg.input_values.get("artwork_type_tvshows", KODI_DEFAULT_TVSHOW_ARTWORK)
     media_update_task = msg.input_values.get("media_update_task", "false") == "true"
@@ -990,6 +1091,9 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
             sensor_subtitle_stream_config=sensor_subtitle_stream_config,
             sensor_include_device_name=sensor_include_device_name,
             power_off_command=power_off_command,
+            browsing_video_sort=browsing_video_sort,
+            browsing_album_sort=browsing_album_sort,
+            browsing_files_sort=browsing_files_sort,
         )
     )  # triggers SonyLG TV instance creation
     config.devices.store()
@@ -1023,6 +1127,9 @@ async def _handle_device_reconfigure(msg: UserDataResponse) -> SetupComplete | S
     ssl = msg.input_values.get("ssl", "false") == "true"
     artwork_type = msg.input_values.get("artwork_type", KODI_DEFAULT_ARTWORK)
     artwork_type_tvshows = msg.input_values.get("artwork_type_tvshows", KODI_DEFAULT_TVSHOW_ARTWORK)
+    browsing_video_sort = msg.input_values.get("browsing_video_sort", "")
+    browsing_album_sort = msg.input_values.get("browsing_album_sort", "")
+    browsing_files_sort = msg.input_values.get("browsing_files_sort", "")
     media_update_task = msg.input_values.get("media_update_task", "false") == "true"
     download_artwork = msg.input_values.get("download_artwork", "false") == "true"
     disable_keyboard_map = msg.input_values.get("disable_keyboard_map", "false") == "true"
@@ -1061,6 +1168,9 @@ async def _handle_device_reconfigure(msg: UserDataResponse) -> SetupComplete | S
     _reconfigured_device.sensor_subtitle_stream_config = sensor_subtitle_stream_config
     _reconfigured_device.sensor_include_device_name = sensor_include_device_name
     _reconfigured_device.power_off_command = power_off_command
+    _reconfigured_device.browsing_video_sort = browsing_video_sort
+    _reconfigured_device.browsing_album_sort = browsing_album_sort
+    _reconfigured_device.browsing_files_sort = browsing_files_sort
 
     config.devices.add_or_update(_reconfigured_device)  # triggers ATV instance update
     await asyncio.sleep(1)

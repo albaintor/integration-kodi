@@ -15,7 +15,7 @@ from ucapi.media_player import States as MediaStates
 from ucapi.remote import Attributes, Commands, Features
 from ucapi.remote import States as RemoteStates
 
-import kodi
+import kodi_device
 from config import KodiConfigDevice, KodiEntity, create_entity_id
 from const import (
     KODI_REMOTE_BUTTONS_MAPPING,
@@ -55,10 +55,10 @@ def get_int_param(param: str, params: dict[str, Any], default: int):
 class KodiRemote(KodiEntity, Remote):
     """Representation of a Kodi Media Player entity."""
 
-    def __init__(self, config_device: KodiConfigDevice, device: kodi.KodiDevice):
+    def __init__(self, config_device: KodiConfigDevice, device: kodi_device.KodiDevice):
         """Initialize the class."""
         # pylint: disable = R0801
-        self._device: kodi.KodiDevice = device
+        self._device: kodi_device.KodiDevice = device
         entity_id = create_entity_id(config_device.id, EntityTypes.REMOTE)
         features = [Features.SEND_CMD, Features.ON_OFF]
         attributes = {

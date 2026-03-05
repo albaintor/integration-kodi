@@ -83,27 +83,32 @@ async def main():
     # properties = await client.get_chapters()
     # print_json(data=properties)
 
-    properties = await client.get_app_language()
-    print_json(data=properties)
-    properties = await client.get_name()
+    properties = await client.browse_media(media_id=None, media_type=None, paging=None)
+    _LOG.debug("Properties: %s", str(properties))
+    print("Browse media")
     print_json(data=properties)
 
-    properties = await client._kodi.get_player_properties(
-        client._players[0],
-        [
-            "time",
-            "totaltime",
-            "speed",
-            "live",
-            "currentaudiostream",
-            "currentsubtitle",
-            "subtitleenabled",
-            "audiostreams",
-            "subtitles",
-            "currentvideostream",
-        ],
-    )
-    print_json(data=properties)
+    # properties = await client.get_app_language()
+    # print_json(data=properties)
+    # properties = await client.get_name()
+    # print_json(data=properties)
+    #
+    # properties = await client._kodi.get_player_properties(
+    #     client._players[0],
+    #     [
+    #         "time",
+    #         "totaltime",
+    #         "speed",
+    #         "live",
+    #         "currentaudiostream",
+    #         "currentsubtitle",
+    #         "subtitleenabled",
+    #         "audiostreams",
+    #         "subtitles",
+    #         "currentvideostream",
+    #     ],
+    # )
+    # print_json(data=properties)
 
     await asyncio.sleep(600)
 

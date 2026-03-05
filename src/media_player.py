@@ -6,12 +6,13 @@ Media-player entity functions.
 """
 
 import logging
+from dataclasses import asdict
 from typing import Any
 
 from ucapi import EntityTypes, MediaPlayer, StatusCodes
 from ucapi.media_player import Commands, DeviceClasses, Options
 
-import kodi
+import kodi_device
 from config import KodiConfigDevice, KodiEntity, create_entity_id
 from const import (
     KODI_ACTIONS_KEYMAP,
@@ -30,10 +31,10 @@ _LOG = logging.getLogger(__name__)
 class KodiMediaPlayer(KodiEntity, MediaPlayer):
     """Representation of a Kodi Media Player entity."""
 
-    def __init__(self, config_device: KodiConfigDevice, device: kodi.KodiDevice):
+    def __init__(self, config_device: KodiConfigDevice, device: kodi_device.KodiDevice):
         """Initialize the class."""
         # pylint: disable = R0801
-        self._device: kodi.KodiDevice = device
+        self._device: kodi_device.KodiDevice = device
         entity_id = create_entity_id(config_device.id, EntityTypes.MEDIA_PLAYER)
         features = device.supported_features
         attributes = device.attributes
@@ -57,7 +58,7 @@ class KodiMediaPlayer(KodiEntity, MediaPlayer):
 
     @staticmethod
     async def mediaplayer_command(
-        entity_id: str, device: kodi.KodiDevice, cmd_id: str, params: dict[str, Any] | None = None
+        entity_id: str, device: kodi_device.KodiDevice, cmd_id: str, params: dict[str, Any] | None = None
     ) -> StatusCodes:
         """Handle any command for Media Player and Remote entities."""
         # pylint: disable=R0915
@@ -110,6 +111,10 @@ class KodiMediaPlayer(KodiEntity, MediaPlayer):
             res = await device.select_chapter(params.get("source"))
         elif cmd_id == Commands.SELECT_SOUND_MODE:
             res = await device.select_audio_track(params.get("mode"))
+        elif cmd_id == "play_media":  # TODO to be updated when UCAPI
+            res = await device.play_media(params)
+        elif cmd_id == "clear_playlist":  # TODO to be updated when UCAPI
+            res = await device.clear_playlist()
         elif not device.device_config.disable_keyboard_map and cmd_id in KODI_BUTTONS_KEYMAP:
             command: ButtonKeymap | MethodCall = KODI_BUTTONS_KEYMAP[cmd_id]
             if "button" in command.keys():
@@ -145,7 +150,7 @@ class KodiMediaPlayer(KodiEntity, MediaPlayer):
         return res
 
     @staticmethod
-    async def custom_command(device: kodi.KodiDevice, command: str) -> StatusCodes:
+    async def custom_command(device: kodi_device.KodiDevice, command: str) -> StatusCodes:
         """Handle custom commands for Media Player and Remote entities."""
         # pylint: disable=R0911,R0915
         arguments = command.split(" ", 1)
@@ -221,6 +226,24 @@ class KodiMediaPlayer(KodiEntity, MediaPlayer):
             _LOG.error("[%s] Custom command bad arguments : %s %s", device.device_config.address, arguments[1], ex)
         _LOG.debug("[%s] Custom command : %s %s", device.device_config.address, command, params)
         return await device.call_command(command_key, **params)
+
+    # pylint: disable=W0613
+    async def browse_media(
+        self,
+        params: dict[str, Any],
+        *,
+        websocket: Any,
+    ) -> dict[str, Any] | StatusCodes:
+        """Browse media command."""
+        if self._device.kodi_connection is None:
+            await self._device.connect()
+        if self._device.app_language is None:
+            await self._device.update_app_language()
+
+        (browse_media_item, paging) = await self._device.media_browser.browse_media(
+            params.get("media_id", None), params.get("media_type", None), params.get("paging", None)
+        )
+        return {"media": asdict(browse_media_item), "pagination": paging}
 
     async def command(self, cmd_id: str, params: dict[str, Any] | None = None, *, websocket: Any) -> StatusCodes:
         """

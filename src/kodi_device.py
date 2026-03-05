@@ -40,11 +40,13 @@ from ucapi.media_player import States as MediaStates
 from ucapi.select import Attributes as SelectAttributes
 from ucapi.select import States as SelectStates
 
+import media_browser
 from config import KodiConfigDevice
 from const import (
     KODI_FEATURES,
     KODI_MEDIA_TYPES,
     ButtonKeymap,
+    IKodiDevice,
     KodiSelects,
     KodiSensors,
     KodiStreamConfig,
@@ -284,7 +286,7 @@ def retry(*, timeout: float = 5, bufferize=False) -> Callable[
     return decorator
 
 
-class KodiDevice:
+class KodiDevice(IKodiDevice):
     """Representing a LG TV Device."""
 
     def __init__(
@@ -345,6 +347,7 @@ class KodiDevice:
         self._subtitle_stream = ""
         self._app_language: str | None = None
         self._chapter_update_task: Task | None = None
+        self._media_browser = media_browser.MediaBrowser(self)
 
     async def init_connection(self):
         """Initialize connection to device."""
@@ -1304,6 +1307,11 @@ class KodiDevice:
             pass
 
     @property
+    def client(self) -> Kodi | None:
+        """Return Kodi client."""
+        return self._kodi
+
+    @property
     def server(self) -> jsonrpc_base.Server | None:
         """Return Kodi server."""
         if self._kodi is None:
@@ -1671,6 +1679,23 @@ class KodiDevice:
             return ""
         return KodiDevice._get_stream_info(current_audio_stream)
 
+    @property
+    def media_browser(self) -> media_browser.MediaBrowser:
+        """Media browser."""
+        return self._media_browser
+
+    @property
+    def app_language(self) -> str | None:
+        """Application language."""
+        return self._app_language
+
+    @property
+    def app_language_code(self) -> str:
+        """App language code."""
+        if self._app_language is None:
+            return "en"
+        return LANGUAGES_KEYS.get(self._app_language, "en")
+
     @retry()
     async def set_volume_level(self, volume: float | None):
         """Set volume level, range 0..100."""
@@ -1913,6 +1938,17 @@ class KodiDevice:
         _LOG.debug("[%s] Set audio delay Player.SetAudioDelay %s", self.device_config.address, arguments)
         await self._kodi.call_method("Player.SetAudioDelay", **arguments)
 
+    @retry()
+    async def play_media(self, params: dict[str, Any]):
+        """Play media."""
+        _LOG.debug("[%s] Play media %s", self.device_config.address, params)
+        await self.media_browser.play_media(params)
+
+    @retry()
+    async def clear_playlist(self):
+        """Clear playlist."""
+        await self.server.Playlist.Clear(**{"playlistid": 0})
+
     async def get_chapters(self) -> dict[str, Any]:
         """Return chapters of running video."""
         chapters = await self._kodi.get_player_chapters(self._players[0])
@@ -1928,6 +1964,10 @@ class KodiDevice:
         # pylint: disable = W0718
         except Exception:
             return None
+
+    async def update_app_language(self):
+        """Update app language."""
+        self._app_language = await self.get_app_language()
 
     async def get_name(self) -> str | None:
         """Return Kodi instance name."""

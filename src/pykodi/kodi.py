@@ -7,7 +7,8 @@ Implementation of a Kodi interface.
 
 import asyncio
 import logging
-import urllib
+import urllib.parse
+from urllib.parse import quote
 
 import aiohttp
 import jsonrpc_async
@@ -83,6 +84,13 @@ class KodiConnection:
         if url_components.scheme == "image":
             return f"{self._image_url}/{urllib.parse.quote_plus(thumbnail)}"
         return None
+
+    def get_thumbnail_from_file(self, path: str) -> str:
+        """Get thumbnail url from file."""
+        encoded = quote(path, safe="")
+        image_url = f"image://{encoded}/"
+        final = quote(image_url, safe="")
+        return f"{self._image_url}/{final}"
 
 
 class KodiHTTPConnection(KodiConnection):
@@ -441,6 +449,10 @@ class Kodi:
     def thumbnail_url(self, thumbnail):
         """Get the URL for a thumbnail."""
         return self._conn.thumbnail_url(thumbnail)
+
+    def get_thumbnail_from_file(self, path: str) -> str:
+        """Get thumbnail url from file."""
+        return self._conn.get_thumbnail_from_file(path)
 
     async def set_audio_stream(self, stream_index: int):
         """Set the audio stream of the running player."""
