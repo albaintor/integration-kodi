@@ -552,6 +552,7 @@ class RemoteInterface(tk.Tk):
         self._media_browse_limit: int = BROWSING_PAGINATION
         self._media_browse_count = 0
         self._media_browse_items: list[dict[str, Any]] | None = None
+        self._media_browse_main: dict[str, Any] | None = None
         self._row += 1
 
         label = ttk.Label(self._left_frame, text="Media Players")
@@ -786,8 +787,8 @@ class RemoteInterface(tk.Tk):
         media_position_updated_at = attributes.get("media_position_updated_at", None)
         if media_position_updated_at is None:
             now = datetime.datetime.now(datetime.timezone.utc)
-            attributes["media_position_updated_at"] = now
-            media_position_updated_at = now
+            media_position_updated_at = now.strftime("%Y-%m-%dT%H:%M:%S.%f%z")
+            attributes["media_position_updated_at"] = media_position_updated_at
         if state == "PLAYING":
             try:
                 offset = datetime.datetime.now(datetime.timezone.utc) - datetime.datetime.strptime(
@@ -889,6 +890,7 @@ class RemoteInterface(tk.Tk):
             media = msg_data.get("media", None)
             if media is None or pagination is None:
                 return
+            self._media_browse_main = media
             self._media_browse_items = media.get("items", [])
             self._media_browse_page = pagination.get("page", 1)
             self._media_browse_limit = pagination.get("limit", BROWSING_PAGINATION)
@@ -963,6 +965,13 @@ class RemoteInterface(tk.Tk):
         column += 1
         row += 1
         column = 0
+        if self._media_browse_main:
+            label = ttk.Label(
+                self._media_browse_window,
+                text=f"{self._media_browse_main.get('title', '')} ({self._media_browse_main.get('media_class', '')})",
+            )
+            label.grid(row=row, column=column, columnspan=4)
+            row += 1
 
         for item in self._media_browse_items:
             button = ttk.Button(
@@ -1001,6 +1010,7 @@ class RemoteInterface(tk.Tk):
             self._media_browse_limit = BROWSING_PAGINATION
             self._media_browse_count = 0
             self._media_browse_items = None
+            self._media_browse_main = None
 
         asyncio.run_coroutine_threadsafe(
             self.browse_media(entity_id),

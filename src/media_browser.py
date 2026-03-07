@@ -146,13 +146,15 @@ class MediaBrowser:
             return translated
         return value
 
-    def get_root_item(self) -> BrowseMediaItem:
+    def get_root_item(
+        self, media_class=MediaClass.DIRECTORY.value, media_type=MediaContent.URL.value
+    ) -> BrowseMediaItem:
         """Build root item."""
         return BrowseMediaItem(
             title=self.get_localized("Media Library"),
             media_id="library",
-            media_class=MediaClass.DIRECTORY,
-            media_type=MediaContent.URL,
+            media_class=media_class,
+            media_type=media_type,
             can_browse=True,
             can_search=True,
             items=[],
@@ -548,6 +550,8 @@ class MediaBrowser:
                     # Apply media filter on pictures only
                     if media == KodiMediaTypes.PICTURES.value:
                         arguments["media"] = media
+                        item.media_type = KodiMediaTypes.PICTURES.value
+                        item.media_class = KodiMediaTypes.PICTURES.value
 
                     _LOG.debug(
                         "[%s] Browsing source %s (%s) : %s",
@@ -567,14 +571,14 @@ class MediaBrowser:
                             paging["count"] = paging["count"] + back_buttons
                     return item, paging
                 if media_type == MediaContent.TV_SHOW.value:
-                    item = self.get_root_item()
+                    item = self.get_root_item(MediaContent.SEASON.value, MediaContent.SEASON.value)
                     limit = paging.get("limit")
                     end = paging.get("page") * limit
                     if self._back_support and paging.get("page") == 1:
                         item.items.append(self.get_back_item("kodi://tvshows", media_type))
                         end -= 1
                     arguments = {
-                        "properties": ["art", "season"],
+                        "properties": ["art", "season", "showtitle"],
                         "tvshowid": int(media_id),
                         "limits": {
                             "start": (paging.get("page") - 1) * limit,
@@ -589,6 +593,11 @@ class MediaBrowser:
                         arguments,
                     )
                     seasons = await self._device.server.VideoLibrary.GetSeasons(**arguments)
+                    if len(seasons["seasons"]) > 0:
+                        try:
+                            item.title = seasons["seasons"][0]["showtitle"]
+                        except Exception:  # pylint: disable = W0718
+                            pass
                     paging["count"] = seasons.get("limits", {}).get("total", 0)
                     if self._back_support:
                         paging["count"] = paging["count"] + 1
@@ -596,14 +605,14 @@ class MediaBrowser:
                         item.items.append(self.get_item_from_season(int(media_id), season))
                 elif media_type == MediaContent.SEASON.value:
                     (show_id, season) = media_id.split(";")
-                    item = self.get_root_item()
+                    item = self.get_root_item(MediaContent.EPISODE.value, MediaContent.EPISODE.value)
                     limit = paging.get("limit")
                     end = paging.get("page") * limit
                     if self._back_support and paging.get("page") == 1:
                         item.items.append(MediaBrowser.get_parent_item_tvshow(int(show_id)))
                         end -= 1
                     arguments = {
-                        "properties": ["art", "file"],
+                        "properties": ["art", "file", "showtitle", "season"],
                         "tvshowid": int(show_id),
                         "season": int(season),
                         "limits": {
@@ -619,14 +628,20 @@ class MediaBrowser:
                         arguments,
                     )
                     episodes = await self._device.server.VideoLibrary.GetEpisodes(**arguments)
-                    item = self.get_root_item()
+                    if len(episodes["episodes"]) > 0:
+                        try:
+                            item.title = (
+                                episodes["episodes"][0]["showtitle"] + " - " + str(episodes["episodes"][0]["season"])
+                            )
+                        except Exception:  # pylint: disable = W0718
+                            pass
                     paging["count"] = episodes.get("limits", {}).get("total", 0)
                     if self._back_support:
                         paging["count"] = paging["count"] + 1
                     for episode in episodes["episodes"]:
                         item.items.append(self.get_item_from_episode(episode))
                 elif media_type == MediaContent.ALBUM.value:
-                    item = self.get_root_item()
+                    item = self.get_root_item(MediaContent.MUSIC.value, MediaContent.MUSIC.value)
                     limit = paging.get("limit")
                     end = paging.get("page") * limit
                     if self._back_support and paging.get("page") == 1:
@@ -654,7 +669,7 @@ class MediaBrowser:
                     for song in songs["songs"]:
                         item.items.append(self.get_item_from_song(song, media_id))
                 elif media_type == MediaContent.ARTIST.value:
-                    item = self.get_root_item()
+                    item = self.get_root_item(MediaContent.ALBUM.value, MediaContent.ALBUM.value)
                     limit = paging.get("limit")
                     end = paging.get("page") * limit
                     if self._back_support and paging.get("page") == 1:
@@ -681,14 +696,14 @@ class MediaBrowser:
                     for album in albums["albums"]:
                         item.items.append(self.get_item_from_album(album))
                 elif media_type == "kodi://videos/genres":
-                    item = self.get_root_item()
+                    item = self.get_root_item(MediaContent.MOVIE.value, MediaContent.MOVIE.value)
                     limit = paging.get("limit")
                     end = paging.get("page") * limit
                     if self._back_support and paging.get("page") == 1:
                         item.items.append(self.get_back_item("kodi://videos", MediaContent.MOVIE.value))
                         end -= 1
                     arguments = {
-                        "properties": ["resume", "art"],
+                        "properties": ["resume", "art", "genre"],
                         "filter": {"genreid": int(media_id)},
                         "limits": {
                             "start": (paging.get("page") - 1) * limit,
@@ -706,20 +721,25 @@ class MediaBrowser:
                         arguments,
                     )
                     medias = await self._device.server.VideoLibrary.GetMovies(**arguments)
+                    # if len(medias["movies"]) > 0:
+                    #     try:
+                    #         item.title = medias["movies"][0]["genre"]
+                    #     except Exception:  # pylint: disable = W0718
+                    #         pass
                     paging["count"] = medias.get("limits", {}).get("total", 0)
                     if self._back_support:
                         paging["count"] = paging["count"] + 1
                     for media in medias["movies"]:
                         item.items.append(self.get_item_from_movie(media))
                 elif media_type == "kodi://tvshows/genres":
-                    item = self.get_root_item()
+                    item = self.get_root_item(MediaContent.TV_SHOW.value, MediaContent.TV_SHOW.value)
                     limit = paging.get("limit")
                     end = paging.get("page") * limit
                     if self._back_support and paging.get("page") == 1:
                         item.items.append(self.get_back_item("kodi://tvshows", MediaContent.TV_SHOW.value))
                         end -= 1
                     arguments = {
-                        "properties": ["art"],
+                        "properties": ["art", "genre"],
                         "filter": {"genreid": int(media_id)},
                         "limits": {
                             "start": (paging.get("page") - 1) * limit,
@@ -734,20 +754,25 @@ class MediaBrowser:
                         arguments,
                     )
                     medias = await self._device.server.VideoLibrary.GetTVShows(**arguments)
+                    # if len(medias["tvshows"]) > 0:
+                    #     try:
+                    #         item.title = medias["tvshows"][0]["genre"]
+                    #     except Exception:  # pylint: disable = W0718
+                    #         pass
                     paging["count"] = medias.get("limits", {}).get("total", 0)
                     if self._back_support:
                         paging["count"] = paging["count"] + 1
                     for media in medias["tvshows"]:
                         item.items.append(self.get_item_from_tvshow(media))
                 elif media_type == "kodi://music/genres":
-                    item = self.get_root_item()
+                    item = self.get_root_item(MediaContent.ALBUM.value, MediaContent.ALBUM.value)
                     limit = paging.get("limit")
                     end = paging.get("page") * limit
                     if self._back_support and paging.get("page") == 1:
                         item.items.append(self.get_back_item("kodi://music", MediaContent.MUSIC.value))
                         end -= 1
                     arguments = {
-                        "properties": ["art"],
+                        "properties": ["art", "genre"],
                         "filter": {"genreid": int(media_id)},
                         "limits": {
                             "start": (paging.get("page") - 1) * limit,
@@ -765,6 +790,11 @@ class MediaBrowser:
                     )
 
                     medias = await self._device.server.AudioLibrary.GetAlbums(**arguments)
+                    if len(medias["albums"]) > 0:
+                        try:
+                            item.title = medias["albums"][0]["genre"][0]
+                        except Exception:  # pylint: disable = W0718
+                            pass
                     paging["count"] = medias.get("limits", {}).get("total", 0)
                     if self._back_support:
                         paging["count"] = paging["count"] + 1
@@ -788,7 +818,20 @@ class MediaBrowser:
                 media_type,
                 ex,
             )
-        return None
+        if paging is None:
+            paging = {"page": 1, "limit": 10}
+        else:
+            paging = paging.copy()
+
+        # Return library root
+        items = [x.get_media_item() for x in self._library_items if x.parent_id is None]
+        for item in items:
+            item.title = self.get_localized(item.title)
+        paging["count"] = len(items)
+        item = self.get_root_item()
+        item.title = self.get_localized(item.title)
+        item.items = items
+        return item, paging
 
     async def play_media(self, params: dict[str, Any]) -> StatusCodes:
         """Play given media id."""
@@ -848,6 +891,7 @@ class KodiMediaEntry:
     child_media_type: MediaContent
     media_id: str
     output: KodiObjectType
+    media_class: MediaClass | None = field(default=None)
     parent_id: str | None = field(default=None)
     command: str | None = field(default=None)
     arguments: dict[str, Any] = field(default=None)
@@ -868,7 +912,7 @@ class KodiMediaEntry:
             title=self.title,
             media_id=self.media_id,
             media_type=self.media_type,
-            media_class=self.media_type,
+            media_class=self.media_type if self.media_class is None else self.media_class,
             can_browse=True,
             can_search=True,
             items=[],
@@ -937,6 +981,7 @@ KODI_BROWSING: list[KodiMediaEntry] = [
         parent_id=None,
         title="Videos",
         media_type=MediaContent.MOVIE,
+        media_class=MediaClass.DIRECTORY,
         media_id="kodi://videos",
         child_media_type=MediaContent.MOVIE,
         output=KodiObjectType.EMPTY,
@@ -945,6 +990,7 @@ KODI_BROWSING: list[KodiMediaEntry] = [
         parent_id=None,
         title="TV Shows",
         media_type=MediaContent.TV_SHOW,
+        media_class=MediaClass.DIRECTORY,
         media_id="kodi://tvshows",
         child_media_type=MediaContent.TV_SHOW,
         output=KodiObjectType.EMPTY,
@@ -953,6 +999,7 @@ KODI_BROWSING: list[KodiMediaEntry] = [
         parent_id=None,
         title="Music",
         media_type=MediaContent.MUSIC,
+        media_class=MediaClass.DIRECTORY,
         media_id="kodi://music",
         child_media_type=MediaContent.MUSIC,
         output=KodiObjectType.EMPTY,
@@ -961,6 +1008,7 @@ KODI_BROWSING: list[KodiMediaEntry] = [
         parent_id=None,
         title="Sources",
         media_type=MediaContent.URL,
+        media_class=MediaClass.DIRECTORY,
         media_id="kodi://sources",
         child_media_type=MediaContent.URL,
         output=KodiObjectType.EMPTY,
@@ -1004,6 +1052,7 @@ KODI_BROWSING: list[KodiMediaEntry] = [
         title="Genres",
         media_type="kodi://videos/genres",
         media_id="kodi://videos/genres",
+        media_class=MediaClass.GENRE,
         command="VideoLibrary.GetGenres",
         arguments={"type": "movie", "properties": ["thumbnail"]},
         child_media_type=MediaContent.MOVIE,
@@ -1034,6 +1083,7 @@ KODI_BROWSING: list[KodiMediaEntry] = [
         title="Recent",
         media_type=MediaContent.TV_SHOW,
         media_id="kodi://tvshows/recent",
+        media_class=MediaClass.EPISODE,
         command="VideoLibrary.GetRecentlyAddedEpisodes",
         arguments={"properties": ["art", "file"]},
         child_media_type=MediaContent.EPISODE,
@@ -1043,6 +1093,7 @@ KODI_BROWSING: list[KodiMediaEntry] = [
         parent_id="kodi://tvshows",
         title="Genres",
         media_type="kodi://tvshows/genres",
+        media_class=MediaClass.GENRE,
         media_id="kodi://tvshows/genres",
         command="VideoLibrary.GetGenres",
         arguments={"type": "tvshow", "properties": ["thumbnail"]},
@@ -1073,6 +1124,7 @@ KODI_BROWSING: list[KodiMediaEntry] = [
         parent_id="kodi://music",
         title="Genres",
         media_type="kodi://music/genres",
+        media_class=MediaClass.GENRE,
         media_id="kodi://music/genres",
         command="AudioLibrary.GetGenres",
         arguments={"properties": ["thumbnail"]},
@@ -1093,6 +1145,7 @@ KODI_BROWSING: list[KodiMediaEntry] = [
         parent_id="kodi://sources",
         title="Videos",
         media_type="kodi://sources/videos",
+        media_class=MediaClass.DIRECTORY,
         media_id="kodi://sources/videos",
         command="Files.GetSources",
         arguments={"media": "video"},
@@ -1103,6 +1156,7 @@ KODI_BROWSING: list[KodiMediaEntry] = [
         parent_id="kodi://sources",
         title="Music",
         media_type="kodi://sources/music",
+        media_class=MediaClass.DIRECTORY,
         media_id="kodi://sources/music",
         command="Files.GetSources",
         arguments={"media": "music"},
@@ -1113,6 +1167,7 @@ KODI_BROWSING: list[KodiMediaEntry] = [
         parent_id="kodi://sources",
         title="Pictures",
         media_type="kodi://sources/pictures",
+        media_class=MediaClass.DIRECTORY,
         media_id="kodi://sources/pictures",
         command="Files.GetSources",
         arguments={"media": "pictures"},
@@ -1123,6 +1178,7 @@ KODI_BROWSING: list[KodiMediaEntry] = [
         parent_id="kodi://sources",
         title="Files",
         media_type="kodi://sources/files",
+        media_class=MediaClass.DIRECTORY,
         media_id="kodi://sources/files",
         command="Files.GetSources",
         arguments={"media": "files"},
