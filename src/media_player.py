@@ -240,7 +240,7 @@ class KodiMediaPlayer(KodiEntity, MediaPlayer):
         if self._device.app_language is None:
             await self._device.update_app_language()
 
-        (browse_media_item, paging) = await self._device.media_browser.browse_media(
+        browse_media_item, paging = await self._device.media_browser.browse_media(
             params.get("media_id", None), params.get("media_type", None), params.get("paging", None)
         )
         return {"media": asdict(browse_media_item), "pagination": paging}
