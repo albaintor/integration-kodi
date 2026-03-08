@@ -22,6 +22,7 @@ from const import (
     KODI_SIMPLE_COMMANDS,
     KODI_SIMPLE_COMMANDS_DIRECT,
     ButtonKeymap,
+    MediaSearchFilter,
     MethodCall,
 )
 
@@ -244,6 +245,36 @@ class KodiMediaPlayer(KodiEntity, MediaPlayer):
             params.get("media_id", None), params.get("media_type", None), params.get("paging", None)
         )
         return {"media": asdict(browse_media_item), "pagination": paging}
+
+    async def search_media(
+        self,
+        params: dict[str, Any],
+        *,
+        websocket: Any,
+    ) -> dict[str, Any] | StatusCodes:
+        """
+        Execute media search request.
+
+        Returns NOT_IMPLEMENTED if no handler is installed.
+
+        :param params: search parameters
+        :param websocket: optional websocket connection. Allows for directed event
+                          callbacks instead of broadcasts.
+        :return: search response or status code if any error occurs
+        """
+        query: str = params.get("query", None)
+        media_id: str = params.get("media_id", None)
+        media_type: str = params.get("media_type", None)
+        paging: dict[str, Any] = params.get("paging", None)
+        media_search_filter: MediaSearchFilter | None = None
+        if data := params.get("filter", None):
+            media_search_filter = MediaSearchFilter(**data)
+        if query is None:
+            return StatusCodes.BAD_REQUEST
+        browse_media_item, paging = await self._device.media_browser.search_media(
+            query, media_id, media_type, media_search_filter, paging
+        )
+        return {"media": [asdict(x) for x in browse_media_item], "pagination": paging}
 
     async def command(self, cmd_id: str, params: dict[str, Any] | None = None, *, websocket: Any) -> StatusCodes:
         """

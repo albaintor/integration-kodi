@@ -15,7 +15,13 @@ from urllib.parse import quote, unquote
 
 from ucapi import StatusCodes
 
-from const import BrowseMediaItem, IKodiDevice, KodiMediaTypes, KodiObjectType
+from const import (
+    BrowseMediaItem,
+    IKodiDevice,
+    KodiMediaTypes,
+    KodiObjectType,
+    MediaSearchFilter,
+)
 
 _LOG = logging.getLogger(__name__)
 
@@ -962,6 +968,152 @@ class MediaBrowser:
             _LOG.debug("[%s] Playing file %s", self._device.device_config.address, media_id)
             await self._device.server.Player.Open(**{"item": {"file": media_id}})
         return StatusCodes.OK
+
+    # pylint: disable=R0917
+    async def search_media(
+        self,
+        query: str,
+        media_id: str | None,
+        media_type: str | None,
+        media_search_filter: MediaSearchFilter | None,   # pylint: disable=W0613
+        paging: dict[str, Any] | None,
+    ) -> tuple[list[BrowseMediaItem], dict[str, Any]] | None:
+        """Search media from given query and optional parameters."""
+        try:
+            if paging is None:
+                paging = {"page": 1, "limit": 10}
+            else:
+                paging = paging.copy()
+            limit = paging.get("limit")
+            end = paging.get("page") * limit
+            results: list[BrowseMediaItem] = []
+            if media_type is None or media_type == MediaContent.MOVIE.value:
+                arguments = {
+                    "properties": ["resume", "art", "genre"],
+                    "limits": {
+                        "start": (paging.get("page") - 1) * limit,
+                        "end": end,
+                    },
+                    "filter": {"field": "title", "operator": "contains", "value": query},
+                }
+                _LOG.debug(
+                    "[%s] Searching video %s (%s) : %s",
+                    self._device.device_config.address,
+                    media_type,
+                    media_id,
+                    arguments,
+                )
+                medias = await self._device.server.VideoLibrary.GetMovies(**arguments)
+                paging["count"] = medias.get("limits", {}).get("total", 0)
+                for media in medias["movies"]:
+                    results.append(self.get_item_from_movie(media, "kodi://videos/all"))
+                return results, paging
+            if media_type is None or media_type == MediaContent.TV_SHOW.value:
+                arguments = {
+                    "properties": ["art"],
+                    "limits": {
+                        "start": (paging.get("page") - 1) * limit,
+                        "end": end,
+                    },
+                    "filter": {"field": "title", "operator": "contains", "value": query},
+                }
+                _LOG.debug(
+                    "[%s] Searching TV Shows %s (%s) : %s",
+                    self._device.device_config.address,
+                    media_type,
+                    media_id,
+                    arguments,
+                )
+                medias = await self._device.server.VideoLibrary.GetTVShows(**arguments)
+                paging["count"] = medias.get("limits", {}).get("total", 0)
+                for media in medias["shows"]:
+                    results.append(self.get_item_from_tvshow(media, "kodi://tvshows"))
+                return results, paging
+            if media_type == MediaContent.ALBUM.value:
+                arguments = {
+                    "properties": ["art"],
+                    "limits": {
+                        "start": (paging.get("page") - 1) * limit,
+                        "end": end,
+                    },
+                    "filter": {
+                        "or": [
+                            {"field": "album", "operator": "contains", "value": query},
+                            {"field": "artist", "operator": "contains", "value": query},
+                        ]
+                    },
+                }
+                _LOG.debug(
+                    "[%s] Searching albums %s (%s) : %s",
+                    self._device.device_config.address,
+                    media_type,
+                    media_id,
+                    arguments,
+                )
+                medias = await self._device.server.AudioLibrary.GetAlbums(**arguments)
+                paging["count"] = medias.get("limits", {}).get("total", 0)
+                for media in medias["albums"]:
+                    results.append(self.get_item_from_album(media, "kodi://music/albums"))
+                return results, paging
+            if media_type == MediaContent.ARTIST.value:
+                arguments = {
+                    "properties": ["thumbnail"],
+                    "limits": {
+                        "start": (paging.get("page") - 1) * limit,
+                        "end": end,
+                    },
+                    "filter": {"field": "artist", "operator": "contains", "value": query},
+                }
+                _LOG.debug(
+                    "[%s] Searching artists %s (%s) : %s",
+                    self._device.device_config.address,
+                    media_type,
+                    media_id,
+                    arguments,
+                )
+                medias = await self._device.server.AudioLibrary.GetArtists(**arguments)
+                paging["count"] = medias.get("limits", {}).get("total", 0)
+                for media in medias["albums"]:
+                    results.append(self.get_item_from_artist(media, "kodi://music/artists"))
+                return results, paging
+            if media_type == MediaContent.MUSIC.value:
+                arguments = {
+                    "properties": ["art", "duration", "track", "albumid"],
+                    "limits": {
+                        "start": (paging.get("page") - 1) * limit,
+                        "end": end,
+                    },
+                    "filter": {
+                        "or": [
+                            {"field": "title", "operator": "contains", "value": query},
+                            {"field": "album", "operator": "contains", "value": query},
+                            {"field": "artist", "operator": "contains", "value": query},
+                        ]
+                    },
+                }
+                _LOG.debug(
+                    "[%s] Searching albums %s (%s) : %s",
+                    self._device.device_config.address,
+                    media_type,
+                    media_id,
+                    arguments,
+                )
+                medias = await self._device.server.AudioLibrary.GetSongs(**arguments)
+                paging["count"] = medias.get("limits", {}).get("total", 0)
+                for media in medias["albums"]:
+                    results.append(self.get_item_from_song(media, str(media.get("albumid", 0))))
+                return results, paging
+        # pylint: disable = W0718
+        except Exception as ex:
+            _LOG.exception(
+                "[%s] Error while searching media %s, %s, %s : %s",
+                self._device.device_config.address,
+                query,
+                media_id,
+                media_type,
+                ex,
+            )
+        return [], paging
 
 
 @dataclass

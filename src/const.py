@@ -43,6 +43,15 @@ class BrowseMediaItem:
                 setattr(self, attribute.name, attribute.default)
 
 
+@dataclass
+class MediaSearchFilter:
+    """Search filter for search media command."""
+
+    media_classes: list[str] | None
+    artist: str | None
+    album: str | None
+
+
 class IKodiDevice:
     """Kodi client interface."""
 
@@ -264,8 +273,8 @@ KODI_FEATURES = [
     "play_media",
     "clear_playlist",
     "browse_media",
-    # "search_media", # TODO to implement when ready
-    # "search_media_classes", # TODO to implement when ready
+    "search_media",
+    "search_media_classes",
 ]
 
 # Taken from https://kodi.wiki/view/JSON-RPC_API/v13#Input.Action
