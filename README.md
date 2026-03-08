@@ -332,6 +332,32 @@ The `Media Player` entity lets browse and play the following medias in Kodi Libr
 |              | Files             | _Directories & files_ | ...     | ...      | ...      |
 
 
+You can define the following couple `media_id` / `media_type` to start browsing to a given category in the `Play media` command :
+
+| Browsing category                | Media id                | Media type              |
+|----------------------------------|-------------------------|-------------------------|
+| Videos main                      | kodi://videos           | movie                   |
+| All videos                       | kodi://videos/all       | movie                   |
+| Currently played videos          | kodi://videos/current   | movie                   |
+| Recently added videos            | kodi://videos/recent    | movie                   |
+| Videos genres                    | kodi://videos/genres    | genre                   |
+| TV Shows main                    | kodi://tvshows          | tv_show                 |
+| All videos                       | kodi://tvshows/all      | tv_show                 |
+| Currently played TV Shows        | kodi://tvshows/current  | tv_show                 |
+| Recently added TV Shows episodes | kodi://tvshows/recent   | tv_show                 |
+| TV Shows genres                  | kodi://tvshows/genres   | genre                   |
+| Music main                       | kodi://music            | music                   |
+| Albums                           | kodi://music/albums     | albums                  |
+| Artists                          | kodi://music/artists    | artist                  |
+| Music genres                     | kodi://music/genres     | genre                   |
+| Sources                          | kodi://sources          | url                     |
+| Videos sources                   | kodi://sources/videos   | kodi://sources/videos   |
+| Music sources                    | kodi://sources/music    | kodi://sources/music    |
+| Pictures sources                 | kodi://sources/pictures | kodi://sources/pictures |
+| Files sources                    | kodi://sources/files    | kodi://sources/files    |
+
+
+
 ## Installation as external integration
 
 - Requires Python 3.11
