@@ -2,7 +2,7 @@
 """
 This module implements a Remote Two integration driver for Kodi receivers.
 
-:copyright: (c) 2023 by Unfolded Circle ApS.
+:copyright: (c) 2026 by Albaintor
 :license: Mozilla Public License Version 2.0, see LICENSE for more details.
 """
 
@@ -17,7 +17,7 @@ from typing import Any, Type
 import ucapi
 
 import config
-import kodi
+import kodi_device
 import media_player
 import remote
 import selector
@@ -34,9 +34,8 @@ asyncio.set_event_loop(_LOOP)
 # Global variables
 api = ucapi.IntegrationAPI(_LOOP)
 # Map of id -> device instance
-_configured_kodis: dict[str, kodi.KodiDevice] = {}
+_configured_kodis: dict[str, kodi_device.KodiDevice] = {}
 _remote_in_standby = False  # pylint: disable=C0103
-# _supported_entity_types: list[EntityTypes] | None = None
 
 
 @api.listens_to(ucapi.Events.CONNECT)
@@ -87,7 +86,7 @@ def filter_attributes(attributes, attribute_type: Type[Enum]) -> dict[str, Any]:
     return {k: v for k, v in attributes.items() if k in list(map(lambda c: c.value, attribute_type))}
 
 
-async def connect_device(device: kodi.KodiDevice):
+async def connect_device(device: kodi_device.KodiDevice):
     """Connect device and send state."""
     try:
         _LOG.debug("Connecting device %s...", device.id)
@@ -330,13 +329,13 @@ def _configure_new_device(device_config: config.KodiConfigDevice, connect: bool 
         device = _configured_kodis[device_config.id]
         asyncio.create_task(device.disconnect())
     else:
-        device = kodi.KodiDevice(device_config, loop=_LOOP)
+        device = kodi_device.KodiDevice(device_config, loop=_LOOP)
 
         asyncio.create_task(on_device_connected(device.id))
         # asyncio.rundevice.events.on(lg.Events.CONNECTED, on_device_connected)
         # device.events.on(lg.Events.DISCONNECTED, on_device_disconnected)
-        device.events.on(kodi.Events.ERROR, on_device_connection_error)
-        device.events.on(kodi.Events.UPDATE, on_device_update)
+        device.events.on(kodi_device.Events.ERROR, on_device_connection_error)
+        device.events.on(kodi_device.Events.UPDATE, on_device_update)
         # TODO event change address
         # receiver.events.on(lg.Events.IP_ADDRESS_CHANGED, handle_lg_address_change)
         # receiver.connect()
@@ -352,7 +351,7 @@ def _configure_new_device(device_config: config.KodiConfigDevice, connect: bool 
             _LOG.debug("Could not connect to device, probably because it is starting with magic packet %s", ex)
 
 
-def _register_available_entities(device_config: config.KodiConfigDevice, device: kodi.KodiDevice) -> None:
+def _register_available_entities(device_config: config.KodiConfigDevice, device: kodi_device.KodiDevice) -> None:
     """
     Create entities for given device and register them as available entities.
 
@@ -375,10 +374,6 @@ def _register_available_entities(device_config: config.KodiConfigDevice, device:
         sensor.KodiSensorMuted(device_config, device),
     ]
 
-    # if _supported_entity_types:
-    #     _LOG.debug("Filtering supported entity types: %s", _supported_entity_types)
-    #     entities = [x for x in entities if x.entity_type in _supported_entity_types]
-
     for entity in entities:
         if api.available_entities.contains(entity.id):
             api.available_entities.remove(entity.id)
@@ -390,11 +385,6 @@ def on_device_added(device: config.KodiConfigDevice) -> None:
     _LOG.debug("New device added: %s", device)
 
     async def _add_device(device: config.KodiConfigDevice) -> None:
-        # global _supported_entity_types
-        # # TODO normally it should be done in the ucapi, to be removed later
-        # if _supported_entity_types is None:
-        #     _supported_entity_types = await api.get_supported_entity_types()
-        #     _LOG.debug("Supported entity types: %s", _supported_entity_types)
         _configure_new_device(device, connect=False)
         await on_device_connected(device.id)
 
@@ -426,7 +416,7 @@ def on_device_removed(device: config.KodiConfigDevice | None) -> None:
                 api.available_entities.remove(entity.id)
 
 
-async def _async_remove(device: kodi.KodiDevice) -> None:
+async def _async_remove(device: kodi_device.KodiDevice) -> None:
     """Disconnect from receiver and remove all listeners."""
     await device.disconnect()
     device.events.remove_all_listeners()
@@ -443,9 +433,10 @@ async def main():
     logging.getLogger("remote").setLevel(level)
     logging.getLogger("sensor").setLevel(level)
     logging.getLogger("selector").setLevel(level)
-    logging.getLogger("kodi").setLevel(level)
+    logging.getLogger("kodi_device").setLevel(level)
     logging.getLogger("setup_flow").setLevel(level)
     logging.getLogger("config").setLevel(level)
+    logging.getLogger("media_browser").setLevel(level)
     logging.getLogger("pykodi.kodi").setLevel(level)
 
     # Load driver config

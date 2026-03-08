@@ -12,7 +12,7 @@ from ucapi import EntityTypes, Select, StatusCodes
 from ucapi.api_definitions import CommandHandler
 from ucapi.select import Attributes, Commands, States
 
-import kodi
+import kodi_device
 from config import KodiConfigDevice, KodiEntity, create_entity_id
 from const import KodiSelects, KodiStreamConfig
 
@@ -32,14 +32,14 @@ class KodiSelect(KodiEntity, Select):
         entity_id: str,
         name: str | dict[str, str],
         config_device: KodiConfigDevice,
-        device: kodi.KodiDevice,
+        device: kodi_device.KodiDevice,
         select_handler: CommandHandler,
     ):
         """Initialize the class."""
         # pylint: disable = R0801
         attributes = dict[Any, Any]()
         self._config_device = config_device
-        self._device: kodi.KodiDevice = device
+        self._device: kodi_device.KodiDevice = device
         self._state: States = States.ON
         self._select_handler: CommandHandler = select_handler
         super().__init__(identifier=entity_id, name=name, attributes=attributes)
@@ -127,7 +127,7 @@ class KodiAudioStreamSelect(KodiSelect):
     ENTITY_NAME = "audio_stream"
     SELECT_NAME = KodiSelects.SELECT_AUDIO_STREAM
 
-    def __init__(self, config_device: KodiConfigDevice, device: kodi.KodiDevice):
+    def __init__(self, config_device: KodiConfigDevice, device: kodi_device.KodiDevice):
         """Initialize the class."""
         # pylint: disable=W1405,R0801
         entity_id = f"{create_entity_id(config_device.id, EntityTypes.SELECT)}.{self.ENTITY_NAME}"
@@ -162,7 +162,7 @@ class KodiSubtitleStreamSelect(KodiSelect):
     ENTITY_NAME = "subtitle_stream"
     SELECT_NAME = KodiSelects.SELECT_SUBTITLE_STREAM
 
-    def __init__(self, config_device: KodiConfigDevice, device: kodi.KodiDevice):
+    def __init__(self, config_device: KodiConfigDevice, device: kodi_device.KodiDevice):
         """Initialize the class."""
         # pylint: disable=W1405
         entity_id = f"{create_entity_id(config_device.id, EntityTypes.SELECT)}.{self.ENTITY_NAME}"
@@ -197,7 +197,7 @@ class KodiChapterSelect(KodiSelect):
     ENTITY_NAME = "chapter"
     SELECT_NAME = KodiSelects.SELECT_CHAPTER
 
-    def __init__(self, config_device: KodiConfigDevice, device: kodi.KodiDevice):
+    def __init__(self, config_device: KodiConfigDevice, device: kodi_device.KodiDevice):
         """Initialize the class."""
         entity_id = f"{create_entity_id(config_device.id, EntityTypes.SELECT)}.{self.ENTITY_NAME}"
         super().__init__(

@@ -30,6 +30,7 @@ Note : this release requires remote firmware `>= 1.7.10`
 - Media position / duration
 - Volume (level and up/down) and mute
 - Sources : corresponds to the list of video chapters (Kodi >=22 only)
+- Media browsing 🚧 _experimental, in development_
 
 **Remote entity**
 - Predefined buttons mapping and interface buttons
@@ -307,6 +308,28 @@ A little explanation of how it works :
 </keymap>
 ```
 
+## Media Browsing
+
+The `Media Player` entity lets browse and play the following medias in Kodi Library :
+
+| Root level   | Level 1           | Level 2               | Level 3 | Level 4  | Level 5  |
+|--------------|-------------------|-----------------------|---------|----------|----------|
+| **Videos**   | All videos        | Videos                |         |          |          |
+|              | Currently playing | Videos                |         |          |          |
+|              | Recently played   | Videos                |         |          |          |
+|              | Genres            | Genre                 | Videos  |          |          |
+| **TV Shows** | All TV shows      | TV Show               | Season  | Episodes |          |
+|              | Currently playing | TV Show               | Season  | Episodes |          |
+|              | Recently played   | Episodes              |         |          |          |
+|              | Genres            | Genre                 | TV Show | Season   | Episodes |
+| **Music**    | Albums            | Album                 | Songs   |          |          |
+|              | Artists           | Artist                | Album   | Songs    |          |
+|              | Genres            | Genre                 | Albums  | Albums   | Songs    |
+|              | Songs             |                       |         |          |          |
+| **Sources**  | Videos            | _Directories & files_ | ...     | ...      | ...      |
+|              | Music             | _Directories & files_ | ...     | ...      | ...      |
+|              | Pictures          | _Directories & files_ | ...     | ...      | ...      |
+|              | Files             | _Directories & files_ | ...     | ...      | ...      |
 
 
 ## Installation as external integration

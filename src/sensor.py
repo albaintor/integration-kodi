@@ -13,7 +13,7 @@ from ucapi import EntityTypes, Sensor
 from ucapi.media_player import States as MediaStates
 from ucapi.sensor import Attributes, DeviceClasses, Options, States
 
-import kodi
+import kodi_device
 from config import KodiConfigDevice, KodiEntity, create_entity_id
 from const import KodiSensors
 
@@ -42,12 +42,12 @@ class KodiSensor(KodiEntity, Sensor):
         entity_id: str,
         name: str | dict[str, str],
         config_device: KodiConfigDevice,
-        device: kodi.KodiDevice,
+        device: kodi_device.KodiDevice,
         options: dict[Options, Any] | None = None,
         device_class: DeviceClasses = DeviceClasses.CUSTOM,
     ):
         """Initialize the class."""
-        self._device: kodi.KodiDevice = device
+        self._device: kodi_device.KodiDevice = device
         features = []
         attributes = dict[Any, Any]()
         self._config_device = config_device
@@ -93,7 +93,7 @@ class KodiAudioStream(KodiSensor):
     ENTITY_NAME = "audio_stream"
     SENSOR_NAME = KodiSensors.SENSOR_AUDIO_STREAM
 
-    def __init__(self, config_device: KodiConfigDevice, device: kodi.KodiDevice):
+    def __init__(self, config_device: KodiConfigDevice, device: kodi_device.KodiDevice):
         """Initialize the class."""
         entity_id = f"{create_entity_id(config_device.id, EntityTypes.SENSOR)}.{self.ENTITY_NAME}"
         # TODO : dict instead of name to report language names
@@ -119,7 +119,7 @@ class KodiSubtitleStream(KodiSensor):
     ENTITY_NAME = "subtitle_stream"
     SENSOR_NAME = KodiSensors.SENSOR_SUBTITLE_STREAM
 
-    def __init__(self, config_device: KodiConfigDevice, device: kodi.KodiDevice):
+    def __init__(self, config_device: KodiConfigDevice, device: kodi_device.KodiDevice):
         """Initialize the class."""
         entity_id = f"{create_entity_id(config_device.id, EntityTypes.SENSOR)}.{self.ENTITY_NAME}"
         super().__init__(
@@ -144,7 +144,7 @@ class KodiChapter(KodiSensor):
     ENTITY_NAME = "chapter"
     SENSOR_NAME = KodiSensors.SENSOR_CHAPTER
 
-    def __init__(self, config_device: KodiConfigDevice, device: kodi.KodiDevice):
+    def __init__(self, config_device: KodiConfigDevice, device: kodi_device.KodiDevice):
         """Initialize the class."""
         entity_id = f"{create_entity_id(config_device.id, EntityTypes.SENSOR)}.{self.ENTITY_NAME}"
         super().__init__(
@@ -169,7 +169,7 @@ class KodiVideoInfo(KodiSensor):
     ENTITY_NAME = "video_info"
     SENSOR_NAME = KodiSensors.SENSOR_VIDEO_INFO
 
-    def __init__(self, config_device: KodiConfigDevice, device: kodi.KodiDevice):
+    def __init__(self, config_device: KodiConfigDevice, device: kodi_device.KodiDevice):
         """Initialize the class."""
         entity_id = f"{create_entity_id(config_device.id, EntityTypes.SENSOR)}.{self.ENTITY_NAME}"
         super().__init__(
@@ -194,7 +194,7 @@ class KodiAudioInfo(KodiSensor):
     ENTITY_NAME = "audio_info"
     SENSOR_NAME = KodiSensors.SENSOR_AUDIO_INFO
 
-    def __init__(self, config_device: KodiConfigDevice, device: kodi.KodiDevice):
+    def __init__(self, config_device: KodiConfigDevice, device: kodi_device.KodiDevice):
         """Initialize the class."""
         entity_id = f"{create_entity_id(config_device.id, EntityTypes.SENSOR)}.{self.ENTITY_NAME}"
         super().__init__(
@@ -219,7 +219,7 @@ class KodiSensorVolume(KodiSensor):
     ENTITY_NAME = "sensor_volume"
     SENSOR_NAME = KodiSensors.SENSOR_VOLUME
 
-    def __init__(self, config_device: KodiConfigDevice, device: kodi.KodiDevice):
+    def __init__(self, config_device: KodiConfigDevice, device: kodi_device.KodiDevice):
         """Initialize the class."""
         entity_id = f"{create_entity_id(config_device.id, EntityTypes.SENSOR)}.{self.ENTITY_NAME}"
         options = {
@@ -250,7 +250,7 @@ class KodiSensorMuted(KodiSensor):
     ENTITY_NAME = "sensor_muted"
     SENSOR_NAME = KodiSensors.SENSOR_VOLUME_MUTED
 
-    def __init__(self, config_device: KodiConfigDevice, device: kodi.KodiDevice):
+    def __init__(self, config_device: KodiConfigDevice, device: kodi_device.KodiDevice):
         """Initialize the class."""
         entity_id = f"{create_entity_id(config_device.id, EntityTypes.SENSOR)}.{self.ENTITY_NAME}"
         super().__init__(

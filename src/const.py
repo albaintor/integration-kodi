@@ -1,15 +1,70 @@
 """
 Constants used for Kodi integration.
 
-:copyright: (c) 2023 by Unfolded Circle ApS.
+:copyright: (c) 2026 by Albaintor
 :license: Mozilla Public License Version 2.0, see LICENSE for more details.
 """
 
+import dataclasses
+from dataclasses import dataclass, field, fields
 from enum import Enum
 from typing import Any, TypedDict
 
 from ucapi.media_player import Commands, Features, MediaType
 from ucapi.ui import Buttons, DeviceButtonMapping, UiPage
+
+
+@dataclass
+class BrowseMediaItem:
+    """Media item object."""
+
+    title: str
+    media_class: str
+    media_type: str
+    media_id: str
+    can_browse: bool = field(default=False)
+    can_play: bool = field(default=False)
+    can_search: bool = field(default=False)
+    artist: str | None = field(default=None)
+    album: str | None = field(default=None)
+    thumbnail: str | None = field(default=None)
+    duration: int | None = field(default=None)
+    items: list["BrowseMediaItem"] | None = field(default=None)
+
+    # pylint: disable=R0801
+    def __post_init__(self):
+        """Apply default values on missing fields."""
+        for attribute in fields(self):
+            # If there is a default and the value of the field is none we can assign a value
+            if (
+                not isinstance(attribute.default, dataclasses.MISSING.__class__)
+                and getattr(self, attribute.name) is None
+            ):
+                setattr(self, attribute.name, attribute.default)
+
+
+class IKodiDevice:
+    """Kodi client interface."""
+
+    @property
+    def client(self):
+        """Return Kodi client."""
+        raise NotImplementedError()
+
+    @property
+    def server(self):
+        """Return Kodi server."""
+        raise NotImplementedError()
+
+    @property
+    def device_config(self):
+        """Return device configuration."""
+        raise NotImplementedError()
+
+    @property
+    def app_language_code(self) -> str:
+        """App language code."""
+        raise NotImplementedError()
 
 
 class ButtonKeymap(TypedDict):
@@ -54,6 +109,52 @@ class KodiStreamConfig(int, Enum):
     LANGUAGE_NAME = 2
     FULL = 3
 
+
+class KodiMediaTypes(str, Enum):
+    """Kodi media types."""
+
+    VIDEOS = "video"
+    MUSIC = "music"
+    PICTURES = "pictures"
+    FILES = "files"
+    PROGRAMS = "programs"
+
+
+class KodiObjectType(int, Enum):
+    """Kodi JSON RPC object types."""
+
+    EMPTY = 0
+    MOVIE = 1
+    GENRE = 2
+    TV_SHOW = 3
+    SEASON = 4
+    EPISODE = 5
+    FILE = 6
+    ALBUM = 7
+    ARTIST = 8
+    SONG = 9
+
+
+KODI_BROWSING_SORT = {
+    KodiObjectType.MOVIE: [
+        {"title": {"en": "Name", "fr": "Nom"}},
+        {"dateadded descending": {"en": "Date added", "fr": "Date de l'ajout"}},
+        {"rating descending": {"en": "Rating", "fr": "Notation"}},
+        {"year": {"en": "Year", "fr": "Année"}},
+    ],
+    KodiObjectType.FILE: [
+        {"": {"en": "Name", "fr": "Nom"}},
+        {"date descending": {"en": "Date", "fr": "Date"}},
+        {"file": {"en": "File", "fr": "Fichier"}},
+    ],
+    KodiObjectType.ALBUM: [
+        {"album": {"en": "Album", "fr": "Album"}},
+        {"artist": {"en": "Artist", "fr": "Artiste"}},
+        {"dateadded descending": {"en": "Date added", "fr": "Date de l'ajout"}},
+        {"rating descending": {"en": "Rating", "fr": "Notation"}},
+        {"year": {"en": "Year", "fr": "Année"}},
+    ],
+}
 
 KODI_POWEROFF_COMMANDS: dict[str, dict[str, str]] = {
     "Application.Quit": {"en": "Quit application", "fr": "Quitter l'application"},
@@ -160,9 +261,14 @@ KODI_FEATURES = [
     Features.RECORD,
     Features.SEEK,
     Features.SETTINGS,
+    "play_media",
+    "clear_playlist",
+    "browse_media",
+    # "search_media", # TODO to implement when ready
+    # "search_media_classes", # TODO to implement when ready
 ]
 
-# Taken from https://kodi.wiki/view/JSON-RPC_API/v10#Input.Action
+# Taken from https://kodi.wiki/view/JSON-RPC_API/v13#Input.Action
 KODI_SIMPLE_COMMANDS = {
     "MENU_VIDEO": "showvideomenu",  # TODO : showvideomenu not working ?
     "MODE_FULLSCREEN": "togglefullscreen",
@@ -188,7 +294,7 @@ KODI_SIMPLE_COMMANDS = {
 
 KODI_SIMPLE_COMMANDS_DIRECT = ["System.Hibernate", "System.Reboot", "System.Shutdown", "System.Suspend"]
 
-# Taken from https://kodi.wiki/view/JSON-RPC_API/v10#Input.Action
+# Taken from https://kodi.wiki/view/JSON-RPC_API/v13#Input.Action
 # (expand schema description),
 # more info also on https://forum.kodi.tv/showthread.php?tid=349151 which explains the logic
 KODI_ACTIONS_KEYMAP = {

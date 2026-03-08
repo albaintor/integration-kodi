@@ -68,7 +68,11 @@ class KodiConfigDevice:
     sensor_include_device_name: bool = field(default=True)
     log_additional_data: bool = field(default=False)
     power_off_command: str = field(default="Application.Quit")
+    browsing_video_sort: str = field(default="title")
+    browsing_album_sort: str = field(default="album")
+    browsing_files_sort: str = field(default="")
 
+    # pylint: disable=R0801
     def __post_init__(self):
         """Apply default values on missing fields."""
         for attribute in fields(self):
