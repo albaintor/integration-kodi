@@ -130,6 +130,7 @@ class MediaBrowser:
     """Media browser."""
 
     def __init__(self, device: IKodiDevice):
+        """Initialize media browser instance."""
         self._device = device
         self._back_support = True
         if self._back_support:
