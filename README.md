@@ -30,7 +30,8 @@ Note : this release requires remote firmware `>= 1.7.10`
 - Media position / duration
 - Volume (level and up/down) and mute
 - Sources : corresponds to the list of video chapters (Kodi >=22 only)
-- Media browsing 🚧 _experimental, in development_
+- Media browsing 🚧 _experimental
+- Media search 🚧 _experimental
 
 **Remote entity**
 - Predefined buttons mapping and interface buttons

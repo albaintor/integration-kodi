@@ -106,7 +106,7 @@ SOURCE_MEDIA_TYPES_MAPPING = {
 }
 
 
-def get_artwork(artworks: dict[str, str]) -> str | None:
+def get_artwork(artworks: dict[str, str]|None) -> str | None:
     """Return best available artwork."""
     if artworks is None:
         return None
@@ -923,16 +923,20 @@ class MediaBrowser:
 
     async def play_media(self, params: dict[str, Any]) -> StatusCodes:
         """Play given media id."""
-        media_id = params.get("media_id")
-        media_type = params.get("media_type")
+        media_id: str|None = params.get("media_id")
+        media_type: str|None = params.get("media_type")
         # TODO handle action (enqueue, play...)
         # action = params.get("action")
         if media_id is None or media_type is None:
             return StatusCodes.BAD_REQUEST
         if media_type == MediaContent.MOVIE.value:
+            if media_id.startswith("kodi://"):
+                media_id = media_id.rstrip("/").rsplit('/', 1)[-1]
             _LOG.debug("[%s] Playing movie id %s", self._device.device_config.address, media_id)
             await self._device.server.Player.Open(**{"item": {"movieid": int(media_id)}})
         if media_type == MediaContent.EPISODE.value:
+            if media_id.startswith("kodi://"):
+                media_id = media_id.rstrip("/").rsplit('/', 1)[-1]
             _LOG.debug("[%s] Playing media id %s", self._device.device_config.address, media_id)
             await self._device.server.Player.Open(**{"item": {"file": media_id}})
         elif media_type == MediaContent.MUSIC.value:

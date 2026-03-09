@@ -236,11 +236,38 @@ class RemoteWebsocket:
             {"entity_id": entity_id, "media_id": media_id, "media_type": media_type, "paging": paging}
         )
 
+    async def search_media_entity(
+        self,
+        entity_id: str,
+        query: str,
+        media_id: str | None = None,
+        media_type: str | None = None,
+        paging: dict[str, Any] | None = None,
+    ) -> dict[str, Any] | None:
+        return await self.search_media(
+            {"entity_id": entity_id, "query": query, "media_id": media_id, "media_type": media_type, "paging": paging}
+        )
+
     async def browse_media(self, msg_data: dict[str, Any]) -> dict[str, Any] | None:
         try:
             _LOG.debug("Browse media: %s", msg_data)
             response = await self.send_request_and_wait(
                 {"msg": "browse_media", "msg_data": msg_data},
+                timeout=WS_TIMEOUT,
+            )
+            return response
+        except asyncio.TimeoutError:
+            _LOG.error("Timeout while browsing media")
+            return None
+        except Exception as ex:
+            _LOG.error("Browsing error %s", ex)
+            return None
+
+    async def search_media(self, msg_data: dict[str, Any]) -> dict[str, Any] | None:
+        try:
+            _LOG.debug("Search media: %s", msg_data)
+            response = await self.send_request_and_wait(
+                {"msg": "search_media", "msg_data": msg_data},
                 timeout=WS_TIMEOUT,
             )
             return response
@@ -501,6 +528,17 @@ class RemoteWebsocket:
             with suppress(asyncio.CancelledError):
                 await asyncio.shield(closeout_task)
 
+class BrowsingData:
+    window: tk.Toplevel | None = None
+    media_id: str | None = None
+    media_type: str | None = None
+    page: int = 1
+    limit: int = BROWSING_PAGINATION
+    count = 0
+    items: list[dict[str, Any]] | None = None
+    main: dict[str, Any] | None = None
+    
+
 
 class RemoteInterface(tk.Tk):
 
@@ -544,16 +582,21 @@ class RemoteInterface(tk.Tk):
         self._media_browse_button = ttk.Button(
             self._left_frame, text="Browse media", command=lambda: self.media_browse_open()
         )
-        self._media_browse_window: tk.Toplevel | None = None
+        self._media_browse_data = BrowsingData()
         self._media_browse_button.grid(row=self._row, column=0)
-        self._media_browse_media_id: str | None = None
-        self._media_browse_media_type: str | None = None
-        self._media_browse_page: int = 1
-        self._media_browse_limit: int = BROWSING_PAGINATION
-        self._media_browse_count = 0
-        self._media_browse_items: list[dict[str, Any]] | None = None
-        self._media_browse_main: dict[str, Any] | None = None
         self._row += 1
+
+        label = ttk.Label(self._left_frame, text="Search media :")
+        label.grid(row=self._row, column=0)
+        self._media_search_text = ttk.Entry(self._left_frame)
+        self._media_search_text.grid(row=self._row, column=1)
+        self._media_search_button = ttk.Button(
+            self._left_frame, text="Search", command=lambda: self.media_search_open()
+        )
+        self._media_search_button.grid(row=self._row, column=2)
+        self._row += 1
+        self._media_search_window: tk.Toplevel | None = None
+        self._media_search_data = BrowsingData()
 
         label = ttk.Label(self._left_frame, text="Media Players")
         label.grid(row=self._row, column=0, columnspan=1)
@@ -620,6 +663,7 @@ class RemoteInterface(tk.Tk):
         self._duration = 0
         self._media_position_task: Future | None = None
         self._browsing_support = False
+        self._media_search_support = False
 
     @property
     def media_player_entity(self) -> dict[str, Any] | None:
@@ -756,6 +800,10 @@ class RemoteInterface(tk.Tk):
         self._browsing_support = value
         self.update()
 
+    def media_search_support(self, value: bool):
+        self._media_search_support = value
+        self.update()
+
     async def update_position_task(self):
         while True:
             await asyncio.sleep(1)
@@ -873,32 +921,63 @@ class RemoteInterface(tk.Tk):
     def change_media_player(self, event: Any):
         new_entity = event.widget.get()
         self._worker.change_media_player(new_entity)
+        if self._browsing_support:
+            self._media_browse_button.configure(state="normal")
+        else:
+            self._media_browse_button.configure(state="disabled")
+        if self._media_search_support:
+            self._media_search_button.configure(state="normal")
+        else:
+            self._media_search_button.configure(state="disabled")
 
     async def browse_media(self, entity_id):
         results = await self._worker.browse_media(
             entity_id,
-            self._media_browse_media_id,
-            self._media_browse_media_type,
+            self._media_browse_data.media_id,
+            self._media_browse_data.media_type,
             {
-                "page": self._media_browse_page,
-                "limit": self._media_browse_limit,
+                "page": self._media_browse_data.page,
+                "limit": self._media_browse_data.limit,
             },
         )
         print_json(json=json.dumps(results))
-        if results and (msg_data := results.get("msg_data", None)):
-            pagination = msg_data.get("pagination", None)
-            media = msg_data.get("media", None)
-            if media is None or pagination is None:
+        if results and (msg_data := results.get("msg_data", {})):
+            pagination = msg_data.get("pagination", {})
+            media = msg_data.get("media", {})
+            if not media or not pagination:
                 return
-            self._media_browse_main = media
-            self._media_browse_items = media.get("items", [])
-            self._media_browse_page = pagination.get("page", 1)
-            self._media_browse_limit = pagination.get("limit", BROWSING_PAGINATION)
-            self._media_browse_count = pagination.get("count", 0)
-            self.update_browsing_grid()
+            self._media_browse_data.main = media
+            self._media_browse_data.items = media.get("items", [])
+            self._media_browse_data.page = pagination.get("page", 1)
+            self._media_browse_data.limit = pagination.get("limit", BROWSING_PAGINATION)
+            self._media_browse_data.count = pagination.get("count", 0)
+            self.update_browsing_grid(self._media_browse_data, "Media Browser")
+
+    async def search_media(self, entity_id):
+        results = await self._worker.search_media(
+            entity_id,
+            self._media_search_text.get(),
+            self._media_search_data.media_id,
+            self._media_search_data.media_type,
+            {
+                "page": self._media_search_data.page,
+                "limit": self._media_search_data.limit,
+            },
+        )
+        print_json(json=json.dumps(results))
+        if results and (msg_data := results.get("msg_data", {})):
+            pagination = msg_data.get("pagination", {})
+            media = msg_data.get("media", [])
+            if not media or not pagination:
+                return
+            self._media_search_data.items = media
+            self._media_search_data.page = pagination.get("page", 1)
+            self._media_search_data.limit = pagination.get("limit", BROWSING_PAGINATION)
+            self._media_search_data.count = pagination.get("count", 0)
+            self.update_browsing_grid(self._media_search_data, "Search Media")
 
     def browse(self, event: Any, item: dict[str, Any]):
-        if item.get("can_browse", False) is False:
+        if not item.get("can_browse", False):
             if item.get("can_play", False):
                 self.media_player_command(
                     "play_media",
@@ -906,11 +985,11 @@ class RemoteInterface(tk.Tk):
                 )
             return
         entity_id = self._worker.get_media_player_entity_id()
-        self._media_browse_page = 1
-        self._media_browse_limit = BROWSING_PAGINATION
-        self._media_browse_count = 0
-        self._media_browse_media_id = item.get("media_id", "")
-        self._media_browse_media_type = item.get("media_type", "")
+        self._media_browse_data.page = 1
+        self._media_browse_data.limit = BROWSING_PAGINATION
+        self._media_browse_data.count = 0
+        self._media_browse_data.media_id = item.get("media_id", "")
+        self._media_browse_data.media_type = item.get("media_type", "")
 
         asyncio.run_coroutine_threadsafe(
             self.browse_media(entity_id),
@@ -918,7 +997,7 @@ class RemoteInterface(tk.Tk):
         )
 
     def paging(self, page: int):
-        self._media_browse_page = page
+        self._media_browse_data.page = page
         entity_id = self._worker.get_media_player_entity_id()
         asyncio.run_coroutine_threadsafe(
             self.browse_media(entity_id),
@@ -933,49 +1012,55 @@ class RemoteInterface(tk.Tk):
         except Exception as e:
             _LOG.exception("Image load error %s : %s", item.get("thumbnail"), e)
 
-    def update_browsing_grid(self):
-        for widget in self._media_browse_window.winfo_children():
+    def update_browsing_grid(self, browsing_data: BrowsingData, title:str):
+        for widget in browsing_data.window.winfo_children():
             widget.destroy()
         row = 0
         column = 0
+        label = ttk.Label(
+            browsing_data.window,
+            text=title,
+        )
+        label.grid(row=row, column=column, columnspan=4)
+        row +=1
 
         button = ttk.Button(
-            self._media_browse_window,
+            browsing_data.window,
             text="<<",
-            command=lambda: self.paging(self._media_browse_page - 1),
+            command=lambda: self.paging(browsing_data.page - 1),
         )
         button.grid(row=row, column=column)
         column += 1
-        if self._media_browse_page == 1:
+        if browsing_data.page == 1:
             button.configure(state="disabled")
         label = ttk.Label(
-            self._media_browse_window,
-            text=f"{self._media_browse_page} / {1+int(self._media_browse_count / BROWSING_PAGINATION)} ({self._media_browse_count})",
+            browsing_data.window,
+            text=f"{browsing_data.page} / {1+int(browsing_data.count / BROWSING_PAGINATION)} ({browsing_data.count})",
         )
         label.grid(row=row, column=column, columnspan=2)
         column += 1
         button = ttk.Button(
-            self._media_browse_window,
+            browsing_data.window,
             text=">>",
-            command=lambda: self.paging(self._media_browse_page + 1),
+            command=lambda: self.paging(browsing_data.page + 1),
         )
         button.grid(row=row, column=column)
-        if self._media_browse_count == 0 or self._media_browse_count <= BROWSING_PAGINATION:
+        if browsing_data.count == 0 or browsing_data.count <= BROWSING_PAGINATION:
             button.configure(state="disabled")
         column += 1
         row += 1
         column = 0
-        if self._media_browse_main:
+        if browsing_data.main:
             label = ttk.Label(
-                self._media_browse_window,
-                text=f"{self._media_browse_main.get('title', '')} ({self._media_browse_main.get('media_class', '')})",
+                browsing_data.window,
+                text=f"{browsing_data.main.get('title', '')} ({browsing_data.main.get('media_class', '')})",
             )
             label.grid(row=row, column=column, columnspan=4)
             row += 1
 
-        for item in self._media_browse_items:
+        for item in browsing_data.items:
             button = ttk.Button(
-                self._media_browse_window,
+                browsing_data.window,
                 text=item.get("title"),
                 width=BROWSING_CELL_WIDTH,
                 command=lambda item=item.copy(): self.browse(None, item),
@@ -994,23 +1079,46 @@ class RemoteInterface(tk.Tk):
                 row += 1
         self.update()
 
+    def media_search_open(self):
+        entity_id = self._worker.get_media_player_entity_id()
+        if entity_id is None:
+            return
+        if self._media_search_data.window is None or not self._media_search_data.window.winfo_exists():
+            self._media_search_data.window = tk.Toplevel(self, width=600, height=600)
+            self._media_search_data.window.grid_columnconfigure(0, weight=1)
+            self._media_search_data.window.grid_columnconfigure(1, weight=1)
+            self._media_search_data.window.grid_columnconfigure(2, weight=1)
+            self._media_search_data.window.grid_columnconfigure(3, weight=1)
+            self._media_search_data.media_id = None
+            self._media_search_data.media_type = None
+            self._media_search_data.page = 1
+            self._media_search_data.limit = BROWSING_PAGINATION
+            self._media_search_data.count = 0
+            self._media_search_data.items = None
+            self._media_search_data.main = None
+
+        asyncio.run_coroutine_threadsafe(
+            self.search_media(entity_id),
+            self._worker._loop,
+        )
+
     def media_browse_open(self):
         entity_id = self._worker.get_media_player_entity_id()
         if entity_id is None:
             return
-        if self._media_browse_window is None or not self._media_browse_window.winfo_exists():
-            self._media_browse_window = tk.Toplevel(self, width=600, height=600)
-            self._media_browse_window.grid_columnconfigure(0, weight=1)
-            self._media_browse_window.grid_columnconfigure(1, weight=1)
-            self._media_browse_window.grid_columnconfigure(2, weight=1)
-            self._media_browse_window.grid_columnconfigure(3, weight=1)
-            self._media_browse_media_id = None
-            self._media_browse_media_type = None
-            self._media_browse_page = 1
-            self._media_browse_limit = BROWSING_PAGINATION
-            self._media_browse_count = 0
-            self._media_browse_items = None
-            self._media_browse_main = None
+        if self._media_browse_data.window is None or not self._media_browse_data.window.winfo_exists():
+            self._media_browse_data.window = tk.Toplevel(self, width=600, height=600)
+            self._media_browse_data.window.grid_columnconfigure(0, weight=1)
+            self._media_browse_data.window.grid_columnconfigure(1, weight=1)
+            self._media_browse_data.window.grid_columnconfigure(2, weight=1)
+            self._media_browse_data.window.grid_columnconfigure(3, weight=1)
+            self._media_browse_data.media_id = None
+            self._media_browse_data.media_type = None
+            self._media_browse_data.page = 1
+            self._media_browse_data.limit = BROWSING_PAGINATION
+            self._media_browse_data.count = 0
+            self._media_browse_data.items = None
+            self._media_browse_data.main = None
 
         asyncio.run_coroutine_threadsafe(
             self.browse_media(entity_id),
@@ -1088,6 +1196,19 @@ class WorkerThread(threading.Thread):
             _LOG.error("Browse %s error : no websocket connected", media_id)
             return None
         return await self._ws.browse_media_entity(entity_id, media_id, media_type, paging)
+
+    async def search_media(
+        self,
+        entity_id: str,
+        query: str,
+        media_id: str | None = None,
+        media_type: str | None = None,
+        paging: dict[str, Any] | None = None,
+    ):
+        if self._ws is None:
+            _LOG.error("Search media %s error : no websocket connected", media_id)
+            return None
+        return await self._ws.search_media_entity(entity_id, query, media_id, media_type, paging)
 
     def get_media_player_entity(self) -> dict[str, Any] | None:
         media_entity = self._interface.get_media_player()
@@ -1188,6 +1309,7 @@ class WorkerThread(threading.Thread):
         self._interface.load_image("")
         self._interface.update_position()
         self._interface.browsing_support(False)
+        self._interface.media_search_support(False)
         for entity in self._entities:
             entity_id = entity.get("entity_id")
             name = get_entity_name(entity)
@@ -1197,6 +1319,7 @@ class WorkerThread(threading.Thread):
                     return
                 _LOG.debug("Reloading attributes for new entity %s : %s", entity_id, attributes)
                 self._interface.browsing_support(self.has_feature(entity_id, "browse_media"))
+                self._interface.media_search_support(self.has_feature(entity_id, "search_media"))
                 asyncio.run_coroutine_threadsafe(
                     self.update_attributes(entity | {"attributes": attributes}),
                     self._loop,

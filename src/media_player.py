@@ -262,12 +262,16 @@ class KodiMediaPlayer(KodiEntity, MediaPlayer):
                           callbacks instead of broadcasts.
         :return: search response or status code if any error occurs
         """
-        query: str = params.get("query", None)
-        media_id: str = params.get("media_id", None)
-        media_type: str = params.get("media_type", None)
-        paging: dict[str, Any] = params.get("paging", None)
+        if self._device.kodi_connection is None:
+            await self._device.connect()
+        # if self._device.app_language is None:
+        #     await self._device.update_app_language()
+        query: str|None = params.get("query", None)
+        media_id: str|None = params.get("media_id", None)
+        media_type: str|None = params.get("media_type", None)
+        paging: dict[str, Any]|None = params.get("paging", None)
         media_search_filter: MediaSearchFilter | None = None
-        if data := params.get("filter", None):
+        if data := params.get("filter", None) is not None:
             media_search_filter = MediaSearchFilter(**data)
         if query is None:
             return StatusCodes.BAD_REQUEST
