@@ -30,8 +30,8 @@ Note : this release requires remote firmware `>= 1.7.10`
 - Media position / duration
 - Volume (level and up/down) and mute
 - Sources : corresponds to the list of video chapters (Kodi >=22 only)
-- Media browsing 🚧 _work in progress_
-- Media search 🚧 _work in progress_
+- Media browsing : videos, tv shows, music, pictures, sources with sub-categories 🚧
+- Media search 🚧
 
 **Remote entity**
 - Predefined buttons mapping and interface buttons
@@ -345,6 +345,7 @@ You can define the following couple `media_id` / `media_type` to start browsing 
 | Currently played videos          | kodi://videos/current   | movie                   |
 | Recently added videos            | kodi://videos/recent    | movie                   |
 | Videos genres                    | kodi://videos/genres    | genre                   |
+| Videos playlists                 | kodi://videos/playlists | playlist                |
 | TV Shows main                    | kodi://tvshows          | tv_show                 |
 | All videos                       | kodi://tvshows/all      | tv_show                 |
 | Currently played TV Shows        | kodi://tvshows/current  | tv_show                 |
@@ -354,6 +355,7 @@ You can define the following couple `media_id` / `media_type` to start browsing 
 | Albums                           | kodi://music/albums     | albums                  |
 | Artists                          | kodi://music/artists    | artist                  |
 | Music genres                     | kodi://music/genres     | genre                   |
+| Music playlists                  | kodi://music/playlists  | playlist                |
 | Sources                          | kodi://sources          | url                     |
 | Videos sources                   | kodi://sources/videos   | kodi://sources/videos   |
 | Music sources                    | kodi://sources/music    | kodi://sources/music    |

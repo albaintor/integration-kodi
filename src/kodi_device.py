@@ -50,6 +50,7 @@ from const import (
     KodiSelects,
     KodiSensors,
     KodiStreamConfig,
+    PlaylistInfo,
 )
 from languages import LANGUAGES, LANGUAGES_KEYS
 from pykodi.kodi import CannotConnectError, InvalidAuthError, Kodi, KodiWSConnection
@@ -1985,3 +1986,40 @@ class KodiDevice(IKodiDevice):
         except Exception as ex:
             _LOG.debug("[%s] Couldn't retrieve Kodi's window state %s", self.device_config.address, ex)
         return False
+
+    async def get_current_playlist(self) -> PlaylistInfo | None:
+        """Return current position in playlist and current playlist."""
+        if self._players is None:
+            self._players = await self._kodi.get_players()
+        if len(self._players) == 0:
+            return None
+        data = await self.server.Player.GetProperties(
+            **{"playerid": self.player_id, "properties": ["playlistid", "position"]}
+        )
+        try:
+            if (position := data.get("position", -1)) >= 0:
+                playlist_id = data["playlistid"]
+                data = await self.server.Playlist.GetItems(
+                    **{
+                        "playlistid": playlist_id,
+                        "properties": [
+                            "title",
+                            "file",
+                            "duration",
+                            "season",
+                            "episode",
+                            "showtitle",
+                            "album",
+                            "artist",
+                        ],
+                    }
+                )
+                _LOG.debug("[%s] Current playlist (%s) : %s", self.device_config.address, position, data)
+                return PlaylistInfo(playlist_id=playlist_id, position=position, playlist=data)
+        except Exception as exc:  # pylint: disable = W0718
+            _LOG.exception(
+                "[%s] Error while extracting current playlist info, please report : %s",
+                self.device_config.address,
+                exc,
+            )
+        return None

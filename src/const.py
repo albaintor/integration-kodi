@@ -52,6 +52,15 @@ class MediaSearchFilter:
     album: str | None
 
 
+@dataclass
+class PlaylistInfo:
+    """Playlist info."""
+
+    playlist_id: int
+    position: int
+    playlist: dict[str, Any]
+
+
 class IKodiDevice:
     """Kodi client interface."""
 
@@ -73,6 +82,10 @@ class IKodiDevice:
     @property
     def app_language_code(self) -> str:
         """App language code."""
+        raise NotImplementedError()
+
+    async def get_current_playlist(self) -> PlaylistInfo | None:
+        """Return current position in playlist and current playlist."""
         raise NotImplementedError()
 
 

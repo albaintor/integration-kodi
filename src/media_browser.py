@@ -135,15 +135,6 @@ TRANSLATIONS = {
 }
 
 
-@dataclass
-class PlaylistInfo:
-    """Playlist info."""
-
-    playlist_id: int
-    position: int
-    playlist: dict[str, Any]
-
-
 class MediaBrowser:
     """Media browser."""
 
@@ -417,39 +408,6 @@ class MediaBrowser:
             result["order"] = param[1]
         return result
 
-    async def get_current_playlist(self) -> PlaylistInfo | None:
-        """Return current position in playlist and current playlist."""
-        data = await self._device.server.Player.GetProperties(
-            **{"playerid": 1, "properties": ["playlistid", "position"]}
-        )
-        try:
-            if (position := data.get("position", -1)) >= 0:
-                playlist_id = data["playlistid"]
-                data = await self._device.server.Playlist.GetItems(
-                    **{
-                        "playlistid": playlist_id,
-                        "properties": [
-                            "title",
-                            "file",
-                            "duration",
-                            "season",
-                            "episode",
-                            "showtitle",
-                            "album",
-                            "artist",
-                        ],
-                    }
-                )
-                _LOG.debug("[%s] Current playlist (%s) : %s", self._device.device_config.address, position, data)
-                return PlaylistInfo(playlist_id=playlist_id, position=position, playlist=data)
-        except Exception as exc:  # pylint: disable = W0718
-            _LOG.exception(
-                "[%s] Error while extracting current playlist info, please report : %s",
-                self._device.device_config.address,
-                exc,
-            )
-        return None
-
     async def browse_media(
         self, media_id: str | None, media_type: str | None, paging: dict[str, Any] | None
     ) -> tuple[BrowseMediaItem, dict[str, Any]] | None:
@@ -465,7 +423,7 @@ class MediaBrowser:
             if media_id is None or media_id == "" or media_id == "kodi://":
                 items: list[BrowseMediaItem] = [x.get_media_item() for x in self._library_items if x.parent_id is None]
                 # Add currently playing playlist if any
-                current_playlist = await self.get_current_playlist()
+                current_playlist = await self._device.get_current_playlist()
                 if current_playlist and current_playlist.position >= 0:
                     items.insert(
                         0,
@@ -611,6 +569,7 @@ class MediaBrowser:
                     for media in data.get("files", []):
                         # Strip off extension file
                         media["label"] = os.path.splitext(media.get("label"))[0]
+                        media["filetype"] = "file"
                         item.items.append(self.get_item_from_file(media, media_id, extract_thumbnail=False))
                 else:
                     _LOG.warning(
@@ -965,7 +924,7 @@ class MediaBrowser:
                     if self._back_support and paging.get("page") == 1:
                         item.items.append(self.get_back_item("kodi://"))
                         end -= 1
-                    current_playlist = await self.get_current_playlist()
+                    current_playlist = await self._device.get_current_playlist()
                     if current_playlist:
                         position = 0
                         for playlist_item in current_playlist.playlist["items"]:
