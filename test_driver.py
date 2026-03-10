@@ -123,8 +123,9 @@ if sys.platform == "win32":
 _LOOP = asyncio.new_event_loop()
 asyncio.set_event_loop(_LOOP)
 
-DRIVER_PORT = os.getenv("UC_INTEGRATION_HTTP_PORT", 9091)
-DRIVER_URL = f"ws://{get_local_ip()}:{DRIVER_PORT}/ws"
+DRIVER_PORT = os.getenv("UC_INTEGRATION_HTTP_PORT", 9090)
+DRIVER_INTERFACE = os.getenv("UC_INTEGRATION_INTERFACE", get_local_ip())
+DRIVER_URL = f"ws://{DRIVER_INTERFACE}:{DRIVER_PORT}/ws"
 MAIN_WS_MAX_MSG_SIZE = 8 * 1024 * 1024  # 8Mb
 WS_TIMEOUT = 5
 BROWSING_PAGINATION = 12
@@ -528,6 +529,7 @@ class RemoteWebsocket:
             with suppress(asyncio.CancelledError):
                 await asyncio.shield(closeout_task)
 
+
 class BrowsingData:
     window: tk.Toplevel | None = None
     media_id: str | None = None
@@ -537,7 +539,6 @@ class BrowsingData:
     count = 0
     items: list[dict[str, Any]] | None = None
     main: dict[str, Any] | None = None
-    
 
 
 class RemoteInterface(tk.Tk):
@@ -1012,7 +1013,7 @@ class RemoteInterface(tk.Tk):
         except Exception as e:
             _LOG.exception("Image load error %s : %s", item.get("thumbnail"), e)
 
-    def update_browsing_grid(self, browsing_data: BrowsingData, title:str):
+    def update_browsing_grid(self, browsing_data: BrowsingData, title: str):
         for widget in browsing_data.window.winfo_children():
             widget.destroy()
         row = 0
@@ -1022,7 +1023,7 @@ class RemoteInterface(tk.Tk):
             text=title,
         )
         label.grid(row=row, column=column, columnspan=4)
-        row +=1
+        row += 1
 
         button = ttk.Button(
             browsing_data.window,

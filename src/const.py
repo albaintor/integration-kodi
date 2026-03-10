@@ -142,6 +142,7 @@ class KodiObjectType(int, Enum):
     ALBUM = 7
     ARTIST = 8
     SONG = 9
+    PLAYLIST = 10
 
 
 KODI_BROWSING_SORT = {
@@ -163,6 +164,21 @@ KODI_BROWSING_SORT = {
         {"rating descending": {"en": "Rating", "fr": "Notation"}},
         {"year": {"en": "Year", "fr": "Année"}},
     ],
+}
+
+
+class KodiMediaSearchMode(int, Enum):
+    """Search media mode configuration."""
+
+    VIDEOS = 1
+    TV_SHOWS = 2
+    MUSIC = 3
+
+
+KODI_SEARCH_MODES = {
+    KodiMediaSearchMode.VIDEOS: {"en": "Videos only", "fr": "Vidéos uniquement"},
+    KodiMediaSearchMode.TV_SHOWS: {"en": "TV shows only", "fr": "Séries TV uniquement"},
+    KodiMediaSearchMode.MUSIC: {"en": "Music only", "fr": "Musique uniquement"},
 }
 
 KODI_POWEROFF_COMMANDS: dict[str, dict[str, str]] = {
