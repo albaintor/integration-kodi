@@ -188,11 +188,11 @@ class KodiMediaSearchMode(int, Enum):
     MUSIC = 3
 
 
-KODI_SEARCH_MODES = {
-    KodiMediaSearchMode.VIDEOS: {"en": "Videos only", "fr": "Vidéos uniquement"},
-    KodiMediaSearchMode.TV_SHOWS: {"en": "TV shows only", "fr": "Séries TV uniquement"},
-    KodiMediaSearchMode.MUSIC: {"en": "Music only", "fr": "Musique uniquement"},
-}
+# KODI_SEARCH_MODES = {
+#     KodiMediaSearchMode.VIDEOS: {"en": "Videos only", "fr": "Vidéos uniquement"},
+#     KodiMediaSearchMode.TV_SHOWS: {"en": "TV shows only", "fr": "Séries TV uniquement"},
+#     KodiMediaSearchMode.MUSIC: {"en": "Music only", "fr": "Musique uniquement"},
+# }
 
 KODI_POWEROFF_COMMANDS: dict[str, dict[str, str]] = {
     "Application.Quit": {"en": "Quit application", "fr": "Quitter l'application"},

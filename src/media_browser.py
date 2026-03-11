@@ -80,6 +80,15 @@ class MediaClass(str, Enum):
     VIDEO = "video"
 
 
+MEDIA_CONTENT_LABELS = {
+    MediaContent.MOVIE: "Videos",
+    MediaContent.TV_SHOW: "TV Shows",
+    MediaContent.ALBUM: "Albums",
+    MediaContent.ARTIST: "Artists",
+    MediaContent.MUSIC: "Music",
+}
+
+
 @dataclass
 class Paging:
     """Browsing paging."""
@@ -320,6 +329,10 @@ class MediaBrowser:
         media_id = str(album.get("albumid", 0))
         if parent_id:
             media_id = parent_id + "/" + media_id
+        artist = None
+        if (artists := album.get("artist", None)) and len(artists) > 0:
+            artist = artists[0]
+
         return BrowseMediaItem(
             title=album.get("label", ""),
             media_id=media_id,
@@ -329,7 +342,7 @@ class MediaBrowser:
             can_search=True,
             thumbnail=art,
             album=album.get("label", None),
-            artist=album.get("artist", None),
+            artist=artist,
         )
 
     def get_item_from_artist(self, artist: dict[str, Any], parent_id: str) -> BrowseMediaItem:
@@ -751,7 +764,7 @@ class MediaBrowser:
                         )
                         end -= 1
                     arguments = {
-                        "properties": ["art", "duration", "track"],
+                        "properties": ["art", "duration", "track", "album", "artist"],
                         "filter": {"albumid": int(real_media_id)},
                         "limits": {
                             "start": (paging.get("page") - 1) * limit,
@@ -781,7 +794,7 @@ class MediaBrowser:
                         )
                         end -= 1
                     arguments = {
-                        "properties": ["art"],
+                        "properties": ["art", "artist"],
                         "filter": {"artistid": int(real_media_id)},
                         "limits": {
                             "start": (paging.get("page") - 1) * limit,
@@ -933,7 +946,11 @@ class MediaBrowser:
                             )
                             item.items.append(
                                 BrowseMediaItem(
-                                    title=playlist_item.get("label", ""),
+                                    title=(
+                                        playlist_item.get("label", "")
+                                        if position != current_playlist.position
+                                        else f">> {playlist_item.get('label', '')} <<"
+                                    ),
                                     media_class=media_type,
                                     media_type=MediaContent.PLAYLIST,
                                     media_id=f"kodi://playlist/{current_playlist.playlist_id}/{position}",
@@ -1046,6 +1063,32 @@ class MediaBrowser:
 
         return StatusCodes.OK
 
+    def get_search_missing_categories(self, media_id: None | str, media_type: None | str) -> list[BrowseMediaItem]:
+        """Return additional categories."""
+        missing_modes: list[MediaContent] = [
+            MediaContent.MOVIE,
+            MediaContent.TV_SHOW,
+            MediaContent.ALBUM,
+            MediaContent.ARTIST,
+            # MediaContent.MUSIC,
+        ]
+        if media_type is not None:
+            try:
+                media_type = MediaContent(media_type)
+                missing_modes.remove(media_type)
+            except ValueError:
+                pass
+        return [
+            BrowseMediaItem(
+                title=self.get_localized(MEDIA_CONTENT_LABELS.get(x, "Videos")),
+                media_id=media_id,
+                media_type=x.value,
+                media_class=x.value,
+                can_search=True,
+            )
+            for x in missing_modes
+        ]
+
     # pylint: disable=R0917
     async def search_media(
         self,
@@ -1066,6 +1109,11 @@ class MediaBrowser:
             end = paging.get("page") * limit
             paging["count"] = 0
             results: list[BrowseMediaItem] = []
+            # Add additional search items
+            if paging.get("page") == 1:
+                missing_categories = self.get_search_missing_categories(media_id, media_type)
+                results.extend(missing_categories)
+                paging["count"] += len(missing_categories)
             if (
                 media_type is None and self._device.device_config.search_media_default == KodiMediaSearchMode.VIDEOS
             ) or media_type == MediaContent.MOVIE.value:
@@ -1079,8 +1127,9 @@ class MediaBrowser:
                 if len(query) > 0:
                     arguments["filter"] = {"field": "title", "operator": "contains", "value": query}
                 _LOG.debug(
-                    "[%s] Searching video %s (%s) : %s",
+                    "[%s] Searching video %s (media id %s, type %s) : %s",
                     self._device.device_config.address,
+                    query,
                     media_type,
                     media_id,
                     arguments,
@@ -1159,7 +1208,7 @@ class MediaBrowser:
                 )
                 medias = await self._device.server.AudioLibrary.GetArtists(**arguments)
                 paging["count"] += medias.get("limits", {}).get("total", 0)
-                for media in medias["albums"]:
+                for media in medias["artists"]:
                     results.append(self.get_item_from_artist(media, "kodi://music/artists"))
             if media_type == MediaContent.MUSIC.value:
                 arguments: dict[str, Any] = {
@@ -1172,7 +1221,7 @@ class MediaBrowser:
                 if len(query) > 0:
                     arguments["filter"] = {
                         "or": [
-                            {"field": "title", "operator": "contains", "value": query},
+                            # {"field": "title", "operator": "contains", "value": query},
                             {"field": "album", "operator": "contains", "value": query},
                             {"field": "artist", "operator": "contains", "value": query},
                         ]
@@ -1204,7 +1253,7 @@ class MediaBrowser:
                         }
 
                 _LOG.debug(
-                    "[%s] Searching albums %s (%s) : %s",
+                    "[%s] Searching songs %s (%s) : %s",
                     self._device.device_config.address,
                     media_type,
                     media_id,
@@ -1214,6 +1263,7 @@ class MediaBrowser:
                 paging["count"] += medias.get("limits", {}).get("total", 0)
                 for media in medias["albums"]:
                     results.append(self.get_item_from_song(media, str(media.get("albumid", 0))))
+            _LOG.debug("[%s] Searching results %s %s", self._device.device_config.address, results, paging)
             return results, paging
         # pylint: disable = W0718
         except Exception as ex:

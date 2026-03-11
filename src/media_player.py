@@ -266,7 +266,7 @@ class KodiMediaPlayer(KodiEntity, MediaPlayer):
             await self._device.connect()
         # if self._device.app_language is None:
         #     await self._device.update_app_language()
-        query: str | None = params.get("q", None)
+        query: str | None = params.get("query", None)
         media_id: str | None = params.get("media_id", None)
         media_type: str | None = params.get("media_type", None)
         paging: dict[str, Any] | None = params.get("paging", None)
