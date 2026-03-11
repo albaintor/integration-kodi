@@ -213,20 +213,49 @@ KODI_SENSOR_STREAM_CONFIG_LABELS = [
 
 KODI_DEFAULT_NAME = "Kodi"
 
-KODI_MEDIA_TYPES = {
+
+# TODO : new media types, to update with UC library
+# pylint: disable=R0801
+class MediaContent(str, Enum):
+    """Media content types supported by UC."""
+
+    ALBUM = "album"
+    APP = "app"
+    APPS = "apps"
+    ARTIST = "artist"
+    CHANNEL = "channel"
+    CHANNELS = "channels"
+    COMPOSER = "composer"
+    EPISODE = "episode"
+    GAME = "game"
+    GENRE = "genre"
+    IMAGE = "image"
+    MOVIE = "movie"
+    MUSIC = "music"
+    PLAYLIST = "playlist"
+    PODCAST = "podcast"
+    RADIO = "radio"
+    SEASON = "season"
+    TRACK = "track"
+    TV_SHOW = "tv_show"
+    URL = "url"
+    VIDEO = "video"
+
+
+KODI_MEDIA_TYPES: dict[str, MediaContent | MediaType] = {
     "music": MediaType.MUSIC,
-    "artist": MediaType.MUSIC,
-    "album": MediaType.MUSIC,
-    "song": MediaType.MUSIC,
+    "artist": MediaContent.ARTIST,
+    "album": MediaContent.ALBUM,
+    "song": MediaContent.TRACK,
     "video": MediaType.VIDEO,
     "set": MediaType.MUSIC,
     "musicvideo": MediaType.VIDEO,
     "movie": MediaType.MOVIE,
     "tvshow": MediaType.TVSHOW,
-    "season": MediaType.TVSHOW,
-    "episode": MediaType.TVSHOW,
+    "season": MediaContent.SEASON,
+    "episode": MediaContent.EPISODE,
     # Type 'channel' is used for radio or tv streams from pvr
-    "channel": MediaType.TVSHOW,
+    "channel": MediaContent.CHANNEL,
     # Type 'audio' is used for audio media, that Kodi couldn't scroblle
     "audio": MediaType.MUSIC,
 }

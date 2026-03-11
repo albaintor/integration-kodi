@@ -50,6 +50,7 @@ from const import (
     KodiSelects,
     KodiSensors,
     KodiStreamConfig,
+    MediaContent,
     PlaylistInfo,
 )
 from languages import LANGUAGES, LANGUAGES_KEYS
@@ -287,6 +288,7 @@ def retry(*, timeout: float = 5, bufferize=False) -> Callable[
     return decorator
 
 
+# pylint: disable=R0915
 class KodiDevice(IKodiDevice):
     """Representing a LG TV Device."""
 
@@ -325,6 +327,7 @@ class KodiDevice(IKodiDevice):
         self._media_image_data = ""
         self._media_artist = ""
         self._media_album = ""
+        self._media_id = ""
         self._thumbnail: str | None = None
         self._attr_state = MediaStates.OFF
         self._websocket_task = None
@@ -973,7 +976,7 @@ class KodiDevice(IKodiDevice):
                     [
                         "title",
                         "file",
-                        "uniqueid",
+                        # "uniqueid",
                         "thumbnail",
                         "fanart",
                         "art",
@@ -995,8 +998,14 @@ class KodiDevice(IKodiDevice):
                     self._media_type = item_type
                     updated_data[MediaAttr.MEDIA_TYPE] = self.media_type
 
+                media_id = str(self._item.get("id", 0))
+                if media_id != self._media_id:
+                    self._media_id = media_id
+                    # TODO when UC library udpated
+                    updated_data["media_id"] = self._media_id
+
                 art = self._item.get("art", {})
-                if self.media_type == MediaType.TVSHOW:
+                if self.media_type in [MediaType.TVSHOW, MediaContent.SEASON, MediaContent.EPISODE]:
                     artwork_type = self._device_config.artwork_type_tvshows
                 else:
                     artwork_type = self._device_config.artwork_type
@@ -1241,6 +1250,7 @@ class KodiDevice(IKodiDevice):
                 self._media_title = ""
                 self._media_album = ""
                 self._media_artist = ""
+                self._media_id = ""
                 updated_data[MediaAttr.MEDIA_POSITION] = 0
                 updated_data[MediaAttr.MEDIA_DURATION] = 0
                 updated_data[MediaAttr.MEDIA_TITLE] = ""
@@ -1268,6 +1278,8 @@ class KodiDevice(IKodiDevice):
                     SelectAttributes.CURRENT_OPTION: "",
                     SelectAttributes.OPTIONS: [],
                 }
+                # TODO when UC library udpated
+                updated_data["media_id"] = self._media_id
 
             self._position_timestamp = time.time()
             if self._attr_state != self.get_state():
@@ -1275,6 +1287,7 @@ class KodiDevice(IKodiDevice):
                 updated_data[MediaAttr.STATE] = self.get_state()
 
             if updated_data:
+                # _LOG.debug("[%s] Updated device attributes : %s", self.device_config.address, updated_data)
                 self.events.emit(Events.UPDATE, self.id, updated_data)
             self._update_state_retry = 0
         except TimeoutError as timeout_error:
@@ -1382,6 +1395,8 @@ class KodiDevice(IKodiDevice):
                 SelectAttributes.OPTIONS: self.chapters,
                 SelectAttributes.STATE: SelectStates.ON,
             },
+            # TODO when UC library udpated
+            "media_id": self._media_id,
         }
         return attributes
 

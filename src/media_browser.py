@@ -22,38 +22,13 @@ from const import (
     KodiMediaSearchMode,
     KodiMediaTypes,
     KodiObjectType,
+    MediaContent,
     MediaSearchFilter,
 )
 
 _LOG = logging.getLogger(__name__)
 
-# pylint: disable=C0302
-
-
-class MediaContent(str, Enum):
-    """Media content types supported by UC."""
-
-    ALBUM = "album"
-    APP = "app"
-    APPS = "apps"
-    ARTIST = "artist"
-    CHANNEL = "channel"
-    CHANNELS = "channels"
-    COMPOSER = "composer"
-    EPISODE = "episode"
-    GAME = "game"
-    GENRE = "genre"
-    IMAGE = "image"
-    MOVIE = "movie"
-    MUSIC = "music"
-    PLAYLIST = "playlist"
-    PODCAST = "podcast"
-    RADIO = "radio"
-    SEASON = "season"
-    TRACK = "track"
-    TV_SHOW = "tv_show"
-    URL = "url"
-    VIDEO = "video"
+# pylint: disable=C0302,R0801
 
 
 class MediaClass(str, Enum):
