@@ -208,6 +208,16 @@ class MediaBrowser:
         # url = url.removeprefix("image://").removesuffix("/")
         # return urllib.parse.unquote(url)
 
+    @staticmethod
+    def get_duration(data: dict[str, Any]) -> int | None:
+        """Extract duration from media."""
+        duration = data.get("duration", data.get("runtime", None))
+        if duration is None:
+            duration = data.get("resume", {}).get("total", None)
+        if duration == 0.0:
+            duration = None
+        return duration
+
     def get_item_from_movie(self, movie: dict[str, Any], parent_id: str) -> BrowseMediaItem:
         """Build item from movie."""
         art = get_artwork(movie.get("art", None))
@@ -221,11 +231,9 @@ class MediaBrowser:
             media_id=media_id,
             media_class=MediaClass.MOVIE,
             media_type=MediaContent.MOVIE,
-            can_browse=False,
-            can_search=True,
             can_play=True,
             thumbnail=art,
-            duration=movie.get("duration", None),
+            duration=MediaBrowser.get_duration(movie),
         )
 
     def get_item_from_episode(self, episode: dict[str, Any]) -> BrowseMediaItem:
@@ -239,11 +247,9 @@ class MediaBrowser:
             media_id=media_id,
             media_class=MediaClass.EPISODE,
             media_type=MediaContent.EPISODE,
-            can_browse=False,
-            can_search=True,
             can_play=True,
             thumbnail=art,
-            duration=episode.get("duration", None),
+            duration=MediaBrowser.get_duration(episode),
         )
 
     def get_item_from_tvshow(self, show: dict[str, Any], parent_id: str) -> BrowseMediaItem:
@@ -318,6 +324,7 @@ class MediaBrowser:
             thumbnail=art,
             album=album.get("label", None),
             artist=artist,
+            duration=album.get("albumduration", None),
         )
 
     def get_item_from_artist(self, artist: dict[str, Any], parent_id: str) -> BrowseMediaItem:
@@ -361,7 +368,6 @@ class MediaBrowser:
             media_id=media_id,
             media_class=MediaClass.MUSIC,
             media_type=MediaContent.MUSIC,
-            can_browse=False,
             can_search=True,
             can_play=True,
             thumbnail=art,
@@ -427,6 +433,11 @@ class MediaBrowser:
                             media_id="kodi://playing",
                             thumbnail=art,
                             can_browse=True,
+                            duration=current_playlist.playlist["items"][current_playlist.position].get(
+                                "duration", None
+                            ),
+                            album=current_playlist.playlist["items"][current_playlist.position].get("album", None),
+                            artist=current_playlist.playlist["items"][current_playlist.position].get("artist", None),
                         ),
                     )
 
@@ -691,7 +702,7 @@ class MediaBrowser:
                         item.items.append(MediaBrowser.get_parent_item_tvshow(parent_id, MediaContent.TV_SHOW.value))
                         end -= 1
                     arguments = {
-                        "properties": ["art", "file", "showtitle", "season"],
+                        "properties": ["art", "file", "showtitle", "season", "resume", "runtime"],
                         "tvshowid": int(show_id),
                         "season": int(season),
                         "limits": {
@@ -774,7 +785,7 @@ class MediaBrowser:
                         )
                         end -= 1
                     arguments = {
-                        "properties": ["art", "artist"],
+                        "properties": ["art", "artist", "albumduration"],
                         "filter": {"artistid": int(real_media_id)},
                         "limits": {
                             "start": (paging.get("page") - 1) * limit,
@@ -807,7 +818,7 @@ class MediaBrowser:
                         )
                         end -= 1
                     arguments = {
-                        "properties": ["resume", "art", "genre"],
+                        "properties": ["resume", "art", "genre", "runtime"],
                         "filter": {"genreid": int(real_media_id)},
                         "limits": {
                             "start": (paging.get("page") - 1) * limit,
@@ -881,7 +892,7 @@ class MediaBrowser:
                         )
                         end -= 1
                     arguments = {
-                        "properties": ["art", "genre"],
+                        "properties": ["art", "genre", "albumduration", "artist"],
                         "filter": {"genreid": int(real_media_id)},
                         "limits": {
                             "start": (paging.get("page") - 1) * limit,
@@ -920,6 +931,7 @@ class MediaBrowser:
                     current_playlist = await self._device.get_current_playlist()
                     if current_playlist:
                         position = 0
+                        tag_current = len(current_playlist.playlist["items"]) > 1
                         for playlist_item in current_playlist.playlist["items"]:
                             media_type = (
                                 MediaClass.MOVIE if playlist_item.get("type", "movie") == "movie" else MediaClass.MUSIC
@@ -928,7 +940,7 @@ class MediaBrowser:
                                 BrowseMediaItem(
                                     title=(
                                         playlist_item.get("label", "")
-                                        if position != current_playlist.position
+                                        if position != current_playlist.position or not tag_current
                                         else f">> {playlist_item.get('label', '')} <<"
                                     ),
                                     media_class=media_type,
@@ -1080,7 +1092,7 @@ class MediaBrowser:
         else:
             end = paging.get("page") * limit
         arguments: dict[str, Any] = {
-            "properties": ["resume", "art", "genre"],
+            "properties": ["resume", "art", "genre", "runtime"],
             "limits": {
                 "start": (paging.get("page") - 1) * limit,
                 "end": end,
@@ -1148,7 +1160,7 @@ class MediaBrowser:
         else:
             end = paging.get("page") * limit
         arguments: dict[str, Any] = {
-            "properties": ["art"],
+            "properties": ["art", "artist", "albumduration"],
             "limits": {
                 "start": (paging.get("page") - 1) * limit,
                 "end": end,
@@ -1502,7 +1514,7 @@ KODI_BROWSING: list[KodiMediaEntry] = [
         media_type=MediaContent.MOVIE,
         media_id="kodi://videos/all",
         command="VideoLibrary.GetMovies",
-        arguments={"properties": ["art"]},
+        arguments={"properties": ["art", "runtime"]},
         child_media_type=MediaContent.MOVIE,
         output=KodiObjectType.MOVIE,
     ),
@@ -1513,7 +1525,7 @@ KODI_BROWSING: list[KodiMediaEntry] = [
         media_id="kodi://videos/current",
         command="VideoLibrary.GetMovies",
         arguments={
-            "properties": ["resume", "art", "duration"],
+            "properties": ["resume", "art", "runtime"],
             "sort": {"method": "lastplayed", "order": "descending"},
             "filter": {"field": "inprogress", "operator": "true", "value": ""},
         },
@@ -1526,7 +1538,7 @@ KODI_BROWSING: list[KodiMediaEntry] = [
         media_type=MediaContent.MOVIE,
         media_id="kodi://videos/recent",
         command="VideoLibrary.GetRecentlyAddedMovies",
-        arguments={"properties": ["art", "duration"]},
+        arguments={"properties": ["art", "runtime"]},
         child_media_type=MediaContent.MOVIE,
         output=KodiObjectType.MOVIE,
     ),
@@ -1583,7 +1595,7 @@ KODI_BROWSING: list[KodiMediaEntry] = [
         media_id="kodi://tvshows/recent",
         media_class=MediaClass.EPISODE,
         command="VideoLibrary.GetRecentlyAddedEpisodes",
-        arguments={"properties": ["art", "file", "duration"]},
+        arguments={"properties": ["art", "file", "resume", "runtime"]},
         child_media_type=MediaContent.EPISODE,
         output=KodiObjectType.EPISODE,
     ),
@@ -1604,7 +1616,7 @@ KODI_BROWSING: list[KodiMediaEntry] = [
         media_type=MediaContent.ALBUM,
         media_id="kodi://music/albums",
         command="AudioLibrary.GetAlbums",
-        arguments={"properties": ["art", "artist"]},
+        arguments={"properties": ["art", "artist", "albumduration"]},
         child_media_type=MediaContent.ALBUM,
         output=KodiObjectType.ALBUM,
     ),

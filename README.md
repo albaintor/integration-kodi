@@ -367,7 +367,7 @@ You can define the following couple `media_id` / `media_type` to start browsing 
 ## Media Search
 
 Search media lets search within the video or audio library. First the search is performed in movies, then TV Shows, albums, artists, songs.
-Only the first results are returned with no pagination, but it is possible to select a sub-category (videos, tv shows, ...) that will let you search into this specific category with pagination support.
+Only the first results are returned with no pagination, but it is possible to select a sub-category (videos, tv shows, ...) that will let you refine search from a specific category with pagination support.
 At the end you will be able to play one of the returned results in Kodi.
 
 

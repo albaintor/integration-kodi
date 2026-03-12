@@ -13,6 +13,7 @@ import datetime
 import io
 import json
 import logging
+import math
 import os
 import queue
 import socket
@@ -545,6 +546,15 @@ class BrowsingData:
     search_mode = False
 
 
+async def load_item_image_url(button: ttk.Button, item: dict[str, Any]):
+    try:
+        photo = load_image_from_url(item.get("thumbnail"), max_size=(BROWSING_CELL_WIDTH, BROWSING_CELL_WIDTH))
+        button.configure(image=photo, compound="top")
+        button.image = photo
+    except Exception as e:
+        _LOG.exception("Image load error %s : %s", item.get("thumbnail"), e)
+
+
 class RemoteInterface(tk.Tk):
 
     def __init__(self) -> None:
@@ -555,18 +565,13 @@ class RemoteInterface(tk.Tk):
         self.maxsize(1920, 1080)
         self._row = 0
         self._ui_queue: queue.Queue[Callable[[], None]] = queue.Queue()
-        # self.container = ttk.Frame(self, padding=12)
-        # self.container.pack(fill="both", expand=True)
         self._left_frame = ttk.Frame(self, width=300, height=600)
         self._left_frame.pack(side="left", fill="both", padx=10, pady=5, expand=True)
         self._left_frame.grid_columnconfigure(0, weight=1)
         self._left_frame.grid_columnconfigure(1, weight=1)
         self._left_frame.grid_columnconfigure(2, weight=1)
-        # self._left_frame.grid(row=0, column=3, padx=10, pady=5)
         self._right_frame = ttk.Frame(self, width=650, height=600)
         self._right_frame.pack(side="right", fill="both", padx=10, pady=5, expand=True)
-        self._image_label = ttk.Label(self._right_frame, text="Artwork")
-        self._image_label.pack(anchor="w")
         tool_bar = ttk.Frame(self._right_frame, width=650, height=40)
         self._title_field = ttk.Label(tool_bar, text="Title")
         self._title_field.pack(anchor="w", pady=(0, 10))
@@ -582,7 +587,6 @@ class RemoteInterface(tk.Tk):
         self._progress_label = ttk.Label(tool_bar, text="00:00:00")
         self._progress_label.pack(side="right", fill="x", expand=True)
         tool_bar.pack(side="bottom", fill="x", expand=True)
-        # self._right_frame.grid(row=0, column=1, padx=10, pady=5)
 
         self._media_browse_button = ttk.Button(
             self._left_frame, text="Browse media", command=lambda: self.media_browse_open()
@@ -1030,13 +1034,8 @@ class RemoteInterface(tk.Tk):
                 self._worker._loop,
             )
 
-    async def load_item_image_url(self, button: ttk.Button, item: dict[str, Any]):
-        try:
-            photo = load_image_from_url(item.get("thumbnail"), max_size=(BROWSING_CELL_WIDTH, BROWSING_CELL_WIDTH))
-            button.configure(image=photo, compound="top")
-            button.image = photo
-        except Exception as e:
-            _LOG.exception("Image load error %s : %s", item.get("thumbnail"), e)
+    def change_page(self, event: Any, data: BrowsingData):
+        self.paging(data, int(event.widget.get()))
 
     def update_browsing_grid(self, browsing_data: BrowsingData, title: str):
         for widget in browsing_data.window.winfo_children():
@@ -1059,11 +1058,21 @@ class RemoteInterface(tk.Tk):
         column += 1
         if browsing_data.page == 1:
             button.configure(state="disabled")
+        page = ttk.Combobox(
+            browsing_data.window,
+            state="readonly",
+            justify="right",
+            values=[str(x) for x in range(1, math.ceil(browsing_data.count / BROWSING_PAGINATION) + 1)],
+        )
+        page.set(str(browsing_data.page))
+        page.bind("<<ComboboxSelected>>", lambda event, data=browsing_data: self.change_page(event, data))
+        page.grid(row=row, column=column, sticky="e")
+        column += 1
         label = ttk.Label(
             browsing_data.window,
-            text=f"{browsing_data.page} / {1+int(browsing_data.count / BROWSING_PAGINATION)} ({browsing_data.count})",
+            text=f" / {math.ceil(browsing_data.count / BROWSING_PAGINATION)} ({browsing_data.count})",
         )
-        label.grid(row=row, column=column, columnspan=2)
+        label.grid(row=row, column=column, sticky="w")
         column += 1
         button = ttk.Button(
             browsing_data.window,
@@ -1095,7 +1104,7 @@ class RemoteInterface(tk.Tk):
             # button.bind("<Button-1>", lambda e, item=item.copy(): self.browse(e, item))
             if item.get("thumbnail", None):
                 asyncio.run_coroutine_threadsafe(
-                    self.load_item_image_url(button, item),
+                    load_item_image_url(button, item),
                     self._worker._loop,
                 )
             button.grid(row=row, column=column, sticky="we")
