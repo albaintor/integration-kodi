@@ -107,7 +107,7 @@ TRANSLATIONS = {
     "Sources": {"fr": "Sources"},
     "All": {"fr": "Tout"},
     "Recent": {"fr": "Récents"},
-    "Currently played": {"fr": "En cours de lecture"},
+    "Now playing": {"fr": "En cours de lecture"},
     "Genres": {"fr": "Genres"},
     "Albums": {"fr": "Albums"},
     "Artists": {"fr": "Artistes"},
@@ -426,7 +426,7 @@ class MediaBrowser:
                     items.insert(
                         0,
                         BrowseMediaItem(
-                            title=f"{self.get_localized('Currently played')} "
+                            title=f"{self.get_localized('Now playing')} "
                             f"({current_playlist.playlist['items'][current_playlist.position].get('label', '')})",
                             media_class=MediaClass.PLAYLIST,
                             media_type=MediaClass.PLAYLIST,
@@ -1520,7 +1520,7 @@ KODI_BROWSING: list[KodiMediaEntry] = [
     ),
     KodiMediaEntry(
         parent_id="kodi://videos",
-        title="Currently played",
+        title="Now playing",
         media_type=MediaContent.MOVIE,
         media_id="kodi://videos/current",
         command="VideoLibrary.GetMovies",
@@ -1580,7 +1580,7 @@ KODI_BROWSING: list[KodiMediaEntry] = [
     ),
     KodiMediaEntry(
         parent_id="kodi://tvshows",
-        title="Currently played",
+        title="Now playing",
         media_type=MediaContent.TV_SHOW,
         media_id="kodi://tvshows/current",
         command="VideoLibrary.GetInProgressTVShows",
