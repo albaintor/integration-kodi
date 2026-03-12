@@ -35,7 +35,7 @@ from jsonrpc_base.jsonrpc import (  # pylint: disable = E0401
 )
 from pyee.asyncio import AsyncIOEventEmitter
 from ucapi.media_player import Attributes as MediaAttr
-from ucapi.media_player import Features, MediaType
+from ucapi.media_player import Features
 from ucapi.media_player import States as MediaStates
 from ucapi.select import Attributes as SelectAttributes
 from ucapi.select import States as SelectStates
@@ -321,7 +321,7 @@ class KodiDevice(IKodiDevice):
         self._media_position = 0
         self._media_duration = 0
         self._media_position_updated_at: datetime.datetime | None = None
-        self._media_type = MediaType.VIDEO
+        self._media_type = MediaContent.VIDEO
         self._media_title = ""
         self._media_image_url = ""
         self._media_image_data = ""
@@ -993,7 +993,7 @@ class KodiDevice(IKodiDevice):
 
                 _LOG.debug("[%s] Kodi extracted properties : %s", self.device_config.address, self._item)
 
-                item_type = KODI_MEDIA_TYPES.get(self._item.get("type"), MediaType.VIDEO)
+                item_type = KODI_MEDIA_TYPES.get(self._item.get("type"), MediaContent.VIDEO)
                 if item_type != self._media_type:
                     self._media_type = item_type
                     updated_data[MediaAttr.MEDIA_TYPE] = self.media_type
@@ -1005,7 +1005,7 @@ class KodiDevice(IKodiDevice):
                     updated_data["media_id"] = self._media_id
 
                 art = self._item.get("art", {})
-                if self.media_type in [MediaType.TVSHOW, MediaContent.SEASON, MediaContent.EPISODE]:
+                if self.media_type in [MediaContent.TV_SHOW, MediaContent.SEASON, MediaContent.EPISODE]:
                     artwork_type = self._device_config.artwork_type_tvshows
                 else:
                     artwork_type = self._device_config.artwork_type
@@ -1649,7 +1649,7 @@ class KodiDevice(IKodiDevice):
         return self._media_artist
 
     @property
-    def media_type(self) -> MediaType:
+    def media_type(self) -> MediaContent:
         """Return current media type."""
         return self._media_type
 
@@ -2026,6 +2026,7 @@ class KodiDevice(IKodiDevice):
                             "showtitle",
                             "album",
                             "artist",
+                            "art",
                         ],
                     }
                 )

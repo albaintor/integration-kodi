@@ -27,8 +27,9 @@ from config import KodiEntity
 
 _LOG = logging.getLogger("driver")  # avoid having __main__ in log messages
 if sys.platform == "win32":
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-_LOOP = asyncio.new_event_loop()
+    _LOOP = asyncio.SelectorEventLoop()
+else:
+    _LOOP = asyncio.new_event_loop()
 asyncio.set_event_loop(_LOOP)
 
 # Global variables

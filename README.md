@@ -13,6 +13,7 @@ Note : this release requires remote firmware `>= 1.7.10`
   * [Installation on the Remote](#installation-on-the-remote)
   * [Backup or restore configuration](#backup-or-restore-configuration)
 - [Additional commands](#additional-commands)
+- [Media Browsing](#media-browsing)
 - [Note about Kodi keymap and UC Remotes](#note-about-kodi-keymap-and-uc-remotes)
 - [Installation as external integration](#installation-as-external-integration)
 - [Build self-contained binary for Remote Two](#build-self-contained-binary-for-remote-two)
@@ -313,27 +314,27 @@ A little explanation of how it works :
 
 The `Media Player` entity lets browse and play the following medias in Kodi Library :
 
-| Root level           | Level 1           | Level 2               | Level 3 | Level 4  | Level 5  |
-|----------------------|-------------------|-----------------------|---------|----------|----------|
-| **Currently played** | Current playlist  |                       |         |          |          |
-| **Videos**           | All videos        | Videos                |         |          |          |
-|                      | Currently playing | Videos                |         |          |          |
-|                      | Recently played   | Videos                |         |          |          |
-|                      | Genres            | Genre                 | Videos  |          |          |
-|                      | Playlists         | Playlist              | Videos  |          |          |
-| **TV Shows**         | All TV shows      | TV Show               | Season  | Episodes |          |
-|                      | Currently playing | TV Show               | Season  | Episodes |          |
-|                      | Recently played   | Episodes              |         |          |          |
-|                      | Genres            | Genre                 | TV Show | Season   | Episodes |
-| **Music**            | Albums            | Album                 | Songs   |          |          |
-|                      | Artists           | Artist                | Album   | Songs    |          |
-|                      | Genres            | Genre                 | Albums  | Albums   | Songs    |
-|                      | Songs             |                       |         |          |          |
-|                      | Playlists         | Playlist              | Songs   |          |          |
-| **Sources**          | Videos            | _Directories & files_ | ...     | ...      | ...      |
-|                      | Music             | _Directories & files_ | ...     | ...      | ...      |
-|                      | Pictures          | _Directories & files_ | ...     | ...      | ...      |
-|                      | Files             | _Directories & files_ | ...     | ...      | ...      |
+| Root level           | Level 1                           | Level 2               | Level 3 | Level 4  | Level 5  |
+|----------------------|-----------------------------------|-----------------------|---------|----------|----------|
+| **Currently played** | Current playlist or media playing |                       |         |          |          |
+| **Videos**           | All videos                        | Videos                |         |          |          |
+|                      | Currently playing                 | Videos                |         |          |          |
+|                      | Recently played                   | Videos                |         |          |          |
+|                      | Genres                            | Genre                 | Videos  |          |          |
+|                      | Playlists                         | Playlist              | Videos  |          |          |
+| **TV Shows**         | All TV shows                      | TV Show               | Season  | Episodes |          |
+|                      | Currently playing                 | TV Show               | Season  | Episodes |          |
+|                      | Recently played                   | Episodes              |         |          |          |
+|                      | Genres                            | Genre                 | TV Show | Season   | Episodes |
+| **Music**            | Albums                            | Album                 | Songs   |          |          |
+|                      | Artists                           | Artist                | Album   | Songs    |          |
+|                      | Genres                            | Genre                 | Albums  | Albums   | Songs    |
+|                      | Songs                             |                       |         |          |          |
+|                      | Playlists                         | Playlist              | Songs   |          |          |
+| **Sources**          | Videos                            | _Directories & files_ | ...     | ...      | ...      |
+|                      | Music                             | _Directories & files_ | ...     | ...      | ...      |
+|                      | Pictures                          | _Directories & files_ | ...     | ...      | ...      |
+|                      | Files                             | _Directories & files_ | ...     | ...      | ...      |
 
 
 You can define the following couple `media_id` / `media_type` to start browsing to a given category in the `Play media` command :
@@ -362,6 +363,12 @@ You can define the following couple `media_id` / `media_type` to start browsing 
 | Pictures sources                 | kodi://sources/pictures | kodi://sources/pictures |
 | Files sources                    | kodi://sources/files    | kodi://sources/files    |
 
+
+## Media Search
+
+Search media lets search within the video or audio library. First the search is performed in movies, then TV Shows, albums, artists, songs.
+Only the first results are returned with no pagination, but it is possible to select a sub-category (videos, tv shows, ...) that will let you search into this specific category with pagination support.
+At the end you will be able to play one of the returned results in Kodi.
 
 
 ## Installation as external integration

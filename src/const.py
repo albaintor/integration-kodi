@@ -10,7 +10,7 @@ from dataclasses import dataclass, field, fields
 from enum import Enum
 from typing import Any, TypedDict
 
-from ucapi.media_player import Commands, Features, MediaType
+from ucapi.media_player import Commands, Features
 from ucapi.ui import Buttons, DeviceButtonMapping, UiPage
 
 
@@ -242,22 +242,22 @@ class MediaContent(str, Enum):
     VIDEO = "video"
 
 
-KODI_MEDIA_TYPES: dict[str, MediaContent | MediaType] = {
-    "music": MediaType.MUSIC,
+KODI_MEDIA_TYPES: dict[str, MediaContent] = {
+    "music": MediaContent.MUSIC,
     "artist": MediaContent.ARTIST,
     "album": MediaContent.ALBUM,
     "song": MediaContent.TRACK,
-    "video": MediaType.VIDEO,
-    "set": MediaType.MUSIC,
-    "musicvideo": MediaType.VIDEO,
-    "movie": MediaType.MOVIE,
-    "tvshow": MediaType.TVSHOW,
+    "video": MediaContent.VIDEO,
+    "set": MediaContent.MUSIC,
+    "musicvideo": MediaContent.VIDEO,
+    "movie": MediaContent.MOVIE,
+    "tvshow": MediaContent.TV_SHOW,
     "season": MediaContent.SEASON,
     "episode": MediaContent.EPISODE,
     # Type 'channel' is used for radio or tv streams from pvr
     "channel": MediaContent.CHANNEL,
     # Type 'audio' is used for audio media, that Kodi couldn't scroblle
-    "audio": MediaType.MUSIC,
+    "audio": MediaContent.MUSIC,
 }
 
 KODI_ARTWORK_LABELS = [
