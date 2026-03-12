@@ -28,6 +28,8 @@ from functools import wraps
 from tkinter import ttk
 from typing import Any, Callable
 
+import aiohttp
+
 sys.path.insert(1, "src")
 import requests
 from aiohttp import ClientSession, ClientWebSocketResponse, WSMsgType
@@ -119,8 +121,9 @@ def load_image_from_url(url: str, max_size=(500, 500)) -> ImageTk.PhotoImage:
 
 
 if sys.platform == "win32":
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-_LOOP = asyncio.new_event_loop()
+    _LOOP = asyncio.SelectorEventLoop()
+else:
+    _LOOP = asyncio.new_event_loop()
 asyncio.set_event_loop(_LOOP)
 
 DRIVER_PORT = os.getenv("UC_INTEGRATION_HTTP_PORT", 9090)
@@ -145,7 +148,7 @@ class RemoteWebsocket:
         self._loop = loop if loop else asyncio.get_event_loop()
 
     async def websocket_connect(self):
-        self.client_session = ClientSession()
+        self.client_session = ClientSession(connector=aiohttp.TCPConnector(resolver=aiohttp.ThreadedResolver()))
         async with asyncio.timeout(5):
             self.client_websocket = await self.client_session.ws_connect(
                 DRIVER_URL,
@@ -539,6 +542,7 @@ class BrowsingData:
     count = 0
     items: list[dict[str, Any]] | None = None
     main: dict[str, Any] | None = None
+    search_mode = False
 
 
 class RemoteInterface(tk.Tk):
@@ -598,6 +602,7 @@ class RemoteInterface(tk.Tk):
         self._row += 1
         self._media_search_window: tk.Toplevel | None = None
         self._media_search_data = BrowsingData()
+        self._media_search_data.search_mode = True
 
         label = ttk.Label(self._left_frame, text="Media Players")
         label.grid(row=self._row, column=0, columnspan=1)
@@ -1014,10 +1019,16 @@ class RemoteInterface(tk.Tk):
     def paging(self, browsing_data: BrowsingData, page: int):
         browsing_data.page = page
         entity_id = self._worker.get_media_player_entity_id()
-        asyncio.run_coroutine_threadsafe(
-            self.browse_media(browsing_data, entity_id),
-            self._worker._loop,
-        )
+        if browsing_data.search_mode:
+            asyncio.run_coroutine_threadsafe(
+                self.search_media(entity_id),
+                self._worker._loop,
+            )
+        else:
+            asyncio.run_coroutine_threadsafe(
+                self.browse_media(browsing_data, entity_id),
+                self._worker._loop,
+            )
 
     async def load_item_image_url(self, button: ttk.Button, item: dict[str, Any]):
         try:
