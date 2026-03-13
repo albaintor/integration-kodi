@@ -10,7 +10,7 @@ from dataclasses import dataclass, field, fields
 from enum import Enum
 from typing import Any, TypedDict
 
-from ucapi.media_player import Commands, Features
+from ucapi.media_player import Commands, Features, MediaContent
 from ucapi.ui import Buttons, DeviceButtonMapping, UiPage
 
 
@@ -212,34 +212,6 @@ KODI_SENSOR_STREAM_CONFIG_LABELS = [
 ]
 
 KODI_DEFAULT_NAME = "Kodi"
-
-
-# TODO : new media types, to update with UC library
-# pylint: disable=R0801
-class MediaContent(str, Enum):
-    """Media content types supported by UC."""
-
-    ALBUM = "album"
-    APP = "app"
-    APPS = "apps"
-    ARTIST = "artist"
-    CHANNEL = "channel"
-    CHANNELS = "channels"
-    COMPOSER = "composer"
-    EPISODE = "episode"
-    GAME = "game"
-    GENRE = "genre"
-    IMAGE = "image"
-    MOVIE = "movie"
-    MUSIC = "music"
-    PLAYLIST = "playlist"
-    PODCAST = "podcast"
-    RADIO = "radio"
-    SEASON = "season"
-    TRACK = "track"
-    TV_SHOW = "tv_show"
-    URL = "url"
-    VIDEO = "video"
 
 
 KODI_MEDIA_TYPES: dict[str, MediaContent] = {

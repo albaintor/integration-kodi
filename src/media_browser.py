@@ -10,11 +10,11 @@ import logging
 import os
 import time
 from dataclasses import dataclass, field, fields
-from enum import Enum
 from typing import Any
 from urllib.parse import quote, unquote
 
 from ucapi import StatusCodes
+from ucapi.media_player import MediaClass
 
 from const import (
     BrowseMediaItem,
@@ -29,30 +29,6 @@ from const import (
 _LOG = logging.getLogger(__name__)
 
 # pylint: disable=C0302,R0801,R0917
-
-
-class MediaClass(str, Enum):
-    """Media classes supported by UC."""
-
-    ALBUM = "album"
-    APP = "app"
-    ARTIST = "artist"
-    CHANNEL = "channel"
-    COMPOSER = "composer"
-    DIRECTORY = "directory"
-    EPISODE = "episode"
-    GAME = "game"
-    GENRE = "genre"
-    IMAGE = "image"
-    MOVIE = "movie"
-    MUSIC = "music"
-    PLAYLIST = "playlist"
-    PODCAST = "podcast"
-    SEASON = "season"
-    TRACK = "track"
-    TV_SHOW = "tv_show"
-    URL = "url"
-    VIDEO = "video"
 
 
 MEDIA_CONTENT_LABELS = {
