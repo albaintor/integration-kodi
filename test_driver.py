@@ -344,15 +344,18 @@ class RemoteWebsocket:
                 }
             )
         elif msg_type == "get_localization_cfg":
-            await self._send_json(
-                {
-                    "kind": "resp",
-                    "req_id": req_id,
-                    "code": 200,
-                    "msg": "localization_cfg",
-                    "msg_data": localization_cfg,
-                }
+            asyncio.create_task(
+                self._send_json(
+                    {
+                        "kind": "resp",
+                        "req_id": req_id,
+                        "code": 200,
+                        "msg": "localization_cfg",
+                        "msg_data": localization_cfg,
+                    }
+                )
             )
+
         elif msg_type == "get_driver_metadata":
             # {"id":2,"kind":"req","msg":"get_driver_metadata"}
             with open("driver.json", "r") as file:
