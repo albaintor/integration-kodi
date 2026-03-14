@@ -566,7 +566,8 @@ class MediaBrowser:
                 if media_type.startswith("kodi://sources"):
                     back_buttons = 0
                     item = self.get_root_item()
-                    item.title = media_id
+                    if not media_id.startswith("multipath://"):
+                        item.title = media_id
                     limit = paging.get("limit")
                     end = paging.get("page") * limit
                     media = KodiMediaTypes.VIDEOS.value
