@@ -75,7 +75,7 @@ class KodiMediaPlayer(KodiEntity, MediaPlayer):
             await device.connect()
 
         if cmd_id == Commands.VOLUME:
-            res = await device.set_volume_level()
+            res = await device.set_volume_level(params.get("volume"))
         elif cmd_id == Commands.VOLUME_UP:
             res = await device.volume_up()
         elif cmd_id == Commands.VOLUME_DOWN:
