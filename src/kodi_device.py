@@ -2027,6 +2027,7 @@ class KodiDevice(IKodiDevice):
                             "album",
                             "artist",
                             "art",
+                            "year",
                         ],
                     }
                 )

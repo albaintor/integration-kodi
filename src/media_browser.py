@@ -92,7 +92,23 @@ TRANSLATIONS = {
     "Media Library": {"fr": "Bibliothèque"},
     "Songs": {"fr": "Chansons"},
     "Playlists": {"fr": "Listes de lecture"},
+    "Note": {"fr": "Note"},
+    "Watched": {"fr": "Vu"},
 }
+
+EPISODE_PROPERTIES = [
+    "art",
+    "file",
+    "resume",
+    "runtime",
+    "showtitle",
+    "season",
+    "episode",
+    "rating",
+    "year",
+    "playcount",
+]
+MOVIE_PROPERTIES = ["resume", "art", "runtime", "rating", "year", "playcount"]
 
 
 class MediaBrowser:
@@ -200,10 +216,31 @@ class MediaBrowser:
         if art:
             art = self.get_artwork_url(art)
         media_id = str(movie.get("movieid", 0))
+        subtitles: list[str] = []
+        if rating := movie.get("rating"):
+            subtitles.append(f"({round(rating, 1)})")
+        if year := movie.get("year"):
+            subtitles.append(f"- {year}")
+        position_set = False
+        if resume := movie.get("resume"):
+            position = resume.get("position", 0)
+            duration = resume.get("total", 0)
+            if position != 0 and duration != 0:
+                position_set = True
+                subtitles.append(
+                    f"{time.strftime('%H:%M:%S', time.gmtime(position))} / {time.strftime('%H:%M:%S', time.gmtime(duration))}"
+                )
+        if not position_set and (playcount := movie.get("playcount", 0)):
+            if playcount > 0:
+                subtitles.append(self.get_localized("Watched"))
+
+        subtitle = " ".join(subtitles)
+
         if parent_id:
             media_id = parent_id + "/" + media_id
         return BrowseMediaItem(
             title=movie.get("label", ""),
+            subtitle=subtitle,
             media_id=media_id,
             media_class=MediaClass.MOVIE,
             media_type=MediaContent.MOVIE,
@@ -218,8 +255,39 @@ class MediaBrowser:
         if art:
             art = self.get_artwork_url(art)
         media_id = str(episode.get("file", ""))
+        subtitles: list[str] = []
+        episode_season = None
+        if episode.get("season"):
+            episode_season = "S" + str(episode.get("season"))
+        if episode.get("episode"):
+            episode_season = "" if episode_season is None else episode_season
+            episode_season += "E" + str(episode.get("episode"))
+        if episode_season:
+            subtitles.append(episode_season)
+
+        if rating := episode.get("rating"):
+            subtitles.append(f"({round(rating, 1)})")
+        # if year := episode.get("year"):
+        #     subtitles.append(f"- {year}")
+
+        position_set = False
+        if resume := episode.get("resume"):
+            position = resume.get("position", 0)
+            duration = resume.get("total", 0)
+            if position != 0 and duration != 0:
+                position_set = True
+                subtitles.append(
+                    f"{time.strftime('%H:%M:%S', time.gmtime(position))} / {time.strftime('%H:%M:%S', time.gmtime(duration))}"
+                )
+        if not position_set and (playcount := episode.get("playcount", 0)):
+            if playcount > 0:
+                subtitles.append(self.get_localized("Watched"))
+
+        subtitle = " ".join(subtitles)
+
         return BrowseMediaItem(
             title=episode.get("label", ""),
+            subtitle=subtitle,
             media_id=media_id,
             media_class=MediaClass.EPISODE,
             media_type=MediaContent.EPISODE,
@@ -680,7 +748,7 @@ class MediaBrowser:
                         item.items.append(MediaBrowser.get_parent_item_tvshow(parent_id, MediaContent.TV_SHOW.value))
                         end -= 1
                     arguments = {
-                        "properties": ["art", "file", "showtitle", "season", "resume", "runtime"],
+                        "properties": EPISODE_PROPERTIES,
                         "tvshowid": int(show_id),
                         "season": int(season),
                         "limits": {
@@ -796,7 +864,7 @@ class MediaBrowser:
                         )
                         end -= 1
                     arguments = {
-                        "properties": ["resume", "art", "genre", "runtime"],
+                        "properties": MOVIE_PROPERTIES,
                         "filter": {"genreid": int(real_media_id)},
                         "limits": {
                             "start": (paging.get("page") - 1) * limit,
@@ -926,6 +994,7 @@ class MediaBrowser:
                                     media_id=f"kodi://playlist/{current_playlist.playlist_id}/{position}",
                                     can_play=True,
                                     can_search=True,
+                                    subtitle=str(playlist_item.get("year")) if playlist_item.get("year") else None,
                                     album=playlist_item.get("album", None),
                                     artist=playlist_item.get("artist", None),
                                     duration=playlist_item.get("duration", None),
@@ -1070,7 +1139,7 @@ class MediaBrowser:
         else:
             end = paging.get("page") * limit
         arguments: dict[str, Any] = {
-            "properties": ["resume", "art", "genre", "runtime"],
+            "properties": MOVIE_PROPERTIES,
             "limits": {
                 "start": (paging.get("page") - 1) * limit,
                 "end": end,
@@ -1492,7 +1561,7 @@ KODI_BROWSING: list[KodiMediaEntry] = [
         media_type=MediaContent.MOVIE,
         media_id="kodi://videos/all",
         command="VideoLibrary.GetMovies",
-        arguments={"properties": ["art", "runtime"]},
+        arguments={"properties": MOVIE_PROPERTIES},
         child_media_type=MediaContent.MOVIE,
         output=KodiObjectType.MOVIE,
     ),
@@ -1503,7 +1572,7 @@ KODI_BROWSING: list[KodiMediaEntry] = [
         media_id="kodi://videos/current",
         command="VideoLibrary.GetMovies",
         arguments={
-            "properties": ["resume", "art", "runtime"],
+            "properties": MOVIE_PROPERTIES,
             "sort": {"method": "lastplayed", "order": "descending"},
             "filter": {"field": "inprogress", "operator": "true", "value": ""},
         },
@@ -1516,7 +1585,7 @@ KODI_BROWSING: list[KodiMediaEntry] = [
         media_type=MediaContent.MOVIE,
         media_id="kodi://videos/recent",
         command="VideoLibrary.GetRecentlyAddedMovies",
-        arguments={"properties": ["art", "runtime"]},
+        arguments={"properties": MOVIE_PROPERTIES},
         child_media_type=MediaContent.MOVIE,
         output=KodiObjectType.MOVIE,
     ),
@@ -1573,7 +1642,7 @@ KODI_BROWSING: list[KodiMediaEntry] = [
         media_id="kodi://tvshows/recent",
         media_class=MediaClass.EPISODE,
         command="VideoLibrary.GetRecentlyAddedEpisodes",
-        arguments={"properties": ["art", "file", "resume", "runtime"]},
+        arguments={"properties": EPISODE_PROPERTIES},
         child_media_type=MediaContent.EPISODE,
         output=KodiObjectType.EPISODE,
     ),

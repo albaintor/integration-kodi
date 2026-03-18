@@ -25,6 +25,7 @@ class BrowseMediaItem:
     can_browse: bool = field(default=False)
     can_play: bool = field(default=False)
     can_search: bool = field(default=False)
+    subtitle: str | None = field(default=None)
     artist: str | None = field(default=None)
     album: str | None = field(default=None)
     thumbnail: str | None = field(default=None)

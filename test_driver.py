@@ -1201,9 +1201,12 @@ class RemoteInterface(tk.Tk):
             row += 1
 
         for item in browsing_data.items:
+            title = item.get("title", "")
+            if item.get("subtitle"):
+                title += " " + item.get("subtitle")
             button = ttk.Button(
                 browsing_data.window,
-                text=item.get("title"),
+                text=title,
                 width=BROWSING_CELL_WIDTH,
                 command=lambda item=item.copy(), data=browsing_data: self.browse(None, item, data),
                 # height=200,
@@ -1692,7 +1695,8 @@ class WorkerThread(threading.Thread):
                 if attributes is None:
                     return
                 _LOG.debug("Reloading attributes for new entity %s : %s", entity_id, attributes)
-                self._interface.browsing_support(self.has_feature(entity_id, "browse_media"))
+                browsing_support = self.has_feature(entity_id, "browse_media")
+                self._interface.browsing_support(browsing_support)
                 self._interface.media_search_support(self.has_feature(entity_id, "search_media"))
                 asyncio.run_coroutine_threadsafe(
                     self.update_attributes(entity | {"attributes": attributes}),
@@ -1728,12 +1732,6 @@ class WorkerThread(threading.Thread):
                     self._selectors[entity_id] = Selector(
                         name=entity["name"].get("en", entity_id), current_option="", options=[]
                     )
-            self._interface.set_media_players(media_players)
-            if len(media_players) > 0:
-                self._interface.set_media_player(media_players[0])
-                event = tk.Event()
-                event.widget = self._interface._media_players
-                self._interface.change_media_player(event)
 
             data = await self._ws.subscribe_entities(self._entity_ids)
             _LOG.debug("Subscribed entities : %s", data)
@@ -1746,6 +1744,12 @@ class WorkerThread(threading.Thread):
             _LOG.debug("Entities states : %s", data)
             for entity_state in data["msg_data"]:
                 self._loop.create_task(self.update_attributes(entity_state))
+            self._interface.set_media_players(media_players)
+            if len(media_players) > 0:
+                self._interface.set_media_player(media_players[0])
+                event = tk.Event()
+                event.widget = self._interface._media_players
+                self._interface.change_media_player(event)
 
         except Exception as e:
             _LOG.exception("Error launching websocket server %s", e)
