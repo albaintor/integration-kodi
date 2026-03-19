@@ -1203,7 +1203,7 @@ class RemoteInterface(tk.Tk):
         for item in browsing_data.items:
             title = item.get("title", "")
             if item.get("subtitle"):
-                title += " " + item.get("subtitle")
+                title += "\n" + item.get("subtitle")
             button = ttk.Button(
                 browsing_data.window,
                 text=title,

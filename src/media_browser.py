@@ -25,6 +25,7 @@ from const import (
     MediaContent,
     MediaSearchFilter,
 )
+from translations import TRANSLATIONS
 
 _LOG = logging.getLogger(__name__)
 
@@ -75,27 +76,6 @@ def get_artwork(artworks: dict[str, str] | None) -> str | None:
     return artworks.get("poster", artworks.get("fanart", artworks.get("album.thumb", artworks.get("thumb", None))))
 
 
-TRANSLATIONS = {
-    "Videos": {"fr": "Vidéos"},
-    "TV Shows": {"fr": "Séries"},
-    "Music": {"fr": "Musique"},
-    "Pictures": {"fr": "Images"},
-    "Sources": {"fr": "Sources"},
-    "All": {"fr": "Tout"},
-    "Recent": {"fr": "Récents"},
-    "Now playing": {"fr": "En cours de lecture"},
-    "Genres": {"fr": "Genres"},
-    "Albums": {"fr": "Albums"},
-    "Artists": {"fr": "Artistes"},
-    "Files": {"fr": "Fichiers"},
-    "Seasons": {"fr": "Saisons"},
-    "Media Library": {"fr": "Bibliothèque"},
-    "Songs": {"fr": "Chansons"},
-    "Playlists": {"fr": "Listes de lecture"},
-    "Note": {"fr": "Note"},
-    "Watched": {"fr": "Vu"},
-}
-
 EPISODE_PROPERTIES = [
     "art",
     "file",
@@ -105,7 +85,6 @@ EPISODE_PROPERTIES = [
     "season",
     "episode",
     "rating",
-    "year",
     "playcount",
 ]
 MOVIE_PROPERTIES = ["resume", "art", "runtime", "rating", "year", "playcount"]
@@ -204,7 +183,7 @@ class MediaBrowser:
     def get_duration(data: dict[str, Any]) -> int | None:
         """Extract duration from media."""
         duration = data.get("duration", data.get("runtime", None))
-        if duration is None:
+        if duration is None or duration == 0:
             duration = data.get("resume", {}).get("total", None)
         if duration == 0.0:
             duration = None
@@ -218,7 +197,7 @@ class MediaBrowser:
         media_id = str(movie.get("movieid", 0))
         subtitles: list[str] = []
         if rating := movie.get("rating"):
-            subtitles.append(f"({round(rating, 1)})")
+            subtitles.append(f"{round(rating, 1)}")
         if year := movie.get("year"):
             subtitles.append(f"- {year}")
         position_set = False
@@ -227,9 +206,7 @@ class MediaBrowser:
             duration = resume.get("total", 0)
             if position != 0 and duration != 0:
                 position_set = True
-                subtitles.append(
-                    f"{time.strftime('%H:%M:%S', time.gmtime(position))} / {time.strftime('%H:%M:%S', time.gmtime(duration))}"
-                )
+                subtitles.append(time.strftime("%H:%M:%S", time.gmtime(position)))
         if not position_set and (playcount := movie.get("playcount", 0)):
             if playcount > 0:
                 subtitles.append(self.get_localized("Watched"))
@@ -256,19 +233,18 @@ class MediaBrowser:
             art = self.get_artwork_url(art)
         media_id = str(episode.get("file", ""))
         subtitles: list[str] = []
-        episode_season = None
-        if episode.get("season"):
-            episode_season = "S" + str(episode.get("season"))
-        if episode.get("episode"):
-            episode_season = "" if episode_season is None else episode_season
-            episode_season += "E" + str(episode.get("episode"))
-        if episode_season:
-            subtitles.append(episode_season)
+        # Not necessary, season and episode already in label
+        # episode_season = None
+        # if episode.get("season"):
+        #     episode_season = "S" + str(episode.get("season"))
+        # if episode.get("episode"):
+        #     episode_season = "" if episode_season is None else episode_season
+        #     episode_season += "E" + str(episode.get("episode"))
+        # if episode_season:
+        #     subtitles.append(episode_season)
 
         if rating := episode.get("rating"):
-            subtitles.append(f"({round(rating, 1)})")
-        # if year := episode.get("year"):
-        #     subtitles.append(f"- {year}")
+            subtitles.append(f"{round(rating, 1)}")
 
         position_set = False
         if resume := episode.get("resume"):
@@ -276,9 +252,7 @@ class MediaBrowser:
             duration = resume.get("total", 0)
             if position != 0 and duration != 0:
                 position_set = True
-                subtitles.append(
-                    f"{time.strftime('%H:%M:%S', time.gmtime(position))} / {time.strftime('%H:%M:%S', time.gmtime(duration))}"
-                )
+                subtitles.append(time.strftime("%H:%M:%S", time.gmtime(position)))
         if not position_set and (playcount := episode.get("playcount", 0)):
             if playcount > 0:
                 subtitles.append(self.get_localized("Watched"))
