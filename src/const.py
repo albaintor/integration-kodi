@@ -10,7 +10,8 @@ from dataclasses import dataclass, field, fields
 from enum import Enum
 from typing import Any, TypedDict
 
-from ucapi.media_player import Commands, Features, MediaContent
+from ucapi.api_definitions import MediaContentType as MediaContent
+from ucapi.media_player import Commands, Features
 from ucapi.ui import Buttons, DeviceButtonMapping, UiPage
 
 
@@ -42,15 +43,6 @@ class BrowseMediaItem:
                 and getattr(self, attribute.name) is None
             ):
                 setattr(self, attribute.name, attribute.default)
-
-
-@dataclass
-class MediaSearchFilter:
-    """Search filter for search media command."""
-
-    media_classes: list[str] | None
-    artist: str | None
-    album: str | None
 
 
 @dataclass

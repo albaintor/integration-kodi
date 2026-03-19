@@ -6,10 +6,15 @@ Media-player entity functions.
 """
 
 import logging
-from dataclasses import asdict
 from typing import Any
 
 from ucapi import EntityTypes, MediaPlayer, StatusCodes
+from ucapi.api_definitions import (
+    BrowseOptions,
+    BrowseResults,
+    SearchOptions,
+    SearchResults,
+)
 from ucapi.media_player import Commands, DeviceClasses, Options
 
 import kodi_device
@@ -22,7 +27,6 @@ from const import (
     KODI_SIMPLE_COMMANDS,
     KODI_SIMPLE_COMMANDS_DIRECT,
     ButtonKeymap,
-    MediaSearchFilter,
     MethodCall,
 )
 
@@ -228,58 +232,45 @@ class KodiMediaPlayer(KodiEntity, MediaPlayer):
         _LOG.debug("[%s] Custom command : %s %s", device.device_config.address, command, params)
         return await device.call_command(command_key, **params)
 
-    # pylint: disable=W0613
-    async def browse_media(
-        self,
-        params: dict[str, Any],
-        *,
-        websocket: Any,
-    ) -> dict[str, Any] | StatusCodes:
-        """Browse media command."""
+    async def browse(self, options: BrowseOptions) -> BrowseResults | StatusCodes:
+        """
+        Execute entity browsing request.
+
+        Returns NOT_IMPLEMENTED if no handler is installed.
+
+        :param options: browsing parameters
+        :return: browsing response or status code if any error occurs
+        """
         if self._device.kodi_connection is None:
             await self._device.connect()
         if self._device.app_language is None:
             await self._device.update_app_language()
 
-        browse_media_item, paging = await self._device.media_browser.browse_media(
-            params.get("media_id", None), params.get("media_type", None), params.get("paging", None)
+        browse_media_results, pagination = await self._device.media_browser.browse_media(
+            options.media_id, options.media_type, options.paging
         )
-        return {"media": asdict(browse_media_item), "pagination": paging}
+        return BrowseResults(media=browse_media_results, pagination=pagination)
 
-    async def search_media(
-        self,
-        params: dict[str, Any],
-        *,
-        websocket: Any,
-    ) -> dict[str, Any] | StatusCodes:
+    async def search(self, options: SearchOptions) -> SearchResults | StatusCodes:
         """
         Execute media search request.
 
         Returns NOT_IMPLEMENTED if no handler is installed.
 
-        :param params: search parameters
-        :param websocket: optional websocket connection. Allows for directed event
-                          callbacks instead of broadcasts.
+        :param options: search parameters
         :return: search response or status code if any error occurs
         """
         if self._device.kodi_connection is None:
             await self._device.connect()
         # if self._device.app_language is None:
         #     await self._device.update_app_language()
-        _LOG.debug("[%s] Search media request %s", self._device.device_config.address, params)
-        query: str | None = params.get("query", None)
-        media_id: str | None = params.get("media_id", None)
-        media_type: str | None = params.get("media_type", None)
-        paging: dict[str, Any] | None = params.get("paging", None)
-        media_search_filter: MediaSearchFilter | None = None
-        if data := params.get("filter", None) is not None:
-            media_search_filter = MediaSearchFilter(**data)
-        if query is None:
+        _LOG.debug("[%s] Search media request %s", self._device.device_config.address, options)
+        if options.query is None:
             return StatusCodes.BAD_REQUEST
-        browse_media_item, paging = await self._device.media_browser.search_media(
-            query, media_id, media_type, media_search_filter, paging
+        media_results, pagination = await self._device.media_browser.search_media(
+            options.query, options.media_id, options.media_type, options.filter, options.paging
         )
-        return {"media": [asdict(x) for x in browse_media_item], "pagination": paging}
+        return SearchResults(media=media_results, pagination=pagination)
 
     async def command(self, cmd_id: str, params: dict[str, Any] | None = None, *, websocket: Any) -> StatusCodes:
         """
