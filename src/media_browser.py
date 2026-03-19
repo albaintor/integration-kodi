@@ -486,6 +486,7 @@ class MediaBrowser:
                     item.title = self.get_localized(item.title)
                 if entry is not None:
                     item = entry.get_media_item()
+                    item.title = self.get_localized(item.title)
                     item.items = [x.get_media_item() for x in entries]
                     # item.items.insert(0, entry.get_parent_item())
                     paging.count = len(entries)
@@ -497,9 +498,9 @@ class MediaBrowser:
 
             # Given media_id is defined in the library items with a command to extract sub-items
             if entry is not None and entry.command is not None:
-                entry.title = self.get_localized(entry.title)
                 arguments = entry.arguments.copy() if entry.arguments else {}
                 item = entry.get_media_item()
+                item.title = self.get_localized(item.title)
                 limit = paging.limit
                 end = paging.page * limit
                 if self._back_support and paging.page == 1:
@@ -1331,7 +1332,7 @@ class MediaBrowser:
             if paging is None:
                 paging = Pagination(page=1, limit=10, count=0)
             else:
-                paging = Pagination(page=paging.page, limit=paging.limit, count=paging.count)
+                paging = Pagination(page=paging.page, limit=paging.limit, count=0)
             max_results = 0
             do_pagination = True
             paging.count = 0
