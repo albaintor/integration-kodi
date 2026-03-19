@@ -241,7 +241,7 @@ class KodiMediaPlayer(KodiEntity, MediaPlayer):
         :param options: browsing parameters
         :return: browsing response or status code if any error occurs
         """
-        if self._device.kodi_connection is None:
+        if self._device.kodi_connection is None or not self._device.kodi_connection.connected:
             await self._device.connect()
         if self._device.app_language is None:
             await self._device.update_app_language()
@@ -260,7 +260,7 @@ class KodiMediaPlayer(KodiEntity, MediaPlayer):
         :param options: search parameters
         :return: search response or status code if any error occurs
         """
-        if self._device.kodi_connection is None:
+        if self._device.kodi_connection is None or not self._device.kodi_connection.connected:
             await self._device.connect()
         # if self._device.app_language is None:
         #     await self._device.update_app_language()
