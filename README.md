@@ -312,7 +312,8 @@ A little explanation of how it works :
 
 ## Media Browsing
 
-The `Media Player` entity lets browse and play the following medias in Kodi Library :
+The `Media Player` entity lets browse and play the following medias in Kodi Library.
+Additional data is returned depending on the media : for movies and TV Shows the IMDB/TMDB rating, the current runtime if the media has been started & not watched completely.
 
 | Root level           | Level 1                           | Level 2               | Level 3 | Level 4  | Level 5  |
 |----------------------|-----------------------------------|-----------------------|---------|----------|----------|
@@ -336,7 +337,7 @@ The `Media Player` entity lets browse and play the following medias in Kodi Libr
 |                      | Pictures                          | _Directories & files_ | ...     | ...      | ...      |
 |                      | Files                             | _Directories & files_ | ...     | ...      | ...      |
 
-
+The following is not available for now :
 You can define the following couple `media_id` / `media_type` to start browsing to a given category in the `Play media` command :
 
 | Browsing category                | Media id                | Media type              |
