@@ -100,7 +100,7 @@ class MediaBrowser:
     def __init__(self, device: IKodiDevice):
         """Initialize media browser instance."""
         self._device = device
-        self._back_support = True
+        self._back_support = False
         if self._back_support:
             self._library_items = KODI_BROWSING_BACK + KODI_BROWSING
         else:
@@ -137,7 +137,7 @@ class MediaBrowser:
         return BrowseMediaItem(
             title=self.get_localized(title),
             media_id=source,
-            media_class=media_class,
+            media_class=media_class.value,
             media_type=media_type,
             can_browse=True,
             can_search=True,
@@ -773,7 +773,7 @@ class MediaBrowser:
                         item.items.append(
                             self.get_back_item(
                                 parent_id if parent_id else "kodi://music",
-                                parent_media_type,
+                                parent_media_type.value,
                                 "..",
                                 parent_media_class,
                             )
