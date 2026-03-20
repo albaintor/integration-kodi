@@ -1861,7 +1861,7 @@ class KodiDevice(IKodiDevice):
         if self._no_active_players or self._chapters is None:
             return
         for chapter in self._chapters:
-            if chapter.get("name", "") == chapter_name:
+            if _get_chapter_name(chapter) == chapter_name:
                 position: int = chapter.get("time", 0)
                 _LOG.debug("[%s] Skipping to chapter %s (%s)", self.device_config.address, chapter_name, position)
                 await self.seek(position)
