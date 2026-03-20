@@ -84,9 +84,8 @@ def get_element(element: Any | None) -> str | None:
     """Return best available element."""
     if element is None:
         return None
-    if type(element) == list:
-        if len(element) > 0:
-            return element[0]
+    if isinstance(element, list):
+        return element[0] if len(element) > 0 else None
     return element
 
 
@@ -520,7 +519,7 @@ class MediaBrowser:
                 }
                 # Add custom sorting field if configured
                 if (
-                    media_type == MediaContent.MOVIE.value
+                    media_type in [MediaContent.MOVIE.value, MediaContent.VIDEO.value]
                     and self._device.device_config.browsing_video_sort
                     and arguments.get("sort") is None
                 ):
@@ -554,8 +553,12 @@ class MediaBrowser:
                 elif entry.output == KodiObjectType.MOVIE:
                     if self._back_support and paging.page == 1:
                         item.items.append(self.get_back_item("kodi://videos", MediaContent.MOVIE.value))
-                    for movie in data.get("movies", []):
-                        item.items.append(self.get_item_from_movie(movie, media_id))
+                    if entry.media_id == "kodi://videos/music":
+                        for movie in data.get("musicvideos", []):
+                            item.items.append(self.get_item_from_movie(movie, media_id))
+                    else:
+                        for movie in data.get("movies", []):
+                            item.items.append(self.get_item_from_movie(movie, media_id))
                 elif entry.output == KodiObjectType.EPISODE:
                     if self._back_support and paging.page == 1:
                         item.items.append(self.get_back_item("kodi://tvshows", MediaContent.TV_SHOW.value))
@@ -1438,10 +1441,12 @@ class KodiMediaEntry:
 
     @property
     def media_type_str(self) -> str:
+        """Return media content type in string format."""
         return self.media_type.value if isinstance(self.media_type, MediaContent) else self.media_type
 
     @property
     def media_class_str(self) -> str | None:
+        """Return media class in string format."""
         return self.media_class.value if self.media_class else None
 
     def get_media_item(self) -> BrowseMediaItem:
@@ -1611,6 +1616,16 @@ KODI_BROWSING: list[KodiMediaEntry] = [
         },
         child_media_type=MediaContent.PLAYLIST,
         output=KodiObjectType.PLAYLIST,
+    ),
+    KodiMediaEntry(
+        parent_id="kodi://videos",
+        title="Music videos",
+        media_type=MediaContent.VIDEO,
+        media_id="kodi://videos/music",
+        command="VideoLibrary.GetMusicVideos",
+        arguments={"properties": MOVIE_PROPERTIES},
+        child_media_type=MediaContent.VIDEO,
+        output=KodiObjectType.MOVIE,
     ),
     KodiMediaEntry(
         parent_id="kodi://tvshows",

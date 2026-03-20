@@ -24,4 +24,5 @@ TRANSLATIONS = {
     "Playlists": {"fr": "Listes de lecture", "de": "Playlisten"},
     "Note": {"fr": "Note", "de": "Notiz"},
     "Watched": {"fr": "Vu", "de": "Gesehen"},
+    "Music videos": {"fr": "Vidéos musicales"},
 }
