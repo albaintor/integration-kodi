@@ -150,7 +150,7 @@ class MediaBrowser:
             return BrowseMediaItem(
                 title=file.get("label", ""),
                 media_id=file.get("file", ""),
-                media_class=MediaClass.DIRECTORY,
+                media_class=MediaClass.DIRECTORY.value,
                 media_type=media_type,
                 can_browse=True,
                 can_play=False,
@@ -166,7 +166,7 @@ class MediaBrowser:
         return BrowseMediaItem(
             title=file.get("label", ""),
             media_id=file.get("file", ""),
-            media_class=MediaClass.VIDEO,
+            media_class=MediaClass.VIDEO.value,
             media_type=media_type,
             can_browse=False,
             can_play=True,
@@ -223,8 +223,8 @@ class MediaBrowser:
             title=movie.get("label", ""),
             subtitle=subtitle,
             media_id=media_id,
-            media_class=MediaClass.MOVIE,
-            media_type=MediaContent.MOVIE,
+            media_class=MediaClass.MOVIE.value,
+            media_type=MediaContent.MOVIE.value,
             can_play=True,
             thumbnail=art,
             duration=MediaBrowser.get_duration(movie),
@@ -267,8 +267,8 @@ class MediaBrowser:
             title=episode.get("label", ""),
             subtitle=subtitle,
             media_id=media_id,
-            media_class=MediaClass.EPISODE,
-            media_type=MediaContent.EPISODE,
+            media_class=MediaClass.EPISODE.value,
+            media_type=MediaContent.EPISODE.value,
             can_play=True,
             thumbnail=art,
             duration=MediaBrowser.get_duration(episode),
@@ -285,8 +285,8 @@ class MediaBrowser:
         return BrowseMediaItem(
             title=show.get("label", ""),
             media_id=media_id,
-            media_class=MediaClass.TV_SHOW,
-            media_type=MediaContent.TV_SHOW,
+            media_class=MediaClass.TV_SHOW.value,
+            media_type=MediaContent.TV_SHOW.value,
             can_browse=True,
             can_search=True,
             thumbnail=art,
@@ -303,8 +303,8 @@ class MediaBrowser:
         return BrowseMediaItem(
             title=season.get("label", ""),
             media_id=media_id,
-            media_class=MediaClass.SEASON,
-            media_type=MediaContent.SEASON,
+            media_class=MediaClass.SEASON.value,
+            media_type=MediaContent.SEASON.value,
             can_browse=True,
             can_search=True,
             thumbnail=art,
@@ -339,8 +339,8 @@ class MediaBrowser:
         return BrowseMediaItem(
             title=album.get("label", ""),
             media_id=media_id,
-            media_class=MediaClass.ALBUM,
-            media_type=MediaContent.ALBUM,
+            media_class=MediaClass.ALBUM.value,
+            media_type=MediaContent.ALBUM.value,
             can_browse=True,
             can_search=True,
             thumbnail=art,
@@ -360,8 +360,8 @@ class MediaBrowser:
         return BrowseMediaItem(
             title=artist.get("label", ""),
             media_id=media_id,
-            media_class=MediaClass.ARTIST,
-            media_type=MediaContent.ARTIST,
+            media_class=MediaClass.ARTIST.value,
+            media_type=MediaContent.ARTIST.value,
             can_browse=True,
             can_search=True,
             thumbnail=art,
@@ -388,8 +388,8 @@ class MediaBrowser:
         return BrowseMediaItem(
             title=title,
             media_id=media_id,
-            media_class=MediaClass.MUSIC,
-            media_type=MediaContent.MUSIC,
+            media_class=MediaClass.MUSIC.value,
+            media_type=MediaContent.MUSIC.value,
             can_search=True,
             can_play=True,
             thumbnail=art,
@@ -408,7 +408,7 @@ class MediaBrowser:
         return BrowseMediaItem(
             title=genre.get("label", ""),
             media_id=media_id,
-            media_class=MediaClass.GENRE,
+            media_class=MediaClass.GENRE.value,
             media_type=media_type + "/" + quote(genre.get("label", "")),
             can_browse=True,
             can_search=True,
@@ -450,8 +450,8 @@ class MediaBrowser:
                         BrowseMediaItem(
                             title=f"{self.get_localized('Now playing')} "
                             f"({current_playlist.playlist['items'][current_playlist.position].get('label', '')})",
-                            media_class=MediaClass.PLAYLIST,
-                            media_type=MediaClass.PLAYLIST,
+                            media_class=MediaClass.PLAYLIST.value,
+                            media_type=MediaClass.PLAYLIST.value,
                             media_id="kodi://playing",
                             thumbnail=art,
                             can_browse=True,
@@ -968,8 +968,8 @@ class MediaBrowser:
                                         if position != current_playlist.position or not tag_current
                                         else f">> {playlist_item.get('label', '')} <<"
                                     ),
-                                    media_class=media_type,
-                                    media_type=MediaContent.PLAYLIST,
+                                    media_class=media_type.value,
+                                    media_type=MediaContent.PLAYLIST.value,
                                     media_id=f"kodi://playlist/{current_playlist.playlist_id}/{position}",
                                     can_play=True,
                                     can_search=True,
@@ -1427,13 +1427,22 @@ class KodiMediaEntry:
             ):
                 setattr(self, attribute.name, attribute.default)
 
+    @property
+    def media_type_str(self) -> str:
+        return self.media_type.value if isinstance(self.media_type, MediaContent) else self.media_type
+
+    @property
+    def media_class_str(self) -> str | None:
+        return self.media_class.value if self.media_class else None
+
     def get_media_item(self) -> BrowseMediaItem:
         """Build media item."""
+        media_class = self.media_class.value if self.media_class else None
         return BrowseMediaItem(
             title=self.title,
             media_id=self.media_id,
-            media_type=self.media_type,
-            media_class=self.media_type if self.media_class is None else self.media_class,
+            media_type=self.media_type_str,
+            media_class=self.media_type_str if self.media_class is None else self.media_class_str,
             can_browse=True,
             can_search=True,
             items=[],
@@ -1445,8 +1454,8 @@ class KodiMediaEntry:
             return BrowseMediaItem(
                 title="..",
                 media_id=self.media_id[: self.media_id.rfind("/")],
-                media_type=self.media_type,
-                media_class=self.media_type,
+                media_type=self.media_type_str,
+                media_class=self.media_type_str,
                 can_browse=True,
                 can_search=True,
             )
