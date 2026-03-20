@@ -80,6 +80,16 @@ def get_artwork(artworks: dict[str, str] | None) -> str | None:
     return artworks.get("poster", artworks.get("fanart", artworks.get("album.thumb", artworks.get("thumb", None))))
 
 
+def get_element(element: Any | None) -> str | None:
+    """Return best available element."""
+    if element is None:
+        return None
+    if type(element) == list:
+        if len(element) > 0:
+            return element[0]
+    return element
+
+
 EPISODE_PROPERTIES = [
     "art",
     "file",
@@ -332,10 +342,7 @@ class MediaBrowser:
         media_id = str(album.get("albumid", 0))
         if parent_id:
             media_id = parent_id + "/" + media_id
-        artist = None
-        if (artists := album.get("artist", None)) and len(artists) > 0:
-            artist = artists[0]
-
+        artist = get_element(album.get("artist", None))
         return BrowseMediaItem(
             title=album.get("label", ""),
             media_id=media_id,
@@ -394,7 +401,7 @@ class MediaBrowser:
             can_play=True,
             thumbnail=art,
             album=song.get("album", None),
-            artist=song.get("artist", None),
+            artist=get_element(song.get("artist", None)),
         )
 
     def get_item_from_genre(self, media_type: str, genre: dict[str, Any], parent_id: str) -> BrowseMediaItem:
@@ -459,7 +466,9 @@ class MediaBrowser:
                                 "duration", None
                             ),
                             album=current_playlist.playlist["items"][current_playlist.position].get("album", None),
-                            artist=current_playlist.playlist["items"][current_playlist.position].get("artist", None),
+                            artist=get_element(
+                                current_playlist.playlist["items"][current_playlist.position].get("artist", None)
+                            ),
                         ),
                     )
 
@@ -975,7 +984,7 @@ class MediaBrowser:
                                     can_search=True,
                                     subtitle=str(playlist_item.get("year")) if playlist_item.get("year") else None,
                                     album=playlist_item.get("album", None),
-                                    artist=playlist_item.get("artist", None),
+                                    artist=get_element(playlist_item.get("artist", None)),
                                     duration=playlist_item.get("duration", None),
                                 )
                             )
