@@ -925,6 +925,8 @@ class KodiDevice(IKodiDevice):
                 # Save current values before update to check changes
                 current_video_info = self.video_info
                 current_audio_info = self.audio_info
+                current_shuffle = self.shuffle
+                current_repeat = self.repeat
 
                 self._properties = await self._kodi.get_player_properties(
                     self._players[0],
@@ -939,6 +941,8 @@ class KodiDevice(IKodiDevice):
                         "audiostreams",
                         "subtitles",
                         "currentvideostream",
+                        "shuffled",
+                        "repeat",
                     ],
                 )
                 if self._device_config.log_additional_data:
@@ -1232,6 +1236,12 @@ class KodiDevice(IKodiDevice):
                 if current_state != self.get_state():
                     updated_data[MediaAttr.STATE] = self.get_state()
 
+                if current_shuffle != self.shuffle:
+                    updated_data[MediaAttr.SHUFFLE] = self.shuffle
+
+                if current_repeat != self.repeat:
+                    updated_data[MediaAttr.REPEAT] = self.repeat
+
                 # If media changed, request a deferred artwork update as it may not be available at this time
                 if changed_media and len(self.media_artwork) == 0:
                     deferred = 4
@@ -1367,6 +1377,8 @@ class KodiDevice(IKodiDevice):
                 if self.current_audio_track
                 else ""
             ),
+            MediaAttr.SHUFFLE: self.shuffle,
+            MediaAttr.REPEAT: self.repeat,
             KodiSensors.SENSOR_AUDIO_STREAM: self.sensor_audio_stream,
             KodiSensors.SENSOR_SUBTITLE_STREAM: self.sensor_subtitle_stream,
             KodiSensors.SENSOR_CHAPTER: self.current_chapter if self.current_chapter else "",
@@ -1712,6 +1724,16 @@ class KodiDevice(IKodiDevice):
             return "en"
         return LANGUAGES_KEYS.get(self._app_language, "en")
 
+    @property
+    def shuffle(self) -> str:
+        """Shuffle state."""
+        return self._properties.get("shuffle", "off").upper()
+
+    @property
+    def repeat(self) -> bool:
+        """Repeat state."""
+        return self._properties.get("repeat", False)
+
     @retry()
     async def set_volume_level(self, volume: float | None):
         """Set volume level, range 0..100."""
@@ -1964,6 +1986,28 @@ class KodiDevice(IKodiDevice):
     async def clear_playlist(self):
         """Clear playlist."""
         await self.server.Playlist.Clear(**{"playlistid": 0})
+
+    @retry()
+    async def set_repeat(self, params: dict[str, Any]):
+        """Repeat media."""
+        if self._no_active_players:
+            return
+        # off, one, all
+        value = params.get("repeat", "off").lower()
+        arguments = {"playerid": self.player_id, "repeat": value}
+        _LOG.debug("[%s] Set Player.SetRepeat %s", self.device_config.address, arguments)
+        await self._kodi.call_method("Player.SetRepeat", **arguments)
+
+    @retry()
+    async def set_shuffle(self, params: dict[str, Any]):
+        """Set shuffle media."""
+        if self._no_active_players:
+            return
+        # off, one, all
+        value = params.get("shuffle", False)
+        arguments = {"playerid": self.player_id, "shuffle": value}
+        _LOG.debug("[%s] Set Player.SetShuffle %s", self.device_config.address, arguments)
+        await self._kodi.call_method("Player.SetShuffle", **arguments)
 
     async def get_chapters(self) -> dict[str, Any]:
         """Return chapters of running video."""

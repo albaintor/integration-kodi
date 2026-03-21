@@ -293,11 +293,13 @@ KODI_FEATURES = [
     Features.RECORD,
     Features.SEEK,
     Features.SETTINGS,
-    "play_media",
-    "clear_playlist",
-    "browse_media",
-    "search_media",
-    "search_media_classes",
+    Features.SHUFFLE,
+    Features.REPEAT,
+    Features.PLAY_PAUSE,
+    Features.CLEAR_PLAYLIST,
+    Features.BROWSE_MEDIA,
+    Features.SEARCH_MEDIA,
+    Features.SEARCH_MEDIA_CLASSES,
 ]
 
 # Taken from https://kodi.wiki/view/JSON-RPC_API/v13#Input.Action

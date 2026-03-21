@@ -116,10 +116,14 @@ class KodiMediaPlayer(KodiEntity, MediaPlayer):
             res = await device.select_chapter(params.get("source"))
         elif cmd_id == Commands.SELECT_SOUND_MODE:
             res = await device.select_audio_track(params.get("mode"))
-        elif cmd_id == "play_media":  # TODO to be updated when UCAPI
+        elif cmd_id == Commands.PLAY_MEDIA:
             res = await device.play_media(params)
-        elif cmd_id == "clear_playlist":  # TODO to be updated when UCAPI
+        elif cmd_id == Commands.CLEAR_PLAYLIST:
             res = await device.clear_playlist()
+        elif cmd_id == Commands.REPEAT:
+            res = await device.set_repeat(params)
+        elif cmd_id == Commands.SHUFFLE:
+            res = await device.set_shuffle(params)
         elif not device.device_config.disable_keyboard_map and cmd_id in KODI_BUTTONS_KEYMAP:
             command: ButtonKeymap | MethodCall = KODI_BUTTONS_KEYMAP[cmd_id]
             if "button" in command.keys():
