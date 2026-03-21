@@ -19,10 +19,10 @@ from ucapi.api_definitions import (
     Pagination,
     PagingOptions,
     SearchMediaFilter,
+    BrowseMediaItem,
 )
 
 from const import (
-    BrowseMediaItem,
     IKodiDevice,
     KodiMediaSearchMode,
     KodiMediaTypes,
@@ -200,7 +200,7 @@ class MediaBrowser:
             duration = data.get("resume", {}).get("total", None)
         if duration == 0.0:
             duration = None
-        return duration
+        return int(duration) if duration else None
 
     def get_item_from_movie(self, movie: dict[str, Any], parent_id: str) -> BrowseMediaItem:
         """Build item from movie."""
@@ -342,6 +342,7 @@ class MediaBrowser:
         if parent_id:
             media_id = parent_id + "/" + media_id
         artist = get_element(album.get("artist", None))
+        duration = album.get("albumduration", None)
         return BrowseMediaItem(
             title=album.get("label", ""),
             media_id=media_id,
@@ -352,7 +353,7 @@ class MediaBrowser:
             thumbnail=art,
             album=album.get("label", None),
             artist=artist,
-            duration=album.get("albumduration", None),
+            duration=int(duration) if duration else None,
         )
 
     def get_item_from_artist(self, artist: dict[str, Any], parent_id: str) -> BrowseMediaItem:
@@ -360,11 +361,12 @@ class MediaBrowser:
         art = get_artwork(artist.get("art", None))
         if art:
             art = self.get_artwork_url(art)
+        artist_name = artist.get("label", "")
         media_id = str(artist.get("artistid", 0))
         if parent_id:
-            media_id = parent_id + "/" + media_id
+            media_id = f"{parent_id}/{media_id}?artist={quote(artist_name)}"
         return BrowseMediaItem(
-            title=artist.get("label", ""),
+            title=artist_name,
             media_id=media_id,
             media_class=MediaClass.ARTIST.value,
             media_type=MediaContent.ARTIST.value,
@@ -450,7 +452,7 @@ class MediaBrowser:
                     art = get_artwork(current_playlist.playlist["items"][current_playlist.position].get("art", None))
                     if art:
                         art = self.get_artwork_url(art)
-
+                    duration = current_playlist.playlist["items"][current_playlist.position].get("duration", None)
                     items.insert(
                         0,
                         BrowseMediaItem(
@@ -461,9 +463,7 @@ class MediaBrowser:
                             media_id="kodi://playing",
                             thumbnail=art,
                             can_browse=True,
-                            duration=current_playlist.playlist["items"][current_playlist.position].get(
-                                "duration", None
-                            ),
+                            duration=int(duration) if duration else None,
                             album=current_playlist.playlist["items"][current_playlist.position].get("album", None),
                             artist=get_element(
                                 current_playlist.playlist["items"][current_playlist.position].get("artist", None)
@@ -781,7 +781,7 @@ class MediaBrowser:
                             parent_media_class = MediaClass.GENRE
                             parent_media_type = "kodi://music/genres"
                         else:
-                            parent_media_class = MediaClass.ALBUM
+                            parent_media_class = MediaClass.MUSIC
                             parent_media_type = MediaContent.ALBUM
                         item.items.append(
                             self.get_back_item(
@@ -818,7 +818,7 @@ class MediaBrowser:
                         item.album = album
 
                 elif media_type == MediaContent.ARTIST.value:
-                    item = self.get_root_item(MediaContent.ALBUM.value, MediaContent.ALBUM.value)
+                    item = self.get_root_item(MediaClass.MUSIC.value, MediaContent.ALBUM.value)
                     limit = paging.limit
                     end = paging.page * limit
                     if self._back_support and paging.page == 1:
@@ -826,9 +826,15 @@ class MediaBrowser:
                             self.get_back_item(parent_id if parent_id else "kodi://music", MediaContent.MUSIC.value)
                         )
                         end -= 1
+                    # real_media_id = <artistid>?=<artist name quoted>
+                    artist_id_name = real_media_id.split("?artist=", 1)
+                    artist_id = int(artist_id_name[0])
+                    artist_name = None if len(artist_id_name) == 1 else unquote(artist_id_name[1])
+                    if artist_name:
+                        item.title = artist_name
                     arguments = {
                         "properties": ["art", "artist", "albumduration"],
-                        "filter": {"artistid": int(real_media_id)},
+                        "filter": {"artistid": artist_id},
                         "limits": {
                             "start": (paging.page - 1) * limit,
                             "end": end,
@@ -978,6 +984,7 @@ class MediaBrowser:
                             media_type = (
                                 MediaClass.MOVIE if playlist_item.get("type", "movie") == "movie" else MediaClass.MUSIC
                             )
+                            duration = playlist_item.get("duration", None)
                             item.items.append(
                                 BrowseMediaItem(
                                     title=(
@@ -993,7 +1000,7 @@ class MediaBrowser:
                                     subtitle=str(playlist_item.get("year")) if playlist_item.get("year") else None,
                                     album=playlist_item.get("album", None),
                                     artist=get_element(playlist_item.get("artist", None)),
-                                    duration=playlist_item.get("duration", None),
+                                    duration=int(duration) if duration else None,
                                 )
                             )
                             position += 1
@@ -1033,31 +1040,48 @@ class MediaBrowser:
         item.items = items
         return item, paging
 
+    async def enqueue_item(self, item: dict[str, Any], is_video=True):
+        """Enqueue item to playlist."""
+        playlist_id = 1 if is_video else 0
+        current_playlist = await self._device.get_current_playlist()
+        play = False
+        # Kodi JSON RPC doesn't support adding to next playing item, only enqueue at the end
+        if current_playlist.playlist_id != playlist_id or len(current_playlist.playlist.get("items", [])) == 0:
+            play = True
+        _LOG.debug("[%s] Enqueue playlist %s item %s", self._device.device_config.address, playlist_id, item)
+        await self._device.server.Playlist.Add(**{"playlistid": playlist_id, "item": item})
+        if play:
+            _LOG.debug("[%s] Playing playlist %s", self._device.device_config.address, playlist_id)
+            await self._device.server.Player.Open(**{"item": {"playlistid": playlist_id, "position": 0}})
+
     async def play_media(self, params: dict[str, Any]) -> StatusCodes:
         """Play given media id."""
         # pylint: disable=W1405
         media_id: str | None = params.get("media_id")
         media_type: str | None = params.get("media_type")
-        # TODO handle action (enqueue, play...)
-        # action = params.get("action")
+        action = params.get("action", "PLAY_NOW")
+        enqueue = action != "PLAY_NOW"
+        is_video = True
+        item: dict[str, Any] = {}
         if media_id is None or media_type is None:
             return StatusCodes.BAD_REQUEST
         if media_type == MediaContent.MOVIE.value:
             if media_id.startswith("kodi://"):
                 media_id = media_id.rstrip("/").rsplit("/", 1)[-1]
             _LOG.debug("[%s] Playing movie id %s", self._device.device_config.address, media_id)
-            await self._device.server.Player.Open(**{"item": {"movieid": int(media_id)}})
+            item = {"movieid": int(media_id)}
         if media_type == MediaContent.EPISODE.value:
             if media_id.startswith("kodi://"):
                 media_id = media_id.rstrip("/").rsplit("/", 1)[-1]
             _LOG.debug("[%s] Playing media id %s", self._device.device_config.address, media_id)
-            await self._device.server.Player.Open(**{"item": {"file": media_id}})
+            item = {"file": media_id}
         elif media_type == MediaContent.MUSIC.value:
             media_data = media_id.split(";")
+            is_video = False
             if len(media_data) == 1:
                 arguments = {"item": {"songid": int(media_data[0])}}
                 _LOG.debug("[%s] Playing music %s", self._device.device_config.address, arguments)
-                await self._device.server.Player.Open(**{"item": {"songid": int(media_data[0])}})
+                item = {"songid": int(media_data[0])}
             else:
                 song_id = int(media_data[0])
                 album_id = int(media_data[1])
@@ -1078,15 +1102,19 @@ class MediaBrowser:
                     {"item": {"playlistid": 0, "position": position}},
                 )
                 await self._device.server.Player.Open(**{"item": {"playlistid": 0, "position": position}})
+                return StatusCodes.OK
         elif media_type == MediaContent.ALBUM.value:
             _LOG.debug("[%s] Playing album %s", self._device.device_config.address, media_id)
-            await self._device.server.Player.Open(**{"item": {"albumid": int(media_id)}})
+            is_video = False
+            item = {"albumid": int(media_id)}
         elif media_type == MediaContent.URL.value or media_type.startswith("kodi://sources"):
             _LOG.debug("[%s] Playing file %s", self._device.device_config.address, media_id)
             await self._device.server.Player.Open(**{"item": {"file": media_id}})
+            return StatusCodes.OK
         elif media_type in ["kodi://videos/playlists", "kodi://music/playlists"]:
             _LOG.debug("[%s] Playing playlist %s", self._device.device_config.address, media_id)
             await self._device.server.Player.Open(**{"item": {"file": media_id}})
+            return StatusCodes.OK
         elif media_id.startswith("kodi://playlist/"):
             media_data = media_id.split("/")
             playlist_id = int(media_data[-2])
@@ -1095,7 +1123,11 @@ class MediaBrowser:
                 "[%s] Playing playlist %s position %s", self._device.device_config.address, playlist_id, position
             )
             await self._device.server.Player.Open(**{"item": {"playlistid": playlist_id, "position": position}})
-
+            return StatusCodes.OK
+        if enqueue:
+            await self.enqueue_item(item, is_video=is_video)
+        else:
+            await self._device.server.Player.Open(**{"item": item})
         return StatusCodes.OK
 
     def get_search_missing_categories(self, media_id: None | str, media_type: None | str) -> list[BrowseMediaItem]:
@@ -1456,7 +1488,6 @@ class KodiMediaEntry:
 
     def get_media_item(self) -> BrowseMediaItem:
         """Build media item."""
-        media_class = self.media_class.value if self.media_class else None
         return BrowseMediaItem(
             title=self.title,
             media_id=self.media_id,

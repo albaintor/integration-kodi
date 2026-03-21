@@ -5,44 +5,13 @@ Constants used for Kodi integration.
 :license: Mozilla Public License Version 2.0, see LICENSE for more details.
 """
 
-import dataclasses
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any, TypedDict
 
 from ucapi.api_definitions import MediaContentType as MediaContent
 from ucapi.media_player import Commands, Features
 from ucapi.ui import Buttons, DeviceButtonMapping, UiPage
-
-
-@dataclass
-class BrowseMediaItem:
-    """Media item object."""
-
-    title: str
-    media_class: str
-    media_type: str
-    media_id: str
-    can_browse: bool = field(default=False)
-    can_play: bool = field(default=False)
-    can_search: bool = field(default=False)
-    subtitle: str | None = field(default=None)
-    artist: str | None = field(default=None)
-    album: str | None = field(default=None)
-    thumbnail: str | None = field(default=None)
-    duration: int | None = field(default=None)
-    items: list["BrowseMediaItem"] | None = field(default=None)
-
-    # pylint: disable=R0801
-    def __post_init__(self):
-        """Apply default values on missing fields."""
-        for attribute in fields(self):
-            # If there is a default and the value of the field is none we can assign a value
-            if (
-                not isinstance(attribute.default, dataclasses.MISSING.__class__)
-                and getattr(self, attribute.name) is None
-            ):
-                setattr(self, attribute.name, attribute.default)
 
 
 @dataclass
@@ -296,6 +265,8 @@ KODI_FEATURES = [
     Features.SHUFFLE,
     Features.REPEAT,
     Features.PLAY_PAUSE,
+    Features.PLAY_MEDIA,
+    Features.PLAY_MEDIA_ACTION,
     Features.CLEAR_PLAYLIST,
     Features.BROWSE_MEDIA,
     Features.SEARCH_MEDIA,
