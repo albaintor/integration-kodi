@@ -15,11 +15,11 @@ from urllib.parse import quote, unquote
 
 from ucapi import StatusCodes
 from ucapi.api_definitions import (
+    BrowseMediaItem,
     MediaClass,
     Pagination,
     PagingOptions,
     SearchMediaFilter,
-    BrowseMediaItem,
 )
 
 from const import (
@@ -1056,7 +1056,7 @@ class MediaBrowser:
 
     async def play_media(self, params: dict[str, Any]) -> StatusCodes:
         """Play given media id."""
-        # pylint: disable=W1405
+        # pylint: disable=W1405,R0914,R0915
         media_id: str | None = params.get("media_id")
         media_type: str | None = params.get("media_type")
         action = params.get("action", "PLAY_NOW")
