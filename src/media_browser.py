@@ -718,10 +718,7 @@ class MediaBrowser:
                     )
                     seasons = await self._device.server.VideoLibrary.GetSeasons(**arguments)
                     if len(seasons["seasons"]) > 0:
-                        try:
-                            item.title = seasons["seasons"][0]["showtitle"]
-                        except Exception:  # pylint: disable = W0718
-                            pass
+                        item.title = seasons["seasons"][0].get("showtitle", "")
                     paging.count = seasons.get("limits", {}).get("total", 0)
                     if self._back_support:
                         paging.count = paging.count + 1
@@ -765,10 +762,14 @@ class MediaBrowser:
                     paging.count = episodes.get("limits", {}).get("total", 0)
                     if self._back_support:
                         paging.count = paging.count + 1
+                    if len(episodes["episodes"]) > 0:
+                        show_title = episodes["episodes"][0].get("showtitle", "")
+                        item.title = f"{show_title} - S{season}"
                     for episode in episodes["episodes"]:
                         item.items.append(self.get_item_from_episode(episode))
+
                 elif media_type == MediaContent.ALBUM.value:
-                    item = self.get_root_item(MediaContent.MUSIC.value, MediaContent.MUSIC.value)
+                    item = self.get_root_item(MediaClass.ALBUM.value, MediaContent.MUSIC.value)
                     limit = paging.limit
                     end = paging.page * limit
                     if self._back_support and paging.page == 1:
@@ -812,6 +813,10 @@ class MediaBrowser:
                         paging.count = paging.count + 1
                     for song in songs["songs"]:
                         item.items.append(self.get_item_from_song(song, real_media_id))
+                    if len(item.items) > 0 and (album := item.items[0].album):
+                        item.title = album
+                        item.album = album
+
                 elif media_type == MediaContent.ARTIST.value:
                     item = self.get_root_item(MediaContent.ALBUM.value, MediaContent.ALBUM.value)
                     limit = paging.limit
@@ -1678,7 +1683,7 @@ KODI_BROWSING: list[KodiMediaEntry] = [
         parent_id="kodi://music",
         title="Albums",
         media_type=MediaContent.ALBUM,
-        media_class=MediaClass.ALBUM,
+        media_class=MediaClass.MUSIC,
         media_id="kodi://music/albums",
         command="AudioLibrary.GetAlbums",
         arguments={"properties": ["art", "artist", "albumduration"]},
