@@ -140,13 +140,19 @@ class MediaBrowser:
         )
 
     def get_back_item(
-        self, source: str, media_type=MediaContent.URL.value, title="..", media_class: MediaClass = MediaClass.DIRECTORY
+        self,
+        source: str,
+        media_type=MediaContent.URL.value,
+        title="..",
+        media_class: MediaClass | str = MediaClass.DIRECTORY,
     ) -> BrowseMediaItem:
         """Build source item."""
+        if isinstance(media_class, MediaClass):
+            media_class = media_class.value
         return BrowseMediaItem(
             title=self.get_localized(title),
             media_id=source,
-            media_class=media_class.value,
+            media_class=media_class,
             media_type=media_type,
             can_browse=True,
             can_search=True,
@@ -432,6 +438,13 @@ class MediaBrowser:
             result["order"] = param[1]
         return result
 
+    def get_category(self, media_id: str) -> BrowseMediaItem | None:
+        """Build category method."""
+        found = [x.get_media_item() for x in self._library_items if x.media_id == media_id]
+        if len(found) > 0:
+            return found[0]
+        return None
+
     async def browse_media(
         self, media_id: str | None, media_type: str | None, paging: PagingOptions | None
     ) -> tuple[BrowseMediaItem, Pagination] | None:
@@ -443,9 +456,39 @@ class MediaBrowser:
             else:
                 paging = Pagination(page=paging.page, limit=paging.limit, count=0)
 
+            # CA VA PAS : il faut distinguer "" par défaut => à mapper sur la cat custom
+            # MAIS pour revenir à la racine il faut interpréter "kodi://" comme une volonté de retour si et seulement
+            # si self._device.device_config.search_media_default est non vide
+
+            if (media_id is None or media_id == "") and self._device.device_config.search_media_default != "":
+                media_id = self._device.device_config.search_media_default
+
             # Return library root
             if media_id is None or media_id == "" or media_id == "kodi://":
-                items: list[BrowseMediaItem] = [x.get_media_item() for x in self._library_items if x.parent_id is None]
+                items: list[BrowseMediaItem] = []
+                now_playing_index = 0
+                if self._device.device_config.search_media_default == "":  # Default : root library
+                    item = self.get_root_item()
+                    items = [x.get_media_item() for x in self._library_items if x.parent_id is None]
+                else:  # Custom category selected by default
+                    item = self.get_root_item()
+                    default_category = self.get_category(self._device.device_config.search_media_default)
+                    if default_category:
+                        item = default_category
+                        parent_category = item.media_id[: item.media_id.rfind("/")]
+                        if parent_category == "kodi://":
+                            parent_category = ""
+                        parent = self.get_category(parent_category)
+                        items.append(
+                            self.get_back_item(
+                                source=parent_category,
+                                media_type=parent.media_type,
+                                title="..",
+                                media_class=parent.media_class,
+                            )
+                        )
+                        now_playing_index = 1
+
                 # Add currently playing playlist if any
                 current_playlist = await self._device.get_current_playlist()
                 if current_playlist and current_playlist.position >= 0:
@@ -454,7 +497,7 @@ class MediaBrowser:
                         art = self.get_artwork_url(art)
                     duration = current_playlist.playlist["items"][current_playlist.position].get("duration", None)
                     items.insert(
-                        0,
+                        now_playing_index,
                         BrowseMediaItem(
                             title=f"{self.get_localized('Now playing')} "
                             f"({current_playlist.playlist['items'][current_playlist.position].get('label', '')})",
@@ -471,11 +514,11 @@ class MediaBrowser:
                         ),
                     )
 
-                for item in items:
-                    item.title = self.get_localized(item.title)
+                for sub_item in items:
+                    sub_item.title = self.get_localized(sub_item.title)
 
                 paging.count = len(items)
-                item = self.get_root_item()
+
                 item.title = self.get_localized(item.title)
                 item.items = items
                 return item, paging
@@ -540,18 +583,18 @@ class MediaBrowser:
                 _LOG.debug("[%s] Browsing command %s %s", self._device.device_config.address, entry.command, arguments)
                 data = await self._device.client.call_method(entry.command, **arguments)
                 paging.count = data.get("limits", {}).get("total", 0)
-                if self._back_support:
+                if self._back_support or self._device.device_config.search_media_default:
                     paging.count = paging.count + 1
 
                 if entry.output == KodiObjectType.FILE:
                     # media_type = kodi://sources/<videos|music|pictures|files>
                     # Each files have following format : smb://...|nfs://...|multipath://...
-                    if self._back_support and paging.page == 1:
+                    if (self._back_support or self._device.device_config.search_media_default) and paging.page == 1:
                         item.items.append(self.get_back_item("kodi://sources"))
                     for file in data.get("files", data.get("sources", [])):
                         item.items.append(self.get_item_from_file(file, media_type, False))
                 elif entry.output == KodiObjectType.MOVIE:
-                    if self._back_support and paging.page == 1:
+                    if (self._back_support or self._device.device_config.search_media_default) and paging.page == 1:
                         item.items.append(self.get_back_item("kodi://videos", MediaContent.MOVIE.value))
                     if entry.media_id == "kodi://videos/music":
                         for movie in data.get("musicvideos", []):
@@ -560,27 +603,27 @@ class MediaBrowser:
                         for movie in data.get("movies", []):
                             item.items.append(self.get_item_from_movie(movie, media_id))
                 elif entry.output == KodiObjectType.EPISODE:
-                    if self._back_support and paging.page == 1:
+                    if (self._back_support or self._device.device_config.search_media_default) and paging.page == 1:
                         item.items.append(self.get_back_item("kodi://tvshows", MediaContent.TV_SHOW.value))
                     for episode in data.get("episodes", []):
                         item.items.append(self.get_item_from_episode(episode))
                 elif entry.output == KodiObjectType.TV_SHOW:
-                    if self._back_support and paging.page == 1:
+                    if (self._back_support or self._device.device_config.search_media_default) and paging.page == 1:
                         item.items.append(self.get_back_item("kodi://tvshows", MediaContent.TV_SHOW.value))
                     for show in data.get("tvshows", []):
                         item.items.append(self.get_item_from_tvshow(show, media_id))
                 elif entry.output == KodiObjectType.EPISODE:
-                    if self._back_support and paging.page == 1:
+                    if (self._back_support or self._device.device_config.search_media_default) and paging.page == 1:
                         item.items.append(self.get_back_item("kodi://tvshows", MediaContent.TV_SHOW.value))
                     for episode in data.get("episodes", []):
                         item.items.append(self.get_item_from_episode(episode))
                 elif entry.output == KodiObjectType.ALBUM:
-                    if self._back_support and paging.page == 1:
+                    if (self._back_support or self._device.device_config.search_media_default) and paging.page == 1:
                         item.items.append(self.get_back_item("kodi://music", MediaContent.MUSIC.value))
                     for album in data.get("albums", []):
                         item.items.append(self.get_item_from_album(album, media_id))
                 elif entry.output == KodiObjectType.GENRE:
-                    if self._back_support and paging.page == 1:
+                    if (self._back_support or self._device.device_config.search_media_default) and paging.page == 1:
                         try:
                             if "/" in media_id:
                                 parent_media_id = media_id[: media_id.rfind("/")]
@@ -593,17 +636,17 @@ class MediaBrowser:
                     for genre in data.get("genres", []):
                         item.items.append(self.get_item_from_genre(media_type, genre, media_id))
                 elif entry.output == KodiObjectType.ARTIST:
-                    if self._back_support and paging.page == 1:
+                    if (self._back_support or self._device.device_config.search_media_default) and paging.page == 1:
                         item.items.append(self.get_back_item("kodi://music", MediaContent.MUSIC.value))
                     for artist in data.get("artists", []):
                         item.items.append(self.get_item_from_artist(artist, media_id))
                 elif entry.output == KodiObjectType.SONG:
-                    if self._back_support and paging.page == 1:
+                    if (self._back_support or self._device.device_config.search_media_default) and paging.page == 1:
                         item.items.append(self.get_back_item("kodi://music", MediaContent.MUSIC.value))
                     for song in data.get("songs", []):
                         item.items.append(self.get_item_from_song(song, media_id))
                 elif entry.output == KodiObjectType.PLAYLIST:
-                    if self._back_support and paging.page == 1:
+                    if (self._back_support or self._device.device_config.search_media_default) and paging.page == 1:
                         item.items.append(self.get_back_item(entry.parent_id))
                     for media in data.get("files", []):
                         # Strip off extension file

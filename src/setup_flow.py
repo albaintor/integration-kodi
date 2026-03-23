@@ -27,7 +27,6 @@ from config import ConfigImportResult, KodiConfigDevice
 from const import (
     KODI_ARTWORK_LABELS,
     KODI_ARTWORK_TVSHOWS_LABELS,
-    KODI_BROWSING_SORT,
     KODI_DEFAULT_ARTWORK,
     KODI_DEFAULT_NAME,
     KODI_DEFAULT_TVSHOW_ARTWORK,
@@ -51,6 +50,47 @@ _LOG = logging.getLogger(__name__)
 
 # pylint: disable = C0301,W1405,C0302,C0103
 # flake8: noqa
+
+
+KODI_BROWSING_SORT = {
+    KodiObjectType.MOVIE: [
+        {"title": {"en": "Name", "fr": "Nom"}},
+        {"dateadded descending": {"en": "Date added", "fr": "Date de l'ajout"}},
+        {"rating descending": {"en": "Rating", "fr": "Notation"}},
+        {"year": {"en": "Year", "fr": "Année"}},
+    ],
+    KodiObjectType.FILE: [
+        {"": {"en": "Name", "fr": "Nom"}},
+        {"date descending": {"en": "Date", "fr": "Date"}},
+        {"file": {"en": "File", "fr": "Fichier"}},
+    ],
+    KodiObjectType.ALBUM: [
+        {"album": {"en": "Album", "fr": "Album"}},
+        {"artist": {"en": "Artist", "fr": "Artiste"}},
+        {"dateadded descending": {"en": "Date added", "fr": "Date de l'ajout"}},
+        {"rating descending": {"en": "Rating", "fr": "Notation"}},
+        {"year": {"en": "Year", "fr": "Année"}},
+    ],
+}
+
+KODI_BROWSING_CATEGORIES = {
+    "": {"en": "Default", "fr": "Par défaut"},
+    "kodi://videos": {"en": "Videos", "fr": "Vidéos"},
+    "kodi://videos/all": {"en": "All videos", "fr": "Toutes les vidéos"},
+    "kodi://videos/current": {"en": "Current videos", "fr": "Vidéos en cours"},
+    "kodi://videos/recent": {"en": "Recently added videos", "fr": "Vidéos récemment ajoutées"},
+    "kodi://tvshows": {"en": "TV Shows", "fr": "Séries"},
+    "kodi://tvshows/all": {"en": "All TV Shows", "fr": "Toutes les séries"},
+    "kodi://tvshows/current": {"en": "Current TV Shows", "fr": "Séries en cours"},
+    "kodi://tvshows/recent": {"en": "Recently added TV Shows episodes", "fr": "Episodes de séries ajoutés récemment"},
+    "kodi://music": {"en": "Music", "fr": "Musique"},
+    "kodi://music/albums": {"en": "Music albums", "fr": "Albums de musique"},
+    "kodi://music/playlists": {"en": "Music playlists", "fr": "Listes de musique"},
+    "kodi://sources": {"en": "Sources", "fr": "Sources"},
+    "kodi://sources/videos": {"en": "Video sources", "fr": "Sources de vidéos"},
+    "kodi://sources/music": {"en": "Music sources", "fr": "Sources de musique"},
+    "kodi://sources/pictures": {"en": "Pictures sources", "fr": "Sources d'images"},
+}
 
 
 # TODO to be confirmed : Home assistant configured zeroconf url "_xbmc-jsonrpc-h._tcp.local."
@@ -140,6 +180,14 @@ _user_input_manual = RequestUserInput(
             "label": {
                 "en": "Artwork type to display for TV Shows",
                 "fr": "Type d'image média à afficher pour les séries",
+            },
+        },
+        {
+            "field": {"dropdown": {"value": "", "items": KODI_BROWSING_CATEGORIES}},
+            "id": "browse_media_root",
+            "label": {
+                "en": "Default browsing media category",
+                "fr": "Catégorie de navigation par défaut",
             },
         },
         {
@@ -560,6 +608,19 @@ async def handle_configuration_mode(msg: UserDataResponse) -> RequestUserInput |
                     {
                         "field": {
                             "dropdown": {
+                                "value": _reconfigured_device.browse_media_root,
+                                "items": KODI_BROWSING_CATEGORIES,
+                            }
+                        },
+                        "id": "browse_media_root",
+                        "label": {
+                            "en": "Default browsing media category",
+                            "fr": "Catégorie de navigation par défaut",
+                        },
+                    },
+                    {
+                        "field": {
+                            "dropdown": {
                                 "value": _reconfigured_device.browsing_video_sort,
                                 "items": [
                                     {"id": key, "label": value}
@@ -824,6 +885,19 @@ async def handle_discovery(_msg: UserDataResponse) -> RequestUserInput | SetupEr
             {
                 "field": {
                     "dropdown": {
+                        "value": "",
+                        "items": KODI_BROWSING_CATEGORIES,
+                    }
+                },
+                "id": "browse_media_root",
+                "label": {
+                    "en": "Default browsing media category",
+                    "fr": "Catégorie de navigation par défaut",
+                },
+            },
+            {
+                "field": {
+                    "dropdown": {
                         "value": "title",
                         "items": [
                             {"id": key, "label": value}
@@ -993,6 +1067,7 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
     show_stream_language_name = msg.input_values.get("show_stream_language_name", "false") == "true"
     sensor_include_device_name = msg.input_values.get("sensor_include_device_name", "false") == "true"
     power_off_command = msg.input_values.get("power_off_command", next(iter(KODI_POWEROFF_COMMANDS)))
+    browse_media_root = msg.input_values.get("browse_media_root", "")
 
     try:
         sensor_audio_stream_config = int(
@@ -1094,6 +1169,7 @@ async def _handle_configuration(msg: UserDataResponse) -> SetupComplete | SetupE
             browsing_video_sort=browsing_video_sort,
             browsing_album_sort=browsing_album_sort,
             browsing_files_sort=browsing_files_sort,
+            browse_media_root=browse_media_root,
         )
     )  # triggers SonyLG TV instance creation
     config.devices.store()
@@ -1137,6 +1213,7 @@ async def _handle_device_reconfigure(msg: UserDataResponse) -> SetupComplete | S
     show_stream_language_name = msg.input_values.get("show_stream_language_name", "false") == "true"
     sensor_include_device_name = msg.input_values.get("sensor_include_device_name", "false") == "true"
     power_off_command = msg.input_values.get("power_off_command", next(iter(KODI_POWEROFF_COMMANDS)))
+    browse_media_root = msg.input_values.get("browse_media_root", "")
     name = msg.input_values["name"]
     try:
         sensor_audio_stream_config = int(msg.input_values.get("sensor_audio_stream_config", f"{KodiStreamConfig.FULL}"))
@@ -1171,6 +1248,7 @@ async def _handle_device_reconfigure(msg: UserDataResponse) -> SetupComplete | S
     _reconfigured_device.browsing_video_sort = browsing_video_sort
     _reconfigured_device.browsing_album_sort = browsing_album_sort
     _reconfigured_device.browsing_files_sort = browsing_files_sort
+    _reconfigured_device.browse_media_root = browse_media_root
 
     config.devices.add_or_update(_reconfigured_device)  # triggers ATV instance update
     await asyncio.sleep(1)

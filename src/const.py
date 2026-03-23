@@ -120,28 +120,6 @@ class KodiObjectType(int, Enum):
     PLAYLIST = 10
 
 
-KODI_BROWSING_SORT = {
-    KodiObjectType.MOVIE: [
-        {"title": {"en": "Name", "fr": "Nom"}},
-        {"dateadded descending": {"en": "Date added", "fr": "Date de l'ajout"}},
-        {"rating descending": {"en": "Rating", "fr": "Notation"}},
-        {"year": {"en": "Year", "fr": "Année"}},
-    ],
-    KodiObjectType.FILE: [
-        {"": {"en": "Name", "fr": "Nom"}},
-        {"date descending": {"en": "Date", "fr": "Date"}},
-        {"file": {"en": "File", "fr": "Fichier"}},
-    ],
-    KodiObjectType.ALBUM: [
-        {"album": {"en": "Album", "fr": "Album"}},
-        {"artist": {"en": "Artist", "fr": "Artiste"}},
-        {"dateadded descending": {"en": "Date added", "fr": "Date de l'ajout"}},
-        {"rating descending": {"en": "Rating", "fr": "Notation"}},
-        {"year": {"en": "Year", "fr": "Année"}},
-    ],
-}
-
-
 class KodiMediaSearchMode(int, Enum):
     """Search media mode configuration."""
 

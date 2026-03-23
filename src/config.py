@@ -71,6 +71,7 @@ class KodiConfigDevice:
     browsing_video_sort: str = field(default="title")
     browsing_album_sort: str = field(default="album")
     browsing_files_sort: str = field(default="")
+    browse_media_root: str = field(default="")
     search_media_default: int = field(default=KodiMediaSearchMode.VIDEOS)
 
     # pylint: disable=R0801
