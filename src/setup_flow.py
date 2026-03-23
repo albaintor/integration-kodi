@@ -426,7 +426,7 @@ async def handle_configuration_mode(msg: UserDataResponse) -> RequestUserInput |
                 )
                 set_setup_field(user_input.settings, "power_off_command", _reconfigured_device.power_off_command)
                 return user_input
-            except Exception as ex: # pylint: disable=W0718
+            except Exception as ex:  # pylint: disable=W0718
                 _LOG.exception("Invalid configuration: %s", ex)
                 return SetupError(error_type=IntegrationSetupError.OTHER)
         case "reset":
