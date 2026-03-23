@@ -172,39 +172,6 @@ KODI_MEDIA_TYPES: dict[str, MediaContent] = {
     "audio": MediaContent.MUSIC,
 }
 
-KODI_ARTWORK_LABELS = [
-    {"id": "thumb", "label": {"en": "Thumbnail", "fr": "Standard"}},
-    {"id": "fanart", "label": {"en": "Fan art", "fr": "Fan art"}},
-    {"id": "poster", "label": {"en": "Poster", "fr": "Poster"}},
-    {"id": "landscape", "label": {"en": "Landscape", "fr": "Paysage"}},
-    {"id": "keyart", "label": {"en": "Key art", "fr": "Key art"}},
-    {"id": "banner", "label": {"en": "Banner", "fr": "Affiche"}},
-    {"id": "clearart", "label": {"en": "Clear art", "fr": "Clear art"}},
-    {"id": "clearlogo", "label": {"en": "Clear logo", "fr": "Clear logo"}},
-    {"id": "discart", "label": {"en": "Disc art", "fr": "Disc art"}},
-    {"id": "icon", "label": {"en": "Icon", "fr": "Icône"}},
-    {"id": "set.fanart", "label": {"en": "Fanart set", "fr": "Jeu de fanart"}},
-    {"id": "set.poster", "label": {"en": "Poster set", "fr": "Jeu de poster"}},
-]
-
-KODI_ARTWORK_TVSHOWS_LABELS = [
-    {"id": "thumb", "label": {"en": "Thumbnail", "fr": "Standard"}},
-    {"id": "season.banner", "label": {"en": "Season banner", "fr": "Affiche de la saison"}},
-    {"id": "season.landscape", "label": {"en": "Season landscape", "fr": "Saison en paysage"}},
-    {"id": "season.poster", "label": {"en": "Season poster", "fr": "Affiche de la saison"}},
-    {"id": "tvshow.banner", "label": {"en": "TV show banner", "fr": "Affiche de la série"}},
-    {"id": "tvshow.characterart", "label": {"en": "TV show character art", "fr": "Personnages de la série"}},
-    {"id": "tvshow.clearart", "label": {"en": "TV show clear art", "fr": "Affiche sans fond de la série"}},
-    {"id": "tvshow.clearlogo", "label": {"en": "TV show clear logo", "fr": "Logo sans fond de la série"}},
-    {"id": "tvshow.fanart", "label": {"en": "TV show fan art", "fr": "Fan art de la série"}},
-    {"id": "tvshow.landscape", "label": {"en": "TV show landscape", "fr": "Affiche en paysage"}},
-    {"id": "tvshow.poster", "label": {"en": "TV show poster", "fr": "Affiche de la série"}},
-    {"id": "icon", "label": {"en": "Icon", "fr": "Icône"}},
-]
-
-KODI_DEFAULT_ARTWORK = "thumb"
-KODI_DEFAULT_TVSHOW_ARTWORK = "tvshow.poster"
-
 KODI_FEATURES = [
     Features.ON_OFF,
     #  Features.TOGGLE,

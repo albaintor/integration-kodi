@@ -15,7 +15,7 @@ from typing import Callable, Iterator
 
 from ucapi import Entity, EntityTypes
 
-from const import KODI_DEFAULT_NAME, KodiMediaSearchMode, KodiStreamConfig
+from const import KODI_DEFAULT_NAME, KodiStreamConfig
 
 _LOG = logging.getLogger(__name__)
 
@@ -72,7 +72,6 @@ class KodiConfigDevice:
     browsing_album_sort: str = field(default="album")
     browsing_files_sort: str = field(default="")
     browse_media_root: str = field(default="")
-    search_media_default: int = field(default=KodiMediaSearchMode.VIDEOS)
 
     # pylint: disable=R0801
     def __post_init__(self):

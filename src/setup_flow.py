@@ -6,8 +6,10 @@ Setup flow for LG TV integration.
 """
 
 import asyncio
+import copy
 import logging
 from enum import IntEnum
+from typing import Any
 
 from aiohttp import ClientSession
 from ucapi import (
@@ -25,14 +27,8 @@ from ucapi import (
 import config
 from config import ConfigImportResult, KodiConfigDevice
 from const import (
-    KODI_ARTWORK_LABELS,
-    KODI_ARTWORK_TVSHOWS_LABELS,
-    KODI_DEFAULT_ARTWORK,
     KODI_DEFAULT_NAME,
-    KODI_DEFAULT_TVSHOW_ARTWORK,
     KODI_POWEROFF_COMMANDS,
-    KODI_SENSOR_STREAM_CONFIG_LABELS,
-    KodiObjectType,
     KodiStreamConfig,
 )
 from discover import KodiDiscover
@@ -44,53 +40,13 @@ from pykodi.kodi import (
     KodiHTTPConnection,
     KodiWSConnection,
 )
+from setup_fields import KODI_DEFAULT_ARTWORK, KODI_DEFAULT_TVSHOW_ARTWORK, SETUP_FIELDS
 
 _LOG = logging.getLogger(__name__)
 
 
 # pylint: disable = C0301,W1405,C0302,C0103
 # flake8: noqa
-
-
-KODI_BROWSING_SORT = {
-    KodiObjectType.MOVIE: [
-        {"title": {"en": "Name", "fr": "Nom"}},
-        {"dateadded descending": {"en": "Date added", "fr": "Date de l'ajout"}},
-        {"rating descending": {"en": "Rating", "fr": "Notation"}},
-        {"year": {"en": "Year", "fr": "Année"}},
-    ],
-    KodiObjectType.FILE: [
-        {"": {"en": "Name", "fr": "Nom"}},
-        {"date descending": {"en": "Date", "fr": "Date"}},
-        {"file": {"en": "File", "fr": "Fichier"}},
-    ],
-    KodiObjectType.ALBUM: [
-        {"album": {"en": "Album", "fr": "Album"}},
-        {"artist": {"en": "Artist", "fr": "Artiste"}},
-        {"dateadded descending": {"en": "Date added", "fr": "Date de l'ajout"}},
-        {"rating descending": {"en": "Rating", "fr": "Notation"}},
-        {"year": {"en": "Year", "fr": "Année"}},
-    ],
-}
-
-KODI_BROWSING_CATEGORIES = {
-    "": {"en": "Default", "fr": "Par défaut"},
-    "kodi://videos": {"en": "Videos", "fr": "Vidéos"},
-    "kodi://videos/all": {"en": "All videos", "fr": "Toutes les vidéos"},
-    "kodi://videos/current": {"en": "Current videos", "fr": "Vidéos en cours"},
-    "kodi://videos/recent": {"en": "Recently added videos", "fr": "Vidéos récemment ajoutées"},
-    "kodi://tvshows": {"en": "TV Shows", "fr": "Séries"},
-    "kodi://tvshows/all": {"en": "All TV Shows", "fr": "Toutes les séries"},
-    "kodi://tvshows/current": {"en": "Current TV Shows", "fr": "Séries en cours"},
-    "kodi://tvshows/recent": {"en": "Recently added TV Shows episodes", "fr": "Episodes de séries ajoutés récemment"},
-    "kodi://music": {"en": "Music", "fr": "Musique"},
-    "kodi://music/albums": {"en": "Music albums", "fr": "Albums de musique"},
-    "kodi://music/playlists": {"en": "Music playlists", "fr": "Listes de musique"},
-    "kodi://sources": {"en": "Sources", "fr": "Sources"},
-    "kodi://sources/videos": {"en": "Video sources", "fr": "Sources de vidéos"},
-    "kodi://sources/music": {"en": "Music sources", "fr": "Sources de musique"},
-    "kodi://sources/pictures": {"en": "Pictures sources", "fr": "Sources d'images"},
-}
 
 
 # TODO to be confirmed : Home assistant configured zeroconf url "_xbmc-jsonrpc-h._tcp.local."
@@ -141,142 +97,19 @@ _user_input_manual = RequestUserInput(
             "id": "address",
             "label": {"en": "IP address", "de": "IP-Adresse", "fr": "Adresse IP"},
         },
-        {
-            "field": {"text": {"value": ""}},
-            "id": "username",
-            "label": {"en": "Username", "fr": "Utilisateur"},
-        },
-        {
-            "field": {"text": {"value": ""}},
-            "id": "password",
-            "label": {"en": "Password", "fr": "Mot de passe"},
-        },
-        {
-            "field": {"text": {"value": "9090"}},
-            "id": "ws_port",
-            "label": {"en": "Websocket port", "fr": "Port websocket"},
-        },
-        {
-            "field": {"text": {"value": "8080"}},
-            "id": "port",
-            "label": {"en": "HTTP port", "fr": "Port HTTP"},
-        },
-        {
-            "field": {"checkbox": {"value": False}},
-            "id": "ssl",
-            "label": {"en": "Use SSL", "fr": "Utiliser SSL"},
-        },
-        {
-            "field": {"dropdown": {"value": KODI_DEFAULT_ARTWORK, "items": KODI_ARTWORK_LABELS}},
-            "id": "artwork_type",
-            "label": {
-                "en": "Artwork type to display",
-                "fr": "Type d'image média à afficher",
-            },
-        },
-        {
-            "field": {"dropdown": {"value": KODI_DEFAULT_TVSHOW_ARTWORK, "items": KODI_ARTWORK_TVSHOWS_LABELS}},
-            "id": "artwork_type_tvshows",
-            "label": {
-                "en": "Artwork type to display for TV Shows",
-                "fr": "Type d'image média à afficher pour les séries",
-            },
-        },
-        {
-            "field": {"dropdown": {"value": "", "items": KODI_BROWSING_CATEGORIES}},
-            "id": "browse_media_root",
-            "label": {
-                "en": "Default browsing media category",
-                "fr": "Catégorie de navigation par défaut",
-            },
-        },
-        {
-            "field": {"checkbox": {"value": True}},
-            "id": "show_stream_name",
-            "label": {
-                "en": "Show audio/subtitle track name",
-                "fr": "Afficher le nom de la piste audio/sous-titres",
-            },
-        },
-        {
-            "field": {"checkbox": {"value": True}},
-            "id": "show_stream_language_name",
-            "label": {
-                "en": "Show language name instead of track name",
-                "fr": "Afficher le nom de la langue au lieu du nom de la piste",
-            },
-        },
-        {
-            "field": {"checkbox": {"value": True}},
-            "id": "media_update_task",
-            "label": {"en": "Enable media update task", "fr": "Activer la tâche de mise à jour du média"},
-        },
-        {
-            "field": {"checkbox": {"value": False}},
-            "id": "download_artwork",
-            "label": {
-                "en": "Download artwork instead of transmitting URL to the remote",
-                "fr": "Télécharger l'image au lieu de transmettre l'URL à la télécommande",
-            },
-        },
-        {
-            "field": {"checkbox": {"value": False}},
-            "id": "disable_keyboard_map",
-            "label": {
-                "en": "Disable keyboard map : check only if some commands fail (eg arrow keys)",
-                "fr": "Désactiver les commandes clavier : cocher uniquement si certaines commandes échouent "
-                "(ex : commandes de direction)",
-            },
-        },
-        {
-            "field": {
-                "dropdown": {
-                    "value": f"{int(KodiStreamConfig.FULL)}",
-                    "items": KODI_SENSOR_STREAM_CONFIG_LABELS,
-                }
-            },
-            "id": "sensor_audio_stream_config",
-            "label": {
-                "en": "Audio stream sensor configuration",
-                "fr": "Configuration du capteur piste audio",
-            },
-        },
-        {
-            "field": {
-                "dropdown": {
-                    "value": f"{int(KodiStreamConfig.FULL)}",
-                    "items": KODI_SENSOR_STREAM_CONFIG_LABELS,
-                }
-            },
-            "id": "sensor_subtitle_stream_config",
-            "label": {
-                "en": "Subtitle stream sensor configuration",
-                "fr": "Configuration du capteur piste de sous-titres",
-            },
-        },
-        {
-            "field": {"checkbox": {"value": True}},
-            "id": "sensor_include_device_name",
-            "label": {
-                "en": "Include device name in sensors names",
-                "fr": "Inclure le nom de l'appareil dans le nom des capteurs",
-            },
-        },
-        {
-            "field": {
-                "dropdown": {
-                    "value": next(iter(KODI_POWEROFF_COMMANDS)),
-                    "items": [{"id": key, "label": value} for key, value in KODI_POWEROFF_COMMANDS.items()],
-                }
-            },
-            "id": "power_off_command",
-            "label": {
-                "en": "Power off command",
-                "fr": "Commande d'arrêt",
-            },
-        },
+        *copy.deepcopy(SETUP_FIELDS),
     ],
 )
+
+
+def set_setup_field(fields: list[dict[str, Any]], field_id: str, value: Any):
+    """Set field value from field id."""
+    for field in fields:
+        if field.get("id") == field_id and (field_entry := field.get("field")):
+            if isinstance(field_entry, dict):
+                for val in field_entry.values():
+                    if isinstance(val, dict):
+                        val["value"] = value
 
 
 # pylint: disable=R0911
@@ -541,218 +374,61 @@ async def handle_configuration_mode(msg: UserDataResponse) -> RequestUserInput |
             _setup_step = SetupSteps.RECONFIGURE
             _reconfigured_device = selected_device
 
-            return RequestUserInput(
-                {
-                    "en": "Configure your Kodi device",
-                    "fr": "Configurez votre appareil Kodi",
-                },
-                [
+            try:
+                user_input = RequestUserInput(
                     {
-                        "field": {"text": {"value": _reconfigured_device.address}},
-                        "id": "address",
-                        "label": {"en": "IP address", "de": "IP-Adresse", "fr": "Adresse IP"},
+                        "en": "Configure your Kodi device",
+                        "fr": "Configurez votre appareil Kodi",
                     },
-                    {
-                        "field": {"text": {"value": _reconfigured_device.name}},
-                        "id": "name",
-                        "label": {"en": "Device name", "fr": "Nom de l'appareil"},
-                    },
-                    {
-                        "field": {"text": {"value": _reconfigured_device.username}},
-                        "id": "username",
-                        "label": {"en": "Username", "fr": "Utilisateur"},
-                    },
-                    {
-                        "field": {"text": {"value": _reconfigured_device.password}},
-                        "id": "password",
-                        "label": {"en": "Password", "fr": "Mot de passe"},
-                    },
-                    {
-                        "field": {"text": {"value": str(_reconfigured_device.ws_port)}},
-                        "id": "ws_port",
-                        "label": {"en": "Websocket port", "fr": "Port websocket"},
-                    },
-                    {
-                        "field": {"text": {"value": str(_reconfigured_device.port)}},
-                        "id": "port",
-                        "label": {"en": "HTTP port", "fr": "Port HTTP"},
-                    },
-                    {
-                        "field": {"checkbox": {"value": _reconfigured_device.ssl}},
-                        "id": "ssl",
-                        "label": {"en": "Use SSL", "fr": "Utiliser SSL"},
-                    },
-                    {
-                        "field": {
-                            "dropdown": {"value": _reconfigured_device.artwork_type, "items": KODI_ARTWORK_LABELS}
+                    [
+                        {
+                            "field": {"text": {"value": _reconfigured_device.address}},
+                            "id": "address",
+                            "label": {"en": "IP address", "de": "IP-Adresse", "fr": "Adresse IP"},
                         },
-                        "id": "artwork_type",
-                        "label": {
-                            "en": "Artwork type to display",
-                            "fr": "Type d'image média à afficher",
+                        {
+                            "field": {"text": {"value": _reconfigured_device.name}},
+                            "id": "name",
+                            "label": {"en": "Device name", "fr": "Nom de l'appareil"},
                         },
-                    },
-                    {
-                        "field": {
-                            "dropdown": {
-                                "value": _reconfigured_device.artwork_type_tvshows,
-                                "items": KODI_ARTWORK_TVSHOWS_LABELS,
-                            }
-                        },
-                        "id": "artwork_type_tvshows",
-                        "label": {
-                            "en": "Artwork type to display for TV Shows",
-                            "fr": "Type d'image média à afficher pour les séries",
-                        },
-                    },
-                    {
-                        "field": {
-                            "dropdown": {
-                                "value": _reconfigured_device.browse_media_root,
-                                "items": KODI_BROWSING_CATEGORIES,
-                            }
-                        },
-                        "id": "browse_media_root",
-                        "label": {
-                            "en": "Default browsing media category",
-                            "fr": "Catégorie de navigation par défaut",
-                        },
-                    },
-                    {
-                        "field": {
-                            "dropdown": {
-                                "value": _reconfigured_device.browsing_video_sort,
-                                "items": [
-                                    {"id": key, "label": value}
-                                    for key, value in KODI_BROWSING_SORT[KodiObjectType.MOVIE].items()
-                                ],
-                            }
-                        },
-                        "id": "browsing_video_sort",
-                        "label": {
-                            "en": "Sorting method for video browsing",
-                            "fr": "Méthode de tri pour la navigation vidéo",
-                        },
-                    },
-                    {
-                        "field": {
-                            "dropdown": {
-                                "value": _reconfigured_device.browsing_album_sort,
-                                "items": [
-                                    {"id": key, "label": value}
-                                    for key, value in KODI_BROWSING_SORT[KodiObjectType.ALBUM].items()
-                                ],
-                            }
-                        },
-                        "id": "browsing_album_sort",
-                        "label": {
-                            "en": "Sorting method for albums browsing",
-                            "fr": "Méthode de tri pour la navigation des albums",
-                        },
-                    },
-                    {
-                        "field": {
-                            "dropdown": {
-                                "value": _reconfigured_device.browsing_files_sort,
-                                "items": [
-                                    {"id": key, "label": value}
-                                    for key, value in KODI_BROWSING_SORT[KodiObjectType.FILE].items()
-                                ],
-                            }
-                        },
-                        "id": "browsing_files_sort",
-                        "label": {
-                            "en": "Sorting method for files browsing",
-                            "fr": "Méthode de tri pour la navigation de fichiers",
-                        },
-                    },
-                    {
-                        "field": {"checkbox": {"value": _reconfigured_device.show_stream_name}},
-                        "id": "show_stream_name",
-                        "label": {
-                            "en": "Show audio/subtitle track name",
-                            "fr": "Afficher le nom de la piste audio/sous-titres",
-                        },
-                    },
-                    {
-                        "field": {"checkbox": {"value": _reconfigured_device.show_stream_language_name}},
-                        "id": "show_stream_language_name",
-                        "label": {
-                            "en": "Show language name instead of track name",
-                            "fr": "Afficher le nom de la langue au lieu du nom de la piste",
-                        },
-                    },
-                    {
-                        "field": {"checkbox": {"value": _reconfigured_device.media_update_task}},
-                        "id": "media_update_task",
-                        "label": {"en": "Enable media update task", "fr": "Activer la tâche de mise à jour du média"},
-                    },
-                    {
-                        "field": {"checkbox": {"value": _reconfigured_device.download_artwork}},
-                        "id": "download_artwork",
-                        "label": {
-                            "en": "Download artwork instead of transmitting URL to the remote",
-                            "fr": "Télécharger l'image au lieu de transmettre l'URL à la télécommande",
-                        },
-                    },
-                    {
-                        "field": {"checkbox": {"value": _reconfigured_device.disable_keyboard_map}},
-                        "id": "disable_keyboard_map",
-                        "label": {
-                            "en": "Disable keyboard map : check only if some commands fail (eg arrow keys)",
-                            "fr": "Désactiver les commandes clavier : cocher uniquement si certaines commandes"
-                            " échouent (ex : commandes de direction)",
-                        },
-                    },
-                    {
-                        "field": {
-                            "dropdown": {
-                                "value": f"{int(_reconfigured_device.sensor_audio_stream_config)}",
-                                "items": KODI_SENSOR_STREAM_CONFIG_LABELS,
-                            }
-                        },
-                        "id": "sensor_audio_stream_config",
-                        "label": {
-                            "en": "Audio stream sensor configuration",
-                            "fr": "Configuration du capteur piste audio",
-                        },
-                    },
-                    {
-                        "field": {
-                            "dropdown": {
-                                "value": f"{int(_reconfigured_device.sensor_subtitle_stream_config)}",
-                                "items": KODI_SENSOR_STREAM_CONFIG_LABELS,
-                            }
-                        },
-                        "id": "sensor_subtitle_stream_config",
-                        "label": {
-                            "en": "Subtitle stream sensor configuration",
-                            "fr": "Configuration du capteur piste de sous-titres",
-                        },
-                    },
-                    {
-                        "field": {"checkbox": {"value": _reconfigured_device.sensor_include_device_name}},
-                        "id": "sensor_include_device_name",
-                        "label": {
-                            "en": "Include device name in sensors names",
-                            "fr": "Inclure le nom de l'appareil dans le nom des capteurs",
-                        },
-                    },
-                    {
-                        "field": {
-                            "dropdown": {
-                                "value": _reconfigured_device.power_off_command,
-                                "items": [{"id": key, "label": value} for key, value in KODI_POWEROFF_COMMANDS.items()],
-                            }
-                        },
-                        "id": "power_off_command",
-                        "label": {
-                            "en": "Power off command",
-                            "fr": "Commande d'arrêt",
-                        },
-                    },
-                ],
-            )
+                        *copy.deepcopy(SETUP_FIELDS),
+                    ],
+                )
+                _LOG.debug("INPUT CONFIG %s", user_input)
+                set_setup_field(user_input.settings, "username", _reconfigured_device.username)
+                set_setup_field(user_input.settings, "password", _reconfigured_device.password)
+                set_setup_field(user_input.settings, "ws_port", str(_reconfigured_device.ws_port))
+                set_setup_field(user_input.settings, "port", _reconfigured_device.port)
+                set_setup_field(user_input.settings, "ssl", _reconfigured_device.ssl)
+                set_setup_field(user_input.settings, "artwork_type", _reconfigured_device.artwork_type)
+                set_setup_field(user_input.settings, "artwork_type_tvshows", _reconfigured_device.artwork_type_tvshows)
+                set_setup_field(user_input.settings, "browse_media_root", _reconfigured_device.browse_media_root)
+                set_setup_field(user_input.settings, "browsing_video_sort", _reconfigured_device.browsing_video_sort)
+                set_setup_field(user_input.settings, "browsing_album_sort", _reconfigured_device.browsing_album_sort)
+                set_setup_field(user_input.settings, "browsing_files_sort", _reconfigured_device.browsing_files_sort)
+                set_setup_field(user_input.settings, "show_stream_name", _reconfigured_device.show_stream_name)
+                set_setup_field(
+                    user_input.settings, "show_stream_language_name", _reconfigured_device.show_stream_language_name
+                )
+                set_setup_field(user_input.settings, "media_update_task", _reconfigured_device.media_update_task)
+                set_setup_field(user_input.settings, "download_artwork", _reconfigured_device.download_artwork)
+                set_setup_field(user_input.settings, "disable_keyboard_map", _reconfigured_device.disable_keyboard_map)
+                set_setup_field(
+                    user_input.settings, "sensor_audio_stream_config", _reconfigured_device.sensor_audio_stream_config
+                )
+                set_setup_field(
+                    user_input.settings,
+                    "sensor_subtitle_stream_config",
+                    _reconfigured_device.sensor_subtitle_stream_config,
+                )
+                set_setup_field(
+                    user_input.settings, "sensor_include_device_name", _reconfigured_device.sensor_include_device_name
+                )
+                set_setup_field(user_input.settings, "power_off_command", _reconfigured_device.power_off_command)
+                return user_input
+            except Exception as ex: # pylint: disable=W0718
+                _LOG.exception("Invalid configuration: %s", ex)
+                return SetupError(error_type=IntegrationSetupError.OTHER)
         case "reset":
             config.devices.clear()  # triggers device instance removal
         case "backup_restore":
@@ -841,146 +517,7 @@ async def handle_discovery(_msg: UserDataResponse) -> RequestUserInput | SetupEr
                     }
                 },
             },
-            {
-                "field": {"text": {"value": ""}},
-                "id": "username",
-                "label": {"en": "Username", "fr": "Utilisateur"},
-            },
-            {
-                "field": {"text": {"value": ""}},
-                "id": "password",
-                "label": {"en": "Password", "fr": "Mot de passe"},
-            },
-            {
-                "field": {"text": {"value": "9090"}},
-                "id": "ws_port",
-                "label": {"en": "Websocket port", "fr": "Port websocket"},
-            },
-            {
-                "field": {"text": {"value": "8080"}},
-                "id": "port",
-                "label": {"en": "HTTP port", "fr": "Port HTTP"},
-            },
-            {
-                "field": {"checkbox": {"value": False}},
-                "id": "ssl",
-                "label": {"en": "Use SSL", "fr": "Utiliser SSL"},
-            },
-            {
-                "field": {"dropdown": {"value": KODI_DEFAULT_ARTWORK, "items": KODI_ARTWORK_LABELS}},
-                "id": "artwork_type",
-                "label": {
-                    "en": "Artwork type to display",
-                    "fr": "Type d'image média à afficher",
-                },
-            },
-            {
-                "field": {"dropdown": {"value": KODI_DEFAULT_TVSHOW_ARTWORK, "items": KODI_ARTWORK_TVSHOWS_LABELS}},
-                "id": "artwork_type_tvshows",
-                "label": {
-                    "en": "Artwork type to display for TV Shows",
-                    "fr": "Type d'image média à afficher pour les séries",
-                },
-            },
-            {
-                "field": {
-                    "dropdown": {
-                        "value": "",
-                        "items": KODI_BROWSING_CATEGORIES,
-                    }
-                },
-                "id": "browse_media_root",
-                "label": {
-                    "en": "Default browsing media category",
-                    "fr": "Catégorie de navigation par défaut",
-                },
-            },
-            {
-                "field": {
-                    "dropdown": {
-                        "value": "title",
-                        "items": [
-                            {"id": key, "label": value}
-                            for key, value in KODI_BROWSING_SORT[KodiObjectType.MOVIE].items()
-                        ],
-                    }
-                },
-                "id": "browsing_video_sort",
-                "label": {
-                    "en": "Sorting method for video browsing",
-                    "fr": "Méthode de tri pour la navigation vidéo",
-                },
-            },
-            {
-                "field": {
-                    "dropdown": {
-                        "value": "album",
-                        "items": [
-                            {"id": key, "label": value}
-                            for key, value in KODI_BROWSING_SORT[KodiObjectType.ALBUM].items()
-                        ],
-                    }
-                },
-                "id": "browsing_album_sort",
-                "label": {
-                    "en": "Sorting method for albums browsing",
-                    "fr": "Méthode de tri pour la navigation des albums",
-                },
-            },
-            {
-                "field": {
-                    "dropdown": {
-                        "value": "",
-                        "items": [
-                            {"id": key, "label": value}
-                            for key, value in KODI_BROWSING_SORT[KodiObjectType.FILE].items()
-                        ],
-                    }
-                },
-                "id": "browsing_files_sort",
-                "label": {
-                    "en": "Sorting method for files browsing",
-                    "fr": "Méthode de tri pour la navigation de fichiers",
-                },
-            },
-            {
-                "field": {"checkbox": {"value": True}},
-                "id": "show_stream_name",
-                "label": {
-                    "en": "Show audio/subtitle track name",
-                    "fr": "Afficher le nom de la piste audio/sous-titres",
-                },
-            },
-            {
-                "field": {"checkbox": {"value": True}},
-                "id": "show_stream_language_name",
-                "label": {
-                    "en": "Show language name instead of track name",
-                    "fr": "Afficher le nom de la langue au lieu du nom de la piste",
-                },
-            },
-            {
-                "field": {"checkbox": {"value": True}},
-                "id": "media_update_task",
-                "label": {"en": "Enable media update task", "fr": "Activer la tâche de mise à jour du média"},
-            },
-            {
-                "field": {"checkbox": {"value": False}},
-                "id": "download_artwork",
-                "label": {
-                    "en": "Download artwork instead of transmitting URL to the remote",
-                    "fr": "Télécharger l'image au lieu de transmettre l'URL à la télécommande",
-                },
-            },
-            {
-                "field": {"checkbox": {"value": False}},
-                "id": "disable_keyboard_map",
-                "label": {
-                    "en": "Disable keyboard map : check only if some commands fail (eg arrow keys)",
-                    "fr": "Désactiver les commandes clavier : cocher uniquement si certaines commandes échouent "
-                    "(ex : commandes de direction)",
-                },
-            },
+            *copy.deepcopy(SETUP_FIELDS),
         ],
     )
 
