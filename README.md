@@ -490,7 +490,7 @@ docker run -d \
   --network host \
   -v $(pwd)/config:/app/config \
   -e UC_INTEGRATION_HTTP_PORT=9090 \
-  docker.io/your-username/kodi-integration:latest
+  docker.io/albator78/kodi-integration:latest
 ```
 
 ### Manual Docker Commands

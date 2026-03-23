@@ -18,7 +18,7 @@ env:
   PYTHON_VER: 3.11.13-0.4.0
   # Docker configuration
   REGISTRY: docker.io
-  IMAGE_NAME: ${{ github.repository_owner }}/kodi-integration
+  IMAGE_NAME: albator78/kodi-integration
 
 jobs:
   build:
