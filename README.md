@@ -337,8 +337,12 @@ Additional data is returned depending on the media : for movies and TV Shows the
 |                      | Pictures                          | _Directories & files_ | ...     | ...      | ...      |
 |                      | Files                             | _Directories & files_ | ...     | ...      | ...      |
 
-The following is not available for now :
-You can define the following couple `media_id` / `media_type` to start browsing to a given category in the `Play media` command :
+
+You can define a default category when opening media browser in the setup flow.
+
+### Media Browsing categories
+
+For internal use.
 
 | Browsing category                | Media id                | Media type              |
 |----------------------------------|-------------------------|-------------------------|
