@@ -177,25 +177,8 @@ class Devices:
         """Update a configured Sony device and persist configuration."""
         for item in self._config:
             if item.id == device.id:
-                item.name = device.name
-                item.address = device.address
-                item.port = device.port
-                item.ws_port = device.ws_port
-                item.username = device.username
-                item.password = device.password
-                item.ssl = device.ssl
-                item.artwork_type = device.artwork_type
-                item.artwork_type_tvshows = device.artwork_type_tvshows
-                item.media_update_task = device.media_update_task
-                item.download_artwork = device.download_artwork
-                item.disable_keyboard_map = device.disable_keyboard_map
-                item.show_stream_name = device.show_stream_name
-                item.show_stream_language_name = device.show_stream_language_name
-                item.sensor_audio_stream_config = device.sensor_audio_stream_config
-                item.sensor_subtitle_stream_config = device.sensor_subtitle_stream_config
-                item.sensor_include_device_name = device.sensor_include_device_name
-                item.log_additional_data = device.log_additional_data
-                item.power_off_command = device.power_off_command
+                for f in fields(device):
+                    setattr(item, f.name, getattr(device, f.name))
                 return self.store()
         return False
 

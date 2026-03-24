@@ -445,8 +445,8 @@ async def main():
     config.devices = config.Devices(api.config_dir_path, on_device_added, on_device_removed, on_device_updated)
     for device_config in config.devices.all():
         _configure_new_device(device_config, connect=False)
-
-    await api.init("driver.json", setup_flow.driver_setup_handler)
+    setup = setup_flow.SetupFlow()
+    await api.init("driver.json", setup.driver_setup_handler)
 
 
 if __name__ == "__main__":
