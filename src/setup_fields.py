@@ -5,7 +5,7 @@ Kodi Setup fields.
 :license: Mozilla Public License Version 2.0, see LICENSE for more details.
 """
 
-from const import KodiObjectType
+from const import KodiObjectType, KODI_POWEROFF_COMMANDS
 
 KODI_ARTWORK_LABELS = [
     {"id": "thumb", "label": {"en": "Thumbnail", "fr": "Standard"}},
@@ -213,6 +213,19 @@ SETUP_FIELDS = [
             "en": "Disable keyboard map : check only if some commands fail (eg arrow keys)",
             "fr": "Désactiver les commandes clavier : cocher uniquement si certaines commandes échouent "
             "(ex : commandes de direction)",
+        },
+    },
+    {
+        "field": {
+            "dropdown": {
+                "value": next(iter(KODI_POWEROFF_COMMANDS)),
+                "items": [{"id": key, "label": value} for key, value in KODI_POWEROFF_COMMANDS.items()],
+            }
+        },
+        "id": "power_off_command",
+        "label": {
+            "en": "Power off command",
+            "fr": "Commande d'arrêt",
         },
     },
 ]
