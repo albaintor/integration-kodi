@@ -5,7 +5,7 @@ Kodi Setup fields.
 :license: Mozilla Public License Version 2.0, see LICENSE for more details.
 """
 
-from const import KodiObjectType, KODI_POWEROFF_COMMANDS
+from const import KODI_POWEROFF_COMMANDS, KodiObjectType
 
 KODI_ARTWORK_LABELS = [
     {"id": "thumb", "label": {"en": "Thumbnail", "fr": "Standard"}},

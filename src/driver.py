@@ -10,8 +10,7 @@ import asyncio
 import logging
 import os
 import sys
-from enum import Enum
-from typing import Any, Type
+from typing import Any
 
 # sys.path.insert(0, os.path.abspath("../integration-python-library"))
 import ucapi
@@ -24,6 +23,7 @@ import selector
 import sensor
 import setup_flow
 from config import KodiEntity
+from const import filter_attributes
 
 _LOG = logging.getLogger("driver")  # avoid having __main__ in log messages
 if sys.platform == "win32":
@@ -80,12 +80,6 @@ async def on_enter_standby() -> None:
     _LOG.debug("Enter standby event: disconnecting device(s)")
     for configured in _configured_kodis.values():
         await configured.disconnect()
-
-
-def filter_attributes(attributes, attribute_type: Type[Enum]) -> dict[str, Any]:
-    """Filter attributes based on an Enum class."""
-    valid_keys = {e.value for e in attribute_type}
-    return {k: v for k, v in attributes.items() if k in valid_keys}
 
 
 async def connect_device(device: kodi_device.KodiDevice):

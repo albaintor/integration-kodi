@@ -49,10 +49,10 @@ class KodiSensor(KodiEntity, Sensor):
         """Initialize the class."""
         self._device: kodi_device.KodiDevice = device
         features = []
-        attributes = dict[Any, Any]()
+
         self._config_device = config_device
         self._state: States = States.UNAVAILABLE
-        super().__init__(entity_id, name, features, attributes, device_class=device_class, options=options)
+        super().__init__(entity_id, name, features, self.all_attributes, device_class=device_class, options=options)
 
     @property
     def deviceid(self) -> str:
@@ -69,6 +69,14 @@ class KodiSensor(KodiEntity, Sensor):
         """Return sensor value."""
         raise NotImplementedError()
 
+    @property
+    def all_attributes(self) -> dict[str, Any]:
+        """Return all attributes."""
+        return {
+            Attributes.VALUE: self.sensor_value,
+            Attributes.STATE: KODI_SENSOR_STATE_MAPPING.get(self._device.state),
+        }
+
     def update_attributes(self, update: dict[str, Any] | None = None) -> dict[str, Any] | None:
         """Return updated sensor value from full update if provided or sensor value if no udpate is provided."""
         attributes: dict[str, Any] = {}
@@ -81,10 +89,7 @@ class KodiSensor(KodiEntity, Sensor):
             if self.SENSOR_NAME in update:
                 attributes[Attributes.VALUE] = update[self.SENSOR_NAME]
             return attributes
-        return {
-            Attributes.VALUE: self.sensor_value,
-            Attributes.STATE: KODI_SENSOR_STATE_MAPPING.get(self._device.state),
-        }
+        return self.attributes
 
 
 class KodiAudioStream(KodiSensor):

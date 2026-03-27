@@ -7,7 +7,7 @@ Constants used for Kodi integration.
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, TypedDict
+from typing import Any, Type, TypedDict
 
 from ucapi.api_definitions import MediaContentType as MediaContent
 from ucapi.media_player import Commands, Features
@@ -127,12 +127,6 @@ class KodiMediaSearchMode(int, Enum):
     TV_SHOWS = 2
     MUSIC = 3
 
-
-# KODI_SEARCH_MODES = {
-#     KodiMediaSearchMode.VIDEOS: {"en": "Videos only", "fr": "Vidéos uniquement"},
-#     KodiMediaSearchMode.TV_SHOWS: {"en": "TV shows only", "fr": "Séries TV uniquement"},
-#     KodiMediaSearchMode.MUSIC: {"en": "Music only", "fr": "Musique uniquement"},
-# }
 
 KODI_POWEROFF_COMMANDS: dict[str, dict[str, str]] = {
     "Application.Quit": {"en": "Quit application", "fr": "Quitter l'application"},
@@ -506,6 +500,12 @@ KODI_REMOTE_UI_PAGES: list[UiPage] = [
         }
     ),
 ]
+
+
+def filter_attributes(attributes, attribute_type: Type[Enum]) -> dict[str, Any]:
+    """Filter attributes based on an Enum class."""
+    valid_keys = {e.value for e in attribute_type}
+    return {k: v for k, v in attributes.items() if k in valid_keys}
 
 
 def key_update_helper(input_attributes, key: str, value: str | None, attributes):

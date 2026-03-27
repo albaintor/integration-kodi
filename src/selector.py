@@ -37,12 +37,11 @@ class KodiSelect(KodiEntity, Select):
     ):
         """Initialize the class."""
         # pylint: disable = R0801
-        attributes = dict[Any, Any]()
         self._config_device = config_device
         self._device: kodi_device.KodiDevice = device
         self._state: States = States.ON
         self._select_handler: CommandHandler = select_handler
-        super().__init__(identifier=entity_id, name=name, attributes=attributes)
+        super().__init__(identifier=entity_id, name=name, attributes=self.all_attributes)
 
     @property
     def deviceid(self) -> str:
@@ -59,17 +58,22 @@ class KodiSelect(KodiEntity, Select):
         """Return selection list."""
         raise NotImplementedError()
 
+    @property
+    def all_attributes(self) -> dict[str, Any]:
+        """Return all attributes."""
+        return {
+            Attributes.CURRENT_OPTION: self.current_option,
+            Attributes.OPTIONS: self.select_options,
+            Attributes.STATE: States.ON,
+        }
+
     def update_attributes(self, update: dict[str, Any] | None = None) -> dict[str, Any] | None:
         """Return updated selector value from full update if provided or sensor value if no udpate is provided."""
         if update:
             if self.SELECT_NAME in update:
                 return update[self.SELECT_NAME]
             return None
-        return {
-            Attributes.CURRENT_OPTION: self.current_option,
-            Attributes.OPTIONS: self.select_options,
-            Attributes.STATE: States.ON,
-        }
+        return self.attributes
 
     async def command(self, cmd_id: str, params: dict[str, Any] | None = None, *, websocket: Any) -> StatusCodes:
         """Process selector command."""

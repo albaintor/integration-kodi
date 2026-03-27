@@ -15,7 +15,7 @@ from ucapi.api_definitions import (
     SearchOptions,
     SearchResults,
 )
-from ucapi.media_player import Commands, DeviceClasses, Options
+from ucapi.media_player import Attributes, Commands, DeviceClasses, Options
 
 import kodi_device
 from config import KodiConfigDevice, KodiEntity, create_entity_id
@@ -28,6 +28,7 @@ from const import (
     KODI_SIMPLE_COMMANDS_DIRECT,
     ButtonKeymap,
     MethodCall,
+    filter_attributes,
 )
 
 _LOG = logging.getLogger(__name__)
@@ -42,7 +43,7 @@ class KodiMediaPlayer(KodiEntity, MediaPlayer):
         self._device: kodi_device.KodiDevice = device
         entity_id = create_entity_id(config_device.id, EntityTypes.MEDIA_PLAYER)
         features = device.supported_features
-        attributes = device.attributes
+        attributes = filter_attributes(device.attributes, Attributes)
 
         # # use sound mode support & name from configuration: receiver might not yet be connected
         # if device.support_sound_mode:
