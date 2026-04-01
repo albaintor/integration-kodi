@@ -9,8 +9,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Type, TypedDict
 
-from ucapi.api_definitions import MediaContentType as MediaContent
-from ucapi.media_player import Commands, Features
+from ucapi.media_player import Commands, Features, MediaContentType
 from ucapi.ui import Buttons, DeviceButtonMapping, UiPage
 
 
@@ -21,6 +20,25 @@ class PlaylistInfo:
     playlist_id: int
     position: int
     playlist: dict[str, Any]
+
+
+@dataclass
+class PaginationOptions:
+    """
+    Pagination metadata returned by the client.
+
+    Attributes:
+        page (int):
+            Current page number, 1-based. Must correspond to the requested page.
+        limit (int):
+            Number of items returned in this page.
+        count (int|None):
+            Optional if known: Total number of available items across all pages.
+    """
+
+    page: int
+    limit: int
+    count: int | None = None
 
 
 class IKodiDevice:
@@ -148,22 +166,22 @@ KODI_SENSOR_STREAM_CONFIG_LABELS = [
 KODI_DEFAULT_NAME = "Kodi"
 
 
-KODI_MEDIA_TYPES: dict[str, MediaContent] = {
-    "music": MediaContent.MUSIC,
-    "artist": MediaContent.ARTIST,
-    "album": MediaContent.ALBUM,
-    "song": MediaContent.TRACK,
-    "video": MediaContent.VIDEO,
-    "set": MediaContent.MUSIC,
-    "musicvideo": MediaContent.VIDEO,
-    "movie": MediaContent.MOVIE,
-    "tvshow": MediaContent.TV_SHOW,
-    "season": MediaContent.SEASON,
-    "episode": MediaContent.EPISODE,
+KODI_MEDIA_TYPES: dict[str, MediaContentType] = {
+    "music": MediaContentType.MUSIC,
+    "artist": MediaContentType.ARTIST,
+    "album": MediaContentType.ALBUM,
+    "song": MediaContentType.TRACK,
+    "video": MediaContentType.VIDEO,
+    "set": MediaContentType.MUSIC,
+    "musicvideo": MediaContentType.VIDEO,
+    "movie": MediaContentType.MOVIE,
+    "tvshow": MediaContentType.TV_SHOW,
+    "season": MediaContentType.SEASON,
+    "episode": MediaContentType.EPISODE,
     # Type 'channel' is used for radio or tv streams from pvr
-    "channel": MediaContent.CHANNEL,
+    "channel": MediaContentType.CHANNEL,
     # Type 'audio' is used for audio media, that Kodi couldn't scroblle
-    "audio": MediaContent.MUSIC,
+    "audio": MediaContentType.MUSIC,
 }
 
 KODI_FEATURES = [

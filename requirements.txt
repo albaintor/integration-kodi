@@ -1,10 +1,10 @@
 pyee~=13.0.1
 ucapi
- file:./src/ucapi-0.5.3.dev12+gd11cfea3f.d20260321-py3-none-any.whl
+ file:./src/ucapi-0.5.3.dev4+gd4b2dacd9.d20260401-py3-none-any.whl
 httpx~=0.28.1
 defusedxml~=0.7.1
 jsonrpc-async>=2.1.3
 jsonrpc-websocket>=3.2.0
 jsonrpc_base>=2.2.0
-aiohttp~=3.13.3
+aiohttp~=3.13.5
 zeroconf~=0.148.0

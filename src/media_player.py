@@ -8,14 +8,17 @@ Media-player entity functions.
 import logging
 from typing import Any
 
-from ucapi import EntityTypes, MediaPlayer, StatusCodes
-from ucapi.api_definitions import (
+from ucapi import EntityTypes, MediaPlayer, Pagination, StatusCodes
+from ucapi.media_player import (
+    Attributes,
     BrowseOptions,
     BrowseResults,
+    Commands,
+    DeviceClasses,
+    Options,
     SearchOptions,
     SearchResults,
 )
-from ucapi.media_player import Attributes, Commands, DeviceClasses, Options
 
 import kodi_device
 from config import KodiConfigDevice, KodiEntity, create_entity_id
@@ -254,7 +257,10 @@ class KodiMediaPlayer(KodiEntity, MediaPlayer):
         browse_media_results, pagination = await self._device.media_browser.browse_media(
             options.media_id, options.media_type, options.paging
         )
-        return BrowseResults(media=browse_media_results, pagination=pagination)
+        return BrowseResults(
+            media=browse_media_results,
+            pagination=Pagination(page=pagination.page, limit=pagination.limit, count=pagination.count),
+        )
 
     async def search(self, options: SearchOptions) -> SearchResults | StatusCodes:
         """
@@ -275,7 +281,10 @@ class KodiMediaPlayer(KodiEntity, MediaPlayer):
         media_results, pagination = await self._device.media_browser.search_media(
             options.query, options.media_id, options.media_type, options.filter, options.paging
         )
-        return SearchResults(media=media_results, pagination=pagination)
+        return SearchResults(
+            media=media_results,
+            pagination=Pagination(page=pagination.page, limit=pagination.limit, count=pagination.count),
+        )
 
     async def command(self, cmd_id: str, params: dict[str, Any] | None = None, *, websocket: Any) -> StatusCodes:
         """
