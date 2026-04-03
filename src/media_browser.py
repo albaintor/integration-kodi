@@ -1191,7 +1191,7 @@ class MediaBrowser:
         return [
             BrowseMediaItem(
                 title=self.get_localized(MEDIA_CONTENT_LABELS.get(x, "Videos")),
-                media_id=media_id if media_id else "",
+                media_id=media_id if media_id else "kodi://",
                 media_type=x.value,
                 media_class=x.value,
                 can_search=True,
