@@ -138,14 +138,6 @@ class KodiObjectType(int, Enum):
     PLAYLIST = 10
 
 
-class KodiMediaSearchMode(int, Enum):
-    """Search media mode configuration."""
-
-    VIDEOS = 1
-    TV_SHOWS = 2
-    MUSIC = 3
-
-
 KODI_POWEROFF_COMMANDS: dict[str, dict[str, str]] = {
     "Application.Quit": {"en": "Quit application", "fr": "Quitter l'application"},
     "System.Shutdown": {"en": "Shutdown", "fr": "Eteindre"},

@@ -35,7 +35,7 @@ from jsonrpc_base.jsonrpc import (  # pylint: disable = E0401
 )
 from pyee.asyncio import AsyncIOEventEmitter
 from ucapi.media_player import Attributes as MediaAttr
-from ucapi.media_player import Features, MediaContentType
+from ucapi.media_player import Features, MediaClass, MediaContentType
 from ucapi.media_player import States as MediaStates
 from ucapi.select import Attributes as SelectAttributes
 from ucapi.select import States as SelectStates
@@ -114,7 +114,7 @@ def _get_language_name(lang: str, app_language="en_US") -> str:
 def _get_chapter_name(chapter: dict[str, Any]) -> str:
     """Extract chapter name."""
     # pylint: disable=W1405
-    name = chapter.get("name", None)
+    name: str | None = chapter.get("name", None)
     if name:
         return name
     position = chapter.get("time", -1)
@@ -1378,6 +1378,15 @@ class KodiDevice(IKodiDevice):
             ),
             MediaAttr.SHUFFLE: self.shuffle,
             MediaAttr.REPEAT: self.repeat,
+            MediaAttr.MEDIA_ID: self._media_id,
+            MediaAttr.SEARCH_MEDIA_CLASSES: [
+                MediaClass.MOVIE,
+                MediaClass.TV_SHOW,
+                MediaClass.ALBUM,
+                MediaClass.ARTIST,
+                MediaClass.PLAYLIST,
+                MediaClass.TRACK,
+            ],
             KodiSensors.SENSOR_AUDIO_STREAM: self.sensor_audio_stream,
             KodiSensors.SENSOR_SUBTITLE_STREAM: self.sensor_subtitle_stream,
             KodiSensors.SENSOR_CHAPTER: self.current_chapter if self.current_chapter else "",
@@ -1406,8 +1415,6 @@ class KodiDevice(IKodiDevice):
                 SelectAttributes.OPTIONS: self.chapters,
                 SelectAttributes.STATE: SelectStates.ON,
             },
-            # TODO when UC library udpated
-            "media_id": self._media_id,
         }
         return attributes
 
@@ -1692,7 +1699,7 @@ class KodiDevice(IKodiDevice):
     @property
     def video_info(self) -> str:
         """Video information."""
-        video_stream = self._properties.get("currentvideostream", None)
+        video_stream: dict[str, Any] | None = self._properties.get("currentvideostream", None)
         if video_stream is None:
             return ""
         # pylint: disable=W1405
