@@ -1209,32 +1209,6 @@ class MediaBrowser:
             await self._device.server.Player.Open(**{"item": item})
         return StatusCodes.OK
 
-    def get_search_missing_categories(self, media_id: None | str, media_type: None | str) -> list[BrowseMediaItem]:
-        """Return additional categories."""
-        missing_modes: list[MediaContentType] = [
-            MediaContentType.MOVIE,
-            MediaContentType.TV_SHOW,
-            MediaContentType.ALBUM,
-            MediaContentType.ARTIST,
-            MediaContentType.MUSIC,
-        ]
-        if media_type is not None:
-            try:
-                media_type = MediaContentType(media_type)
-                missing_modes.remove(media_type)
-            except ValueError:
-                pass
-        return [
-            BrowseMediaItem(
-                title=self.get_localized(MEDIA_CONTENT_LABELS.get(x, "Videos")),
-                media_id=media_id if media_id else "kodi://",
-                media_type=MediaContentType(x.value),
-                media_class=MediaClass(x.value),
-                can_search=True,
-            )
-            for x in missing_modes
-        ]
-
     async def search_movies(
         self,
         query,
@@ -1521,8 +1495,7 @@ class MediaBrowser:
                 paging = PaginationOptions(page=1, limit=10, count=0)
             else:
                 paging = PaginationOptions(page=paging.page, limit=paging.limit, count=0)
-            max_results = 0
-            do_pagination_options = True
+            max_results = paging.limit
             paging.count = 0
             media_classes: list[str] = []
             if (search_filter := media_search_filter) and (search_media_classes := search_filter.media_classes):
@@ -1530,15 +1503,6 @@ class MediaBrowser:
                     media_classes.append(x.value if isinstance(x, MediaClass) else x)
 
             results: list[BrowseMediaItem] = []
-            # Add search categories if media_type is empty
-            if len(media_classes) == 0 and not media_type and paging.page == 1:
-                missing_categories = self.get_search_missing_categories(media_id, media_type)
-                results.extend(missing_categories)
-                paging.count += len(missing_categories)
-                max_results = paging.limit - len(missing_categories)
-                # Disable PaginationOptions because of multisearch
-                do_pagination_options = False
-
             search_filters = media_classes
             if len(search_filters) == 0:
                 if media_type is None:
@@ -1551,6 +1515,7 @@ class MediaBrowser:
                     ]
                 else:
                     search_filters = [media_type]
+            _LOG.debug("[%s] Search media %s (%s)", self._device.device_config.address, query, search_filters)
 
             if MediaContentType.MOVIE.value in search_filters:
                 movies, local_paging = await self.search_movies(query, media_id, media_type, paging, max_results)
@@ -1588,8 +1553,6 @@ class MediaBrowser:
                 paging.count += local_paging.count
                 max_results -= len(songs)
                 results.extend(songs)
-            if not do_pagination_options and paging.count > paging.limit:
-                paging.count = paging.limit
 
             _LOG.debug(
                 "[%s] Searching results %s %s",
