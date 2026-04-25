@@ -1074,14 +1074,39 @@ class MediaBrowser:
                                 self._persist_favorites()
                             item.items.append(self._make_pin_item(media_id, media_type or "addondir", media_id))
                     if data:
+                        skipped = 0
                         for file in data.get("files", []) or []:
-                            sub = self.get_item_from_file(file, "addondir", extract_thumbnail=False)
-                            # Re-attach thumbnail from JSON-RPC response if present
-                            thumb = file.get("thumbnail") or (file.get("art") or {}).get("thumb")
-                            if thumb:
-                                sub.thumbnail = self.get_artwork_url(thumb)
-                            item.items.append(sub)
-                        paging.count = data.get("limits", {}).get("total", len(item.items))
+                            file_id = file.get("file", "") or ""
+                            # ucapi caps media_id at 255 chars; some Kodi addons
+                            # (e.g. Twitch followed channels) emit longer URLs.
+                            # Skip those entries instead of aborting the whole
+                            # listing so the user still sees the rest.
+                            if len(file_id) > 255:
+                                _LOG.warning(
+                                    "[%s] Skipping addon entry with media_id > 255 chars: %s",
+                                    self._device.device_config.address,
+                                    file_id[:120] + "...",
+                                )
+                                skipped += 1
+                                continue
+                            try:
+                                sub = self.get_item_from_file(file, "addondir", extract_thumbnail=False)
+                                # Re-attach thumbnail from JSON-RPC response if present
+                                thumb = file.get("thumbnail") or (file.get("art") or {}).get("thumb")
+                                if thumb:
+                                    sub.thumbnail = self.get_artwork_url(thumb)
+                                item.items.append(sub)
+                            # pylint: disable=W0718
+                            except Exception as item_ex:
+                                _LOG.warning(
+                                    "[%s] Skipping malformed addon entry %s: %s",
+                                    self._device.device_config.address,
+                                    file_id[:120],
+                                    item_ex,
+                                )
+                                skipped += 1
+                        total = data.get("limits", {}).get("total", len(item.items) + skipped)
+                        paging.count = max(total - skipped, len(item.items))
                         # If this directory is a saved favorite that was previously
                         # broken, clear the flag now that it works again.
                         cfg = self._device.device_config
@@ -1142,11 +1167,32 @@ class MediaBrowser:
                     )
                     data = await self._device.server.Files.GetDirectory(**arguments)
                     if data:
+                        skipped = 0
                         for file in data["files"]:
+                            file_id = file.get("file", "") or ""
+                            if len(file_id) > 255:
+                                _LOG.warning(
+                                    "[%s] Skipping source entry with media_id > 255 chars: %s",
+                                    self._device.device_config.address,
+                                    file_id[:120] + "...",
+                                )
+                                skipped += 1
+                                continue
                             # Thumbnail extraction only works with pictures
                             extract_thumbnail = media == KodiMediaTypes.PICTURES.value
-                            item.items.append(self.get_item_from_file(file, media_type, extract_thumbnail))
-                        paging.count = data.get("limits", {}).get("total", 0)
+                            try:
+                                item.items.append(self.get_item_from_file(file, media_type, extract_thumbnail))
+                            # pylint: disable=W0718
+                            except Exception as item_ex:
+                                _LOG.warning(
+                                    "[%s] Skipping malformed source entry %s: %s",
+                                    self._device.device_config.address,
+                                    file_id[:120],
+                                    item_ex,
+                                )
+                                skipped += 1
+                        total = data.get("limits", {}).get("total", 0)
+                        paging.count = max(total - skipped, len(item.items))
                         if self._back_support:
                             paging.count = paging.count + back_buttons
                     return item, paging
