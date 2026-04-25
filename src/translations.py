@@ -25,4 +25,12 @@ TRANSLATIONS = {
     "Note": {"fr": "Note", "de": "Notiz"},
     "Watched": {"fr": "Vu", "de": "Gesehen"},
     "Music videos": {"fr": "Vidéos musicales"},
+    "Live TV": {"fr": "TV en direct", "de": "Live-TV"},
+    "TV channels": {"fr": "Chaînes TV", "de": "TV-Sender"},
+    "Radio channels": {"fr": "Chaînes radio", "de": "Radiosender"},
+    "Addons": {"fr": "Extensions", "de": "Addons"},
+    "Video addons": {"fr": "Extensions vidéo", "de": "Video-Addons"},
+    "Music addons": {"fr": "Extensions musique", "de": "Musik-Addons"},
+    "Now": {"fr": "Maintenant", "de": "Jetzt"},
+    "Next": {"fr": "Ensuite", "de": "Danach"},
 }

@@ -136,6 +136,10 @@ class KodiObjectType(int, Enum):
     ARTIST = 8
     SONG = 9
     PLAYLIST = 10
+    CHANNEL_GROUP = 11
+    CHANNEL = 12
+    ADDON = 13
+    BROADCAST = 14
 
 
 KODI_POWEROFF_COMMANDS: dict[str, dict[str, str]] = {

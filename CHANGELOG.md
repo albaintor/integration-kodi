@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Rename the predefined simple commands to match [expected UC name patterns](https://github.com/unfoldedcircle/core-api/blob/main/doc/entities/entity_media_player.md#command-name-patterns)
 - Brings support for the different keymaps (e.g by bringing a separator in the command name to set the keymap name)
+- Add PVR browsing: TV and Radio channel groups, channels with logos, Now/Next EPG as subtitle, switch channel via media player
+- Add Addons browsing: list installed Video and Music addons, launch them via `Addons.ExecuteAddon`
+- Expose new browse roots `kodi://pvr`, `kodi://pvr/tv`, `kodi://pvr/radio`, `kodi://addons`, `kodi://addons/video`, `kodi://addons/audio` in the default browsing category dropdown
 
 ---
 

@@ -336,9 +336,33 @@ Additional data is returned depending on the media : for movies and TV Shows the
 |                      | Music                             | _Directories & files_ | ...     | ...      | ...      |
 |                      | Pictures                          | _Directories & files_ | ...     | ...      | ...      |
 |                      | Files                             | _Directories & files_ | ...     | ...      | ...      |
+| **Live TV** (PVR)    | TV channels                       | Channel group         | Channel |          |          |
+|                      | Radio channels                    | Channel group         | Channel |          |          |
+| **Addons**           | Video addons                      | _Launch addon_        |         |          |          |
+|                      | Music addons                      | _Launch addon_        |         |          |          |
 
 
 You can define a default category when opening media browser in the setup flow.
+
+### PVR (Live TV / Radio)
+
+If a PVR backend is configured in Kodi (tvheadend, IPTV Simple, etc.), the integration exposes a "Live TV" root in the media browser:
+
+- Browse by channel group (TV or Radio)
+- Channels are listed with their logo
+- Now/Next EPG entry is shown as the channel subtitle (e.g. `Now: News | Next: Documentary`)
+- Selecting a channel switches Kodi to it (`Player.Open` with `channelid`)
+
+If PVR is not enabled in Kodi, opening the "Live TV" entry will simply return an empty list.
+
+### Addons
+
+A "Addons" root lists installed Kodi addons, similar to Kore/Yatse:
+
+- Video addons → all installed plugins providing video content
+- Music addons → all installed plugins providing audio content
+
+Selecting an addon launches it in Kodi (`Addons.ExecuteAddon`).
 
 ### Media Browsing categories
 
@@ -367,6 +391,14 @@ For internal use.
 | Music sources                    | kodi://sources/music    | kodi://sources/music    |
 | Pictures sources                 | kodi://sources/pictures | kodi://sources/pictures |
 | Files sources                    | kodi://sources/files    | kodi://sources/files    |
+| PVR / Live TV main               | kodi://pvr              | url                     |
+| PVR TV channels                  | kodi://pvr/tv           | url                     |
+| PVR Radio channels               | kodi://pvr/radio        | url                     |
+| PVR channel group (TV)           | kodi://pvr/tv/&lt;id&gt;     | channelgroup            |
+| PVR channel group (Radio)        | kodi://pvr/radio/&lt;id&gt;  | channelgroup            |
+| Addons main                      | kodi://addons           | url                     |
+| Video addons                     | kodi://addons/video     | url                     |
+| Music addons                     | kodi://addons/audio     | url                     |
 
 
 ## Media Search
