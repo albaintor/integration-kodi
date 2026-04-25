@@ -535,9 +535,9 @@ class MediaBrowser:
             subtitles.append(f"{self.get_localized('Now')}: {title_now}")
         if title_next := broadcast_next.get("title"):
             subtitles.append(f"{self.get_localized('Next')}: {title_next}")
-        subtitle = " | ".join(subtitles) if subtitles else None
-        if subtitle and len(subtitle) > 255:
-            subtitle = subtitle[:252].rstrip() + "..."
+        subtitle: str | None = " | ".join(subtitles) if subtitles else None
+        if subtitle is not None and len(subtitle) > 255:
+            subtitle = subtitle[:252].rstrip() + "..."  # pylint: disable=E1136
         return BrowseMediaItem(
             title=channel.get("label", ""),
             subtitle=subtitle,
@@ -1361,7 +1361,7 @@ class MediaBrowser:
 
     async def play_media(self, params: dict[str, Any]) -> StatusCodes:
         """Play given media id."""
-        # pylint: disable=W1405,R0914,R0915
+        # pylint: disable=W1405,R0914,R0915,R0911
         media_id: str | None = params.get("media_id")
         media_type: str | None = params.get("media_type")
         action = params.get("action", "PLAY_NOW")
