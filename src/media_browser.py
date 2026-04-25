@@ -319,9 +319,7 @@ class MediaBrowser:
         """Add or remove a favorite based on a toggle media_id."""
         params = favorites.decode_toggle(media_id)
         if not params:
-            return self._build_confirmation(
-                self.get_localized("Invalid favorite"), favorites.FAVORITES_ROOT, paging
-            )
+            return self._build_confirmation(self.get_localized("Invalid favorite"), favorites.FAVORITES_ROOT, paging)
         cfg = self._device.device_config
         if cfg.favorites is None:
             cfg.favorites = []
@@ -339,9 +337,7 @@ class MediaBrowser:
         self._persist_favorites()
         return self._build_confirmation(self.get_localized("Pinned"), parent, paging)
 
-    def _handle_favorites_cleanup(
-        self, paging: PaginationOptions
-    ) -> tuple[BrowseMediaItem, PaginationOptions]:
+    def _handle_favorites_cleanup(self, paging: PaginationOptions) -> tuple[BrowseMediaItem, PaginationOptions]:
         """Remove all broken favorites."""
         cfg = self._device.device_config
         removed = favorites.remove_broken(cfg.favorites or [])
@@ -355,9 +351,7 @@ class MediaBrowser:
 
     def _make_pin_item(self, media_id: str, media_type: str, title: str) -> BrowseMediaItem:
         """Build the pin/unpin entry shown at the top of pinnable directories."""
-        pinned = favorites.is_favorite(
-            self._device.device_config.favorites, media_id, media_type
-        )
+        pinned = favorites.is_favorite(self._device.device_config.favorites, media_id, media_type)
         label_key = "📍 Unpin this folder" if pinned else "📍 Pin this folder"
         return BrowseMediaItem(
             title=self.get_localized(label_key),
@@ -369,9 +363,7 @@ class MediaBrowser:
             items=[],
         )
 
-    def _maybe_inject_pin_item(
-        self, item: BrowseMediaItem, media_id: str | None, media_type: str | None
-    ) -> None:
+    def _maybe_inject_pin_item(self, item: BrowseMediaItem, media_id: str | None, media_type: str | None) -> None:
         """Insert the pin/unpin item at the top of ``item.items`` if applicable."""
         if not media_id or not item or not item.items:
             return
@@ -379,9 +371,11 @@ class MediaBrowser:
             return
         title = item.title or media_id
         # Skip if already injected (defensive against double calls)
-        if item.items and isinstance(item.items[0], BrowseMediaItem) and (
-            item.items[0].media_id or ""
-        ).startswith(favorites.FAVORITES_TOGGLE_PREFIX):
+        if (
+            item.items
+            and isinstance(item.items[0], BrowseMediaItem)
+            and (item.items[0].media_id or "").startswith(favorites.FAVORITES_TOGGLE_PREFIX)
+        ):
             return
         # Insert just AFTER an existing back item if present, otherwise at top
         insert_at = 1 if item.items and item.items[0].title in ("..", self.get_localized("..")) else 0
@@ -1078,9 +1072,7 @@ class MediaBrowser:
                         if favorites.is_favorite(cfg.favorites, media_id, media_type or "addondir"):
                             if favorites.mark_broken(cfg.favorites, media_id, media_type or "addondir", True):
                                 self._persist_favorites()
-                            item.items.append(
-                                self._make_pin_item(media_id, media_type or "addondir", media_id)
-                            )
+                            item.items.append(self._make_pin_item(media_id, media_type or "addondir", media_id))
                     if data:
                         for file in data.get("files", []) or []:
                             sub = self.get_item_from_file(file, "addondir", extract_thumbnail=False)

@@ -164,7 +164,7 @@ def decode_toggle(media_id: str) -> dict | None:
     """Parse a toggle media_id into its components, or return None."""
     if not media_id or not media_id.startswith(FAVORITES_TOGGLE_PREFIX):
         return None
-    raw = media_id[len(FAVORITES_TOGGLE_PREFIX) :]
+    raw = media_id.removeprefix(FAVORITES_TOGGLE_PREFIX)
     parts = parse_qs(raw, keep_blank_values=True)
 
     def _first(key: str) -> str:
