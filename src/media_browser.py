@@ -96,7 +96,7 @@ def get_element(element: Any | None) -> str | None:
 # Kodi BBCode-style formatting tags used by skins/addons in labels.
 # Examples: [B]bold[/B], [I]italic[/I], [COLOR red]x[/COLOR], [CR], [LIGHT], [UPPERCASE]...
 _KODI_BBCODE_RE = re.compile(
-    r"\[/?(?:B|I|U|S|CR|LIGHT|UPPERCASE|LOWERCASE|CAPITALIZE|" r"COLOR(?:\s+[^\]]*)?|FONT(?:\s+[^\]]*)?)\]",
+    r"\[/?(?:B|I|U|S|CR|LIGHT|UPPERCASE|LOWERCASE|CAPITALIZE|COLOR(?:\s+[^\]]*)?|FONT(?:\s+[^\]]*)?)\]",
     re.IGNORECASE,
 )
 
