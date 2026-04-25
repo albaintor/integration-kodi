@@ -432,11 +432,42 @@ class Kodi:
             **_build_query(tvshowid=tv_show_id, properties=properties)
         )
 
-    async def get_channels(self, channel_group_id, properties=None):
+    async def get_channels(self, channel_group_id, properties=None, limits=None):
         """Get channels list."""
         return await self._server.PVR.GetChannels(
-            **_build_query(channelgroupid=channel_group_id, properties=properties)
+            **_build_query(channelgroupid=channel_group_id, properties=properties, limits=limits)
         )
+
+    async def get_channel_groups(self, channeltype="tv", properties=None, limits=None):
+        """Get PVR channel groups list (channeltype: 'tv' or 'radio')."""
+        return await self._server.PVR.GetChannelGroups(
+            **_build_query(channeltype=channeltype, properties=properties, limits=limits)
+        )
+
+    async def get_broadcasts(self, channel_id, properties=None, limits=None):
+        """Get EPG broadcasts list for a given channel id."""
+        return await self._server.PVR.GetBroadcasts(
+            **_build_query(channelid=channel_id, properties=properties, limits=limits)
+        )
+
+    async def get_addons(self, addon_type=None, content=None, enabled=True, properties=None, limits=None):
+        """Get installed addons."""
+        return await self._server.Addons.GetAddons(
+            **_build_query(
+                type=addon_type,
+                content=content,
+                enabled=enabled,
+                properties=properties,
+                limits=limits,
+            )
+        )
+
+    async def execute_addon(self, addon_id, params=None, wait=False):
+        """Execute (launch) the given Kodi addon."""
+        kwargs = {"addonid": addon_id, "wait": wait}
+        if params:
+            kwargs["params"] = params
+        return await self._server.Addons.ExecuteAddon(**kwargs)
 
     async def get_players(self):
         """Return the active player objects."""

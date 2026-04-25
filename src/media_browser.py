@@ -8,6 +8,7 @@ Browsing definitions used for Kodi integration.
 import dataclasses
 import logging
 import os
+import re
 import time
 from dataclasses import dataclass, field, fields
 from typing import Any
@@ -90,6 +91,24 @@ def get_element(element: Any | None) -> str | None:
     return element
 
 
+# Kodi BBCode-style formatting tags used by skins/addons in labels.
+# Examples: [B]bold[/B], [I]italic[/I], [COLOR red]x[/COLOR], [CR], [LIGHT], [UPPERCASE]...
+_KODI_BBCODE_RE = re.compile(
+    r"\[/?(?:B|I|U|S|CR|LIGHT|UPPERCASE|LOWERCASE|CAPITALIZE|COLOR(?:\s+[^\]]*)?|FONT(?:\s+[^\]]*)?)\]",
+    re.IGNORECASE,
+)
+
+
+def strip_kodi_formatting(value: str | None) -> str:
+    """Remove Kodi BBCode-style formatting tags from a label."""
+    if not value:
+        return value or ""
+    cleaned = _KODI_BBCODE_RE.sub("", value)
+    # Collapse whitespace introduced by removed tags
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    return cleaned
+
+
 EPISODE_PROPERTIES = [
     "art",
     "file",
@@ -115,6 +134,63 @@ class MediaBrowser:
             self._library_items = KODI_BROWSING_BACK + KODI_BROWSING
         else:
             self._library_items = KODI_BROWSING
+        # Cached availability of optional Kodi features (None = not yet probed)
+        self._pvr_available: bool | None = None
+        self._addons_video_available: bool | None = None
+        self._addons_audio_available: bool | None = None
+
+    async def _is_pvr_available(self) -> bool:
+        """Return True if Kodi has at least one PVR channel group (TV or Radio)."""
+        if self._pvr_available is not None:
+            return self._pvr_available
+        try:
+            for ctype in ("tv", "radio"):
+                groups = await self._device.server.PVR.GetChannelGroups(channeltype=ctype)
+                if (groups or {}).get("channelgroups"):
+                    self._pvr_available = True
+                    return True
+            self._pvr_available = False
+        # pylint: disable=W0718
+        except Exception:
+            self._pvr_available = False
+        return self._pvr_available
+
+    async def _is_addons_available(self, content: str) -> bool:
+        """Return True if Kodi has at least one addon for the given content type."""
+        cache_attr = "_addons_video_available" if content == "video" else "_addons_audio_available"
+        cached = getattr(self, cache_attr)
+        if cached is not None:
+            return cached
+        try:
+            result = await self._device.server.Addons.GetAddons(
+                content=content, enabled=True, limits={"start": 0, "end": 1}
+            )
+            available = bool((result or {}).get("addons"))
+        # pylint: disable=W0718
+        except Exception:
+            available = False
+        setattr(self, cache_attr, available)
+        return available
+
+    async def _filter_optional_roots(self, items: list[BrowseMediaItem]) -> list[BrowseMediaItem]:
+        """Hide PVR/Addons roots and sub-roots if Kodi has nothing to show."""
+        result: list[BrowseMediaItem] = []
+        for it in items:
+            mid = it.media_id
+            if mid == "kodi://pvr":
+                if not await self._is_pvr_available():
+                    continue
+            elif mid == "kodi://addons":
+                if not (await self._is_addons_available("video") or await self._is_addons_available("audio")):
+                    continue
+            elif mid == "kodi://addons/video":
+                if not await self._is_addons_available("video"):
+                    continue
+            elif mid == "kodi://addons/audio":
+                if not await self._is_addons_available("audio"):
+                    continue
+            result.append(it)
+        return result
 
     def get_localized(self, value: str) -> str:
         """Return localized value."""
@@ -164,9 +240,10 @@ class MediaBrowser:
 
     def get_item_from_file(self, file: dict[str, Any], media_type: str, extract_thumbnail=True) -> BrowseMediaItem:
         """Build item from file."""
+        label = strip_kodi_formatting(file.get("label", ""))
         if file.get("filetype", "directory") == "directory":
             return BrowseMediaItem(
-                title=file.get("label", ""),
+                title=label,
                 media_id=file.get("file", ""),
                 media_class=MediaClass.DIRECTORY,
                 media_type=media_type,
@@ -182,7 +259,7 @@ class MediaBrowser:
         else:
             thumbnail: str | None = None
         return BrowseMediaItem(
-            title=file.get("label", ""),
+            title=label,
             media_id=file.get("file", ""),
             media_class=MediaClass.VIDEO,
             media_type=media_type,
@@ -432,6 +509,68 @@ class MediaBrowser:
             thumbnail=art,
         )
 
+    def get_item_from_channel_group(self, group: dict[str, Any], parent_id: str) -> BrowseMediaItem:
+        """Build item from a PVR channel group."""
+        media_id = f"{parent_id}/{int(group.get('channelgroupid', 0))}"
+        return BrowseMediaItem(
+            title=group.get("label", ""),
+            media_id=media_id,
+            media_class=MediaClass.DIRECTORY,
+            media_type="channelgroup",
+            can_browse=True,
+            can_search=False,
+            items=[],
+        )
+
+    def get_item_from_channel(self, channel: dict[str, Any]) -> BrowseMediaItem:
+        """Build item from a PVR channel (live TV / radio)."""
+        thumbnail = channel.get("thumbnail") or channel.get("icon")
+        if thumbnail:
+            thumbnail = self.get_artwork_url(thumbnail)
+        subtitles: list[str] = []
+        broadcast_now = channel.get("broadcastnow") or {}
+        broadcast_next = channel.get("broadcastnext") or {}
+        if title_now := broadcast_now.get("title"):
+            subtitles.append(f"{self.get_localized('Now')}: {title_now}")
+        if title_next := broadcast_next.get("title"):
+            subtitles.append(f"{self.get_localized('Next')}: {title_next}")
+        subtitle: str | None = " | ".join(subtitles) if subtitles else None
+        if subtitle is not None and len(subtitle) > 255:
+            subtitle = subtitle[:252].rstrip() + "..."  # pylint: disable=E1136
+        return BrowseMediaItem(
+            title=channel.get("label", ""),
+            subtitle=subtitle,
+            media_id=str(channel.get("channelid", 0)),
+            media_class=MediaClass.CHANNEL if hasattr(MediaClass, "CHANNEL") else MediaClass.VIDEO,
+            media_type="channel",
+            can_play=True,
+            can_browse=False,
+            thumbnail=thumbnail,
+        )
+
+    def get_item_from_addon(self, addon: dict[str, Any]) -> BrowseMediaItem:
+        """Build item from a Kodi addon."""
+        thumbnail = addon.get("thumbnail")
+        if thumbnail:
+            thumbnail = self.get_artwork_url(thumbnail)
+        subtitle = strip_kodi_formatting(addon.get("description")) or None
+        if subtitle:
+            # ucapi BrowseMediaItem.subtitle is limited to 255 chars
+            if len(subtitle) > 255:
+                subtitle = subtitle[:252].rstrip() + "..."
+        addon_id = str(addon.get("addonid", ""))
+        return BrowseMediaItem(
+            title=strip_kodi_formatting(addon.get("name")) or addon_id,
+            subtitle=subtitle,
+            # Addons are browsed via Kodi's virtual file system: plugin://<addonid>/
+            media_id=f"plugin://{addon_id}/" if addon_id else "",
+            media_class=MediaClass.APP if hasattr(MediaClass, "APP") else MediaClass.DIRECTORY,
+            media_type="addondir",
+            can_play=False,
+            can_browse=True,
+            thumbnail=thumbnail,
+        )
+
     @staticmethod
     def get_sorting(sorting: str) -> dict[str, str]:
         """Build sorting method."""
@@ -507,6 +646,7 @@ class MediaBrowser:
             if media_id is None or media_id == "" or media_id == "kodi://":
                 item = self.get_root_item()
                 items = [x.get_media_item() for x in self._library_items if x.parent_id is None]
+                items = await self._filter_optional_roots(items)
 
                 # Add currently playing playlist if any
                 await self.add_now_playing_item(items, 0)
@@ -529,15 +669,16 @@ class MediaBrowser:
             if len(entries) > 0:
                 for item in entries:
                     item.title = self.get_localized(item.title)
+                sub_items = await self._filter_optional_roots([x.get_media_item() for x in entries])
                 if entry is not None:
                     item = entry.get_media_item()
                     item.title = self.get_localized(item.title)
-                    item.items = [x.get_media_item() for x in entries]
-                    paging.count = len(entries)
+                    item.items = sub_items
+                    paging.count = len(sub_items)
                 else:
                     item = self.get_root_item()
-                    item.items = [x.get_media_item() for x in entries]
-                    paging.count = len(entries)
+                    item.items = sub_items
+                    paging.count = len(sub_items)
                 # Add back item if set or based on custom category
                 if self.add_back_entry(item.media_id, paging):
                     parent_category = item.media_id[: item.media_id.rfind("/")]
@@ -661,6 +802,21 @@ class MediaBrowser:
                         media["label"] = os.path.splitext(media.get("label"))[0]
                         media["filetype"] = "file"
                         item.items.append(self.get_item_from_file(media, media_id, extract_thumbnail=False))
+                elif entry.output == KodiObjectType.CHANNEL_GROUP:
+                    if self.add_back_entry(item.media_id, paging):
+                        item.items.append(self.get_back_item("kodi://pvr"))
+                    for group in data.get("channelgroups", []):
+                        item.items.append(self.get_item_from_channel_group(group, media_id))
+                elif entry.output == KodiObjectType.CHANNEL:
+                    if self.add_back_entry(item.media_id, paging):
+                        item.items.append(self.get_back_item(entry.parent_id or "kodi://pvr"))
+                    for channel in data.get("channels", []):
+                        item.items.append(self.get_item_from_channel(channel))
+                elif entry.output == KodiObjectType.ADDON:
+                    if self.add_back_entry(item.media_id, paging):
+                        item.items.append(self.get_back_item("kodi://addons"))
+                    for addon in data.get("addons", []):
+                        item.items.append(self.get_item_from_addon(addon))
                 else:
                     _LOG.warning(
                         "[%s] Browsing unsupported output type %s for given media id %s and entry %s",
@@ -673,6 +829,48 @@ class MediaBrowser:
                 return item, paging
             # Else this is a subentry returned by a query command with browsing feature
             if entry is None and media_type:
+                # Browsing inside a Kodi addon (plugin://...) - works like a Source
+                if media_type == "addondir" or media_id.startswith("plugin://"):
+                    item = self.get_root_item()
+                    item.title = media_id
+                    limit = paging.limit
+                    end = paging.page * limit
+                    arguments = {
+                        "directory": media_id,
+                        "media": "files",
+                        "properties": ["title", "thumbnail", "art", "mimetype"],
+                        "limits": {
+                            "start": (paging.page - 1) * limit,
+                            "end": end,
+                        },
+                    }
+                    _LOG.debug(
+                        "[%s] Browsing addon directory %s : %s",
+                        self._device.device_config.address,
+                        media_id,
+                        arguments,
+                    )
+                    try:
+                        data = await self._device.server.Files.GetDirectory(**arguments)
+                    # pylint: disable=W0718
+                    except Exception as ex:
+                        _LOG.warning(
+                            "[%s] Addon directory %s could not be listed: %s",
+                            self._device.device_config.address,
+                            media_id,
+                            ex,
+                        )
+                        data = None
+                    if data:
+                        for file in data.get("files", []) or []:
+                            sub = self.get_item_from_file(file, "addondir", extract_thumbnail=False)
+                            # Re-attach thumbnail from JSON-RPC response if present
+                            thumb = file.get("thumbnail") or (file.get("art") or {}).get("thumb")
+                            if thumb:
+                                sub.thumbnail = self.get_artwork_url(thumb)
+                            item.items.append(sub)
+                        paging.count = data.get("limits", {}).get("total", len(item.items))
+                    return item, paging
                 if media_type.startswith("kodi://sources"):
                     back_buttons = 0
                     item = self.get_root_item()
@@ -1027,6 +1225,44 @@ class MediaBrowser:
                         paging.count = paging.count + 1
                     for album in medias.get("albums", []):
                         item.items.append(self.get_item_from_album(album, media_id))
+                elif media_type == "channelgroup":
+                    # Dynamic channel listing for a PVR group: media_id = kodi://pvr/<tv|radio>/<groupid>
+                    item = self.get_root_item(MediaClass.DIRECTORY, "channelgroup")
+                    limit = paging.limit
+                    end = paging.page * limit
+                    parent_back = parent_id or "kodi://pvr"
+                    if self._back_support and paging.page == 1:
+                        item.items.append(self.get_back_item(parent_back, parent_back))
+                        end -= 1
+                    arguments = {
+                        "channelgroupid": int(real_media_id),
+                        "properties": [
+                            "thumbnail",
+                            "channeltype",
+                            "broadcastnow",
+                            "broadcastnext",
+                            "channel",
+                            "lastplayed",
+                            "hidden",
+                            "locked",
+                        ],
+                        "limits": {
+                            "start": (paging.page - 1) * limit,
+                            "end": end,
+                        },
+                    }
+                    _LOG.debug(
+                        "[%s] Browsing PVR channels (%s) : %s",
+                        self._device.device_config.address,
+                        media_id,
+                        arguments,
+                    )
+                    channels = await self._device.server.PVR.GetChannels(**arguments)
+                    paging.count = channels.get("limits", {}).get("total", 0)
+                    if self._back_support:
+                        paging.count = paging.count + 1
+                    for channel in channels.get("channels", []):
+                        item.items.append(self.get_item_from_channel(channel))
                 elif media_type == MediaContentType.PLAYLIST.value:
                     item = self.get_root_item(MediaClass.PLAYLIST, MediaContentType.PLAYLIST)
                     limit = paging.limit
@@ -1124,7 +1360,7 @@ class MediaBrowser:
 
     async def play_media(self, params: dict[str, Any]) -> StatusCodes:
         """Play given media id."""
-        # pylint: disable=W1405,R0914,R0915
+        # pylint: disable=W1405,R0914,R0915,R0911
         media_id: str | None = params.get("media_id")
         media_type: str | None = params.get("media_type")
         action = params.get("action", "PLAY_NOW")
@@ -1133,6 +1369,24 @@ class MediaBrowser:
         item: dict[str, Any] = {}
         if media_id is None or media_type is None:
             return StatusCodes.BAD_REQUEST
+        if media_type == "channel":
+            if media_id.startswith("kodi://"):
+                media_id = media_id.rstrip("/").rsplit("/", 1)[-1]
+            _LOG.debug("[%s] Playing PVR channel id %s", self._device.device_config.address, media_id)
+            await self._device.server.Player.Open(**{"item": {"channelid": int(media_id)}})
+            return StatusCodes.OK
+        if media_type == "addon":
+            addon_id = media_id
+            if addon_id.startswith("kodi://"):
+                addon_id = addon_id.rstrip("/").rsplit("/", 1)[-1]
+            _LOG.debug("[%s] Executing Kodi addon %s", self._device.device_config.address, addon_id)
+            await self._device.server.Addons.ExecuteAddon(**{"addonid": addon_id, "wait": False})
+            return StatusCodes.OK
+        # Playable item from inside an addon (plugin://...)
+        if media_id.startswith("plugin://"):
+            _LOG.debug("[%s] Playing addon item %s", self._device.device_config.address, media_id)
+            await self._device.server.Player.Open(**{"item": {"file": media_id}})
+            return StatusCodes.OK
         if media_type == MediaContentType.MOVIE.value:
             if media_id.startswith("kodi://"):
                 media_id = media_id.rstrip("/").rsplit("/", 1)[-1]
@@ -1934,5 +2188,77 @@ KODI_BROWSING: list[KodiMediaEntry] = [
         arguments={"media": "files"},
         child_media_type=MediaContentType.URL,
         output=KodiObjectType.FILE,
+    ),
+    # ---- PVR (Live TV / Radio) ----
+    KodiMediaEntry(
+        parent_id=None,
+        title="Live TV",
+        media_type=MediaContentType.URL,
+        media_class=MediaClass.DIRECTORY,
+        media_id="kodi://pvr",
+        child_media_type=MediaContentType.URL,
+        output=KodiObjectType.EMPTY,
+    ),
+    KodiMediaEntry(
+        parent_id="kodi://pvr",
+        title="TV channels",
+        media_type=MediaContentType.URL,
+        media_class=MediaClass.DIRECTORY,
+        media_id="kodi://pvr/tv",
+        command="PVR.GetChannelGroups",
+        arguments={"channeltype": "tv"},
+        child_media_type=MediaContentType.URL,
+        output=KodiObjectType.CHANNEL_GROUP,
+    ),
+    KodiMediaEntry(
+        parent_id="kodi://pvr",
+        title="Radio channels",
+        media_type=MediaContentType.URL,
+        media_class=MediaClass.DIRECTORY,
+        media_id="kodi://pvr/radio",
+        command="PVR.GetChannelGroups",
+        arguments={"channeltype": "radio"},
+        child_media_type=MediaContentType.URL,
+        output=KodiObjectType.CHANNEL_GROUP,
+    ),
+    # ---- Addons ----
+    KodiMediaEntry(
+        parent_id=None,
+        title="Addons",
+        media_type=MediaContentType.URL,
+        media_class=MediaClass.DIRECTORY,
+        media_id="kodi://addons",
+        child_media_type=MediaContentType.URL,
+        output=KodiObjectType.EMPTY,
+    ),
+    KodiMediaEntry(
+        parent_id="kodi://addons",
+        title="Video addons",
+        media_type=MediaContentType.URL,
+        media_class=MediaClass.DIRECTORY,
+        media_id="kodi://addons/video",
+        command="Addons.GetAddons",
+        arguments={
+            "content": "video",
+            "enabled": True,
+            "properties": ["name", "thumbnail", "description"],
+        },
+        child_media_type=MediaContentType.URL,
+        output=KodiObjectType.ADDON,
+    ),
+    KodiMediaEntry(
+        parent_id="kodi://addons",
+        title="Music addons",
+        media_type=MediaContentType.URL,
+        media_class=MediaClass.DIRECTORY,
+        media_id="kodi://addons/audio",
+        command="Addons.GetAddons",
+        arguments={
+            "content": "audio",
+            "enabled": True,
+            "properties": ["name", "thumbnail", "description"],
+        },
+        child_media_type=MediaContentType.URL,
+        output=KodiObjectType.ADDON,
     ),
 ]
