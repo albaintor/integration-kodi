@@ -8,6 +8,7 @@ Browsing definitions used for Kodi integration.
 import dataclasses
 import logging
 import os
+import re
 import time
 from dataclasses import dataclass, field, fields
 from typing import Any
@@ -90,6 +91,25 @@ def get_element(element: Any | None) -> str | None:
     return element
 
 
+# Kodi BBCode-style formatting tags used by skins/addons in labels.
+# Examples: [B]bold[/B], [I]italic[/I], [COLOR red]x[/COLOR], [CR], [LIGHT], [UPPERCASE]...
+_KODI_BBCODE_RE = re.compile(
+    r"\[/?(?:B|I|U|S|CR|LIGHT|UPPERCASE|LOWERCASE|CAPITALIZE|"
+    r"COLOR(?:\s+[^\]]*)?|FONT(?:\s+[^\]]*)?)\]",
+    re.IGNORECASE,
+)
+
+
+def strip_kodi_formatting(value: str | None) -> str:
+    """Remove Kodi BBCode-style formatting tags from a label."""
+    if not value:
+        return value or ""
+    cleaned = _KODI_BBCODE_RE.sub("", value)
+    # Collapse whitespace introduced by removed tags
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    return cleaned
+
+
 EPISODE_PROPERTIES = [
     "art",
     "file",
@@ -115,6 +135,63 @@ class MediaBrowser:
             self._library_items = KODI_BROWSING_BACK + KODI_BROWSING
         else:
             self._library_items = KODI_BROWSING
+        # Cached availability of optional Kodi features (None = not yet probed)
+        self._pvr_available: bool | None = None
+        self._addons_video_available: bool | None = None
+        self._addons_audio_available: bool | None = None
+
+    async def _is_pvr_available(self) -> bool:
+        """Return True if Kodi has at least one PVR channel group (TV or Radio)."""
+        if self._pvr_available is not None:
+            return self._pvr_available
+        try:
+            for ctype in ("tv", "radio"):
+                groups = await self._device.server.PVR.GetChannelGroups(channeltype=ctype)
+                if (groups or {}).get("channelgroups"):
+                    self._pvr_available = True
+                    return True
+            self._pvr_available = False
+        # pylint: disable=W0718
+        except Exception:
+            self._pvr_available = False
+        return self._pvr_available
+
+    async def _is_addons_available(self, content: str) -> bool:
+        """Return True if Kodi has at least one addon for the given content type."""
+        cache_attr = "_addons_video_available" if content == "video" else "_addons_audio_available"
+        cached = getattr(self, cache_attr)
+        if cached is not None:
+            return cached
+        try:
+            result = await self._device.server.Addons.GetAddons(
+                content=content, enabled=True, limits={"start": 0, "end": 1}
+            )
+            available = bool((result or {}).get("addons"))
+        # pylint: disable=W0718
+        except Exception:
+            available = False
+        setattr(self, cache_attr, available)
+        return available
+
+    async def _filter_optional_roots(self, items: list[BrowseMediaItem]) -> list[BrowseMediaItem]:
+        """Hide PVR/Addons roots and sub-roots if Kodi has nothing to show."""
+        result: list[BrowseMediaItem] = []
+        for it in items:
+            mid = it.media_id
+            if mid == "kodi://pvr":
+                if not await self._is_pvr_available():
+                    continue
+            elif mid == "kodi://addons":
+                if not (await self._is_addons_available("video") or await self._is_addons_available("audio")):
+                    continue
+            elif mid == "kodi://addons/video":
+                if not await self._is_addons_available("video"):
+                    continue
+            elif mid == "kodi://addons/audio":
+                if not await self._is_addons_available("audio"):
+                    continue
+            result.append(it)
+        return result
 
     def get_localized(self, value: str) -> str:
         """Return localized value."""
@@ -164,9 +241,10 @@ class MediaBrowser:
 
     def get_item_from_file(self, file: dict[str, Any], media_type: str, extract_thumbnail=True) -> BrowseMediaItem:
         """Build item from file."""
+        label = strip_kodi_formatting(file.get("label", ""))
         if file.get("filetype", "directory") == "directory":
             return BrowseMediaItem(
-                title=file.get("label", ""),
+                title=label,
                 media_id=file.get("file", ""),
                 media_class=MediaClass.DIRECTORY,
                 media_type=media_type,
@@ -182,7 +260,7 @@ class MediaBrowser:
         else:
             thumbnail: str | None = None
         return BrowseMediaItem(
-            title=file.get("label", ""),
+            title=label,
             media_id=file.get("file", ""),
             media_class=MediaClass.VIDEO,
             media_type=media_type,
@@ -458,6 +536,8 @@ class MediaBrowser:
         if title_next := broadcast_next.get("title"):
             subtitles.append(f"{self.get_localized('Next')}: {title_next}")
         subtitle = " | ".join(subtitles) if subtitles else None
+        if subtitle and len(subtitle) > 255:
+            subtitle = subtitle[:252].rstrip() + "..."
         return BrowseMediaItem(
             title=channel.get("label", ""),
             subtitle=subtitle,
@@ -474,14 +554,21 @@ class MediaBrowser:
         thumbnail = addon.get("thumbnail")
         if thumbnail:
             thumbnail = self.get_artwork_url(thumbnail)
+        subtitle = strip_kodi_formatting(addon.get("description")) or None
+        if subtitle:
+            # ucapi BrowseMediaItem.subtitle is limited to 255 chars
+            if len(subtitle) > 255:
+                subtitle = subtitle[:252].rstrip() + "..."
+        addon_id = str(addon.get("addonid", ""))
         return BrowseMediaItem(
-            title=addon.get("name") or addon.get("addonid", ""),
-            subtitle=addon.get("description") or None,
-            media_id=str(addon.get("addonid", "")),
+            title=strip_kodi_formatting(addon.get("name")) or addon_id,
+            subtitle=subtitle,
+            # Addons are browsed via Kodi's virtual file system: plugin://<addonid>/
+            media_id=f"plugin://{addon_id}/" if addon_id else "",
             media_class=MediaClass.APP if hasattr(MediaClass, "APP") else MediaClass.DIRECTORY,
-            media_type="addon",
-            can_play=True,
-            can_browse=False,
+            media_type="addondir",
+            can_play=False,
+            can_browse=True,
             thumbnail=thumbnail,
         )
 
@@ -560,6 +647,7 @@ class MediaBrowser:
             if media_id is None or media_id == "" or media_id == "kodi://":
                 item = self.get_root_item()
                 items = [x.get_media_item() for x in self._library_items if x.parent_id is None]
+                items = await self._filter_optional_roots(items)
 
                 # Add currently playing playlist if any
                 await self.add_now_playing_item(items, 0)
@@ -582,15 +670,16 @@ class MediaBrowser:
             if len(entries) > 0:
                 for item in entries:
                     item.title = self.get_localized(item.title)
+                sub_items = await self._filter_optional_roots([x.get_media_item() for x in entries])
                 if entry is not None:
                     item = entry.get_media_item()
                     item.title = self.get_localized(item.title)
-                    item.items = [x.get_media_item() for x in entries]
-                    paging.count = len(entries)
+                    item.items = sub_items
+                    paging.count = len(sub_items)
                 else:
                     item = self.get_root_item()
-                    item.items = [x.get_media_item() for x in entries]
-                    paging.count = len(entries)
+                    item.items = sub_items
+                    paging.count = len(sub_items)
                 # Add back item if set or based on custom category
                 if self.add_back_entry(item.media_id, paging):
                     parent_category = item.media_id[: item.media_id.rfind("/")]
@@ -741,6 +830,48 @@ class MediaBrowser:
                 return item, paging
             # Else this is a subentry returned by a query command with browsing feature
             if entry is None and media_type:
+                # Browsing inside a Kodi addon (plugin://...) - works like a Source
+                if media_type == "addondir" or media_id.startswith("plugin://"):
+                    item = self.get_root_item()
+                    item.title = media_id
+                    limit = paging.limit
+                    end = paging.page * limit
+                    arguments = {
+                        "directory": media_id,
+                        "media": "files",
+                        "properties": ["title", "thumbnail", "art", "mimetype"],
+                        "limits": {
+                            "start": (paging.page - 1) * limit,
+                            "end": end,
+                        },
+                    }
+                    _LOG.debug(
+                        "[%s] Browsing addon directory %s : %s",
+                        self._device.device_config.address,
+                        media_id,
+                        arguments,
+                    )
+                    try:
+                        data = await self._device.server.Files.GetDirectory(**arguments)
+                    # pylint: disable=W0718
+                    except Exception as ex:
+                        _LOG.warning(
+                            "[%s] Addon directory %s could not be listed: %s",
+                            self._device.device_config.address,
+                            media_id,
+                            ex,
+                        )
+                        data = None
+                    if data:
+                        for file in data.get("files", []) or []:
+                            sub = self.get_item_from_file(file, "addondir", extract_thumbnail=False)
+                            # Re-attach thumbnail from JSON-RPC response if present
+                            thumb = file.get("thumbnail") or (file.get("art") or {}).get("thumb")
+                            if thumb:
+                                sub.thumbnail = self.get_artwork_url(thumb)
+                            item.items.append(sub)
+                        paging.count = data.get("limits", {}).get("total", len(item.items))
+                    return item, paging
                 if media_type.startswith("kodi://sources"):
                     back_buttons = 0
                     item = self.get_root_item()
@@ -1251,6 +1382,11 @@ class MediaBrowser:
                 addon_id = addon_id.rstrip("/").rsplit("/", 1)[-1]
             _LOG.debug("[%s] Executing Kodi addon %s", self._device.device_config.address, addon_id)
             await self._device.server.Addons.ExecuteAddon(**{"addonid": addon_id, "wait": False})
+            return StatusCodes.OK
+        # Playable item from inside an addon (plugin://...)
+        if media_id.startswith("plugin://"):
+            _LOG.debug("[%s] Playing addon item %s", self._device.device_config.address, media_id)
+            await self._device.server.Player.Open(**{"item": {"file": media_id}})
             return StatusCodes.OK
         if media_type == MediaContentType.MOVIE.value:
             if media_id.startswith("kodi://"):
