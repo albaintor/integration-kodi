@@ -22,6 +22,8 @@ from ucapi.media_player import (
     SearchMediaFilter,
 )
 
+import config
+import favorites
 from const import (
     IKodiDevice,
     KodiMediaTypes,
@@ -190,8 +192,201 @@ class MediaBrowser:
             elif mid == "kodi://addons/audio":
                 if not await self._is_addons_available("audio"):
                     continue
+            elif mid == "kodi://favorites":
+                if not favorites.list_favorites(self._device.device_config.favorites):
+                    continue
             result.append(it)
         return result
+
+    # ---------------------------------------------------------------- favorites
+    def _persist_favorites(self) -> None:
+        """Persist the current device configuration after a favorites change."""
+        try:
+            if config.devices is not None:
+                config.devices.update(self._device.device_config)
+        # pylint: disable=W0718
+        except Exception as ex:
+            _LOG.warning(
+                "[%s] Could not persist favorites: %s",
+                self._device.device_config.address,
+                ex,
+            )
+
+    def _favorite_item(self, fav: dict, *, with_unpin: bool = False) -> BrowseMediaItem:
+        """Render a saved favorite as a BrowseMediaItem.
+
+        When ``with_unpin`` is True, the returned item itself toggles (unpins)
+        the favorite on click; this is used in the management view so dead
+        favorites can still be removed without navigating into them.
+        """
+        title = fav.get("title") or fav.get("media_id", "")
+        if fav.get("broken"):
+            title = f"⚠ {title}"
+        if with_unpin:
+            return BrowseMediaItem(
+                title=self.get_localized("Unpin") + ": " + title,
+                media_id=favorites.encode_toggle(
+                    fav["media_id"], fav["media_type"], fav.get("title", title), favorites.FAVORITES_MANAGE
+                ),
+                media_class=MediaClass.DIRECTORY,
+                media_type=MediaContentType.URL.value,
+                can_browse=True,
+                can_play=False,
+                thumbnail=fav.get("thumbnail"),
+                items=[],
+            )
+        # Normal favorite: keep the original media_id/media_type so the
+        # standard browse/play handlers do the work. We still wrap browsing
+        # in a try/except later so that broken plugin:// targets do not
+        # leave the user stuck.
+        media_id = fav["media_id"]
+        media_type = fav["media_type"]
+        can_play = media_type in ("channel",) or media_id.startswith("plugin://") and "?" in media_id
+        return BrowseMediaItem(
+            title=title,
+            media_id=media_id,
+            media_class=MediaClass.DIRECTORY,
+            media_type=media_type,
+            can_browse=True,
+            can_play=can_play,
+            thumbnail=fav.get("thumbnail"),
+            items=[],
+        )
+
+    def _build_favorites_root(self, paging: PaginationOptions) -> tuple[BrowseMediaItem, PaginationOptions]:
+        """Render the ``kodi://favorites`` root listing."""
+        item = self.get_root_item()
+        item.media_id = favorites.FAVORITES_ROOT
+        item.title = self.get_localized("Favorites")
+        favs = favorites.list_favorites(self._device.device_config.favorites)
+        sub: list[BrowseMediaItem] = [self.get_back_item("kodi://")]
+        for fav in favs:
+            sub.append(self._favorite_item(fav))
+        if favs:
+            sub.append(
+                BrowseMediaItem(
+                    title=self.get_localized("Manage favorites"),
+                    media_id=favorites.FAVORITES_MANAGE,
+                    media_class=MediaClass.DIRECTORY,
+                    media_type=MediaContentType.URL.value,
+                    can_browse=True,
+                    can_play=False,
+                    items=[],
+                )
+            )
+        item.items = sub
+        paging.count = len(sub)
+        return item, paging
+
+    def _build_favorites_manage(self, paging: PaginationOptions) -> tuple[BrowseMediaItem, PaginationOptions]:
+        """Render the management view (one toggle entry per favorite + cleanup)."""
+        item = self.get_root_item()
+        item.media_id = favorites.FAVORITES_MANAGE
+        item.title = self.get_localized("Manage favorites")
+        favs = favorites.list_favorites(self._device.device_config.favorites)
+        sub: list[BrowseMediaItem] = [self.get_back_item(favorites.FAVORITES_ROOT)]
+        for fav in favs:
+            sub.append(self._favorite_item(fav, with_unpin=True))
+        if any(f.get("broken") for f in favs):
+            sub.append(
+                BrowseMediaItem(
+                    title=self.get_localized("Cleanup broken favorites"),
+                    media_id=favorites.FAVORITES_CLEANUP,
+                    media_class=MediaClass.DIRECTORY,
+                    media_type=MediaContentType.URL.value,
+                    can_browse=True,
+                    can_play=False,
+                    items=[],
+                )
+            )
+        item.items = sub
+        paging.count = len(sub)
+        return item, paging
+
+    def _build_confirmation(
+        self, message: str, parent_id: str, paging: PaginationOptions
+    ) -> tuple[BrowseMediaItem, PaginationOptions]:
+        """Build a tiny browse view used as feedback after a favorites action."""
+        item = self.get_root_item()
+        item.media_id = parent_id
+        item.title = message
+        item.items = [self.get_back_item(parent_id)]
+        paging.count = 1
+        return item, paging
+
+    def _handle_favorites_toggle(
+        self, media_id: str, paging: PaginationOptions
+    ) -> tuple[BrowseMediaItem, PaginationOptions]:
+        """Add or remove a favorite based on a toggle media_id."""
+        params = favorites.decode_toggle(media_id)
+        if not params:
+            return self._build_confirmation(
+                self.get_localized("Invalid favorite"), favorites.FAVORITES_ROOT, paging
+            )
+        cfg = self._device.device_config
+        if cfg.favorites is None:
+            cfg.favorites = []
+        parent = params.get("parent") or favorites.FAVORITES_ROOT
+        if favorites.is_favorite(cfg.favorites, params["media_id"], params["media_type"]):
+            favorites.remove(cfg.favorites, params["media_id"], params["media_type"])
+            self._persist_favorites()
+            return self._build_confirmation(self.get_localized("Unpinned"), parent, paging)
+        favorites.add(
+            cfg.favorites,
+            params["media_id"],
+            params["media_type"],
+            params.get("title") or params["media_id"],
+        )
+        self._persist_favorites()
+        return self._build_confirmation(self.get_localized("Pinned"), parent, paging)
+
+    def _handle_favorites_cleanup(
+        self, paging: PaginationOptions
+    ) -> tuple[BrowseMediaItem, PaginationOptions]:
+        """Remove all broken favorites."""
+        cfg = self._device.device_config
+        removed = favorites.remove_broken(cfg.favorites or [])
+        if removed:
+            self._persist_favorites()
+        return self._build_confirmation(
+            self.get_localized("Removed {0} broken favorites").replace("{0}", str(removed)),
+            favorites.FAVORITES_ROOT,
+            paging,
+        )
+
+    def _make_pin_item(self, media_id: str, media_type: str, title: str) -> BrowseMediaItem:
+        """Build the pin/unpin entry shown at the top of pinnable directories."""
+        pinned = favorites.is_favorite(
+            self._device.device_config.favorites, media_id, media_type
+        )
+        label_key = "📍 Unpin this folder" if pinned else "📍 Pin this folder"
+        return BrowseMediaItem(
+            title=self.get_localized(label_key),
+            media_id=favorites.encode_toggle(media_id, media_type, title, parent=media_id),
+            media_class=MediaClass.DIRECTORY,
+            media_type=MediaContentType.URL.value,
+            can_browse=True,
+            can_play=False,
+            items=[],
+        )
+
+    def _maybe_inject_pin_item(
+        self, item: BrowseMediaItem, media_id: str | None, media_type: str | None
+    ) -> None:
+        """Insert the pin/unpin item at the top of ``item.items`` if applicable."""
+        if not media_id or not item or not item.items:
+            return
+        if not favorites.can_pin(media_id, media_type):
+            return
+        title = item.title or media_id
+        # Skip if already injected (defensive against double calls)
+        if item.items and isinstance(item.items[0], BrowseMediaItem) and (
+            item.items[0].media_id or ""
+        ).startswith(favorites.FAVORITES_TOGGLE_PREFIX):
+            return
+        # Insert just AFTER an existing back item if present, otherwise at top
+        insert_at = 1 if item.items and item.items[0].title in ("..", self.get_localized("..")) else 0
+        item.items.insert(insert_at, self._make_pin_item(media_id, media_type or "", title))
 
     def get_localized(self, value: str) -> str:
         """Return localized value."""
@@ -653,10 +848,26 @@ class MediaBrowser:
                 await self.add_now_playing_item(items, 0)
                 for sub_item in items:
                     sub_item.title = self.get_localized(sub_item.title)
+                # Optionally inject favorites flat into the browse root
+                if getattr(self._device.device_config, "favorites_in_root", False):
+                    favs = favorites.list_favorites(self._device.device_config.favorites)
+                    for fav in favs:
+                        items.insert(0, self._favorite_item(fav))
                 paging.count = len(items)
                 item.title = self.get_localized(item.title)
                 item.items = items
                 return item, paging
+
+            # ---------- Favorites special routes ----------
+            if media_id == favorites.FAVORITES_ROOT:
+                return self._build_favorites_root(paging)
+            if media_id == favorites.FAVORITES_MANAGE:
+                return self._build_favorites_manage(paging)
+            if media_id.startswith(favorites.FAVORITES_TOGGLE_PREFIX):
+                return self._handle_favorites_toggle(media_id, paging)
+            if media_id == favorites.FAVORITES_CLEANUP:
+                return self._handle_favorites_cleanup(paging)
+            # ----------------------------------------------
 
             # Find given media_id in the library items
             entry: KodiMediaEntry | None = None
@@ -862,6 +1073,15 @@ class MediaBrowser:
                             ex,
                         )
                         data = None
+                        # If this id is a saved favorite, flag it as broken and
+                        # always offer an unpin button so the user is not stuck.
+                        cfg = self._device.device_config
+                        if favorites.is_favorite(cfg.favorites, media_id, media_type or "addondir"):
+                            if favorites.mark_broken(cfg.favorites, media_id, media_type or "addondir", True):
+                                self._persist_favorites()
+                            item.items.append(
+                                self._make_pin_item(media_id, media_type or "addondir", media_id)
+                            )
                     if data:
                         for file in data.get("files", []) or []:
                             sub = self.get_item_from_file(file, "addondir", extract_thumbnail=False)
@@ -871,6 +1091,14 @@ class MediaBrowser:
                                 sub.thumbnail = self.get_artwork_url(thumb)
                             item.items.append(sub)
                         paging.count = data.get("limits", {}).get("total", len(item.items))
+                        # If this directory is a saved favorite that was previously
+                        # broken, clear the flag now that it works again.
+                        cfg = self._device.device_config
+                        if favorites.mark_broken(cfg.favorites, media_id, media_type or "addondir", False):
+                            self._persist_favorites()
+                    # Inject the pin/unpin shortcut at the top so the user can
+                    # bookmark this exact location.
+                    self._maybe_inject_pin_item(item, media_id, media_type or "addondir")
                     return item, paging
                 if media_type.startswith("kodi://sources"):
                     back_buttons = 0
@@ -1264,6 +1492,8 @@ class MediaBrowser:
                         paging.count = paging.count + 1
                     for channel in channels.get("channels", []):
                         item.items.append(self.get_item_from_channel(channel))
+                    # Allow pinning of the whole channel group
+                    self._maybe_inject_pin_item(item, media_id, "channelgroup")
                 elif media_type == MediaContentType.PLAYLIST.value:
                     item = self.get_root_item(MediaClass.PLAYLIST, MediaContentType.PLAYLIST)
                     limit = paging.limit
@@ -2261,5 +2491,15 @@ KODI_BROWSING: list[KodiMediaEntry] = [
         },
         child_media_type=MediaContentType.URL,
         output=KodiObjectType.ADDON,
+    ),
+    # ---- Favorites (pinned shortcuts) ----
+    KodiMediaEntry(
+        parent_id=None,
+        title="Favorites",
+        media_type=MediaContentType.URL,
+        media_class=MediaClass.DIRECTORY,
+        media_id="kodi://favorites",
+        child_media_type=MediaContentType.URL,
+        output=KodiObjectType.EMPTY,
     ),
 ]
