@@ -36,6 +36,13 @@ _LOG = logging.getLogger(__name__)
 
 # pylint: disable=C0302,R0801,R0917,W1405
 
+# ucapi BrowseMediaItem.media_id is hard-capped at 255 characters.
+# Some Kodi addons (e.g. plugin.video.twitch followed channels) emit child
+# entries whose 'file' URL exceeds that limit. We must filter them out at
+# the construction sites or the BrowseMediaItem constructor raises
+# ValueError mid-loop and aborts the whole listing.
+MAX_MEDIA_ID_LEN = 255
+
 
 MEDIA_CONTENT_LABELS = {
     MediaContentType.MOVIE: "Videos",
@@ -427,13 +434,23 @@ class MediaBrowser:
             items=[],
         )
 
-    def get_item_from_file(self, file: dict[str, Any], media_type: str, extract_thumbnail=True) -> BrowseMediaItem:
-        """Build item from file."""
+    def get_item_from_file(
+        self, file: dict[str, Any], media_type: str, extract_thumbnail=True
+    ) -> BrowseMediaItem | None:
+        """Build item from file. Returns None when media_id exceeds the ucapi 255-char cap."""
+        media_id = file.get("file", "") or ""
+        if len(media_id) > MAX_MEDIA_ID_LEN:
+            _LOG.warning(
+                "Skipping file entry, media_id exceeds %d chars: %s...",
+                MAX_MEDIA_ID_LEN,
+                media_id[:120],
+            )
+            return None
         label = strip_kodi_formatting(file.get("label", ""))
         if file.get("filetype", "directory") == "directory":
             return BrowseMediaItem(
                 title=label,
-                media_id=file.get("file", ""),
+                media_id=media_id,
                 media_class=MediaClass.DIRECTORY,
                 media_type=media_type,
                 can_browse=True,
@@ -449,7 +466,7 @@ class MediaBrowser:
             thumbnail: str | None = None
         return BrowseMediaItem(
             title=label,
-            media_id=file.get("file", ""),
+            media_id=media_id,
             media_class=MediaClass.VIDEO,
             media_type=media_type,
             can_browse=False,
@@ -514,12 +531,19 @@ class MediaBrowser:
             duration=MediaBrowser.get_duration(movie),
         )
 
-    def get_item_from_episode(self, episode: dict[str, Any]) -> BrowseMediaItem:
-        """Build item from episode."""
+    def get_item_from_episode(self, episode: dict[str, Any]) -> BrowseMediaItem | None:
+        """Build item from episode. Returns None when media_id exceeds the ucapi 255-char cap."""
         art = get_artwork(episode.get("art", None))
         if art:
             art = self.get_artwork_url(art)
         media_id = str(episode.get("file", ""))
+        if len(media_id) > MAX_MEDIA_ID_LEN:
+            _LOG.warning(
+                "Skipping episode entry, media_id exceeds %d chars: %s...",
+                MAX_MEDIA_ID_LEN,
+                media_id[:120],
+            )
+            return None
         subtitles: list[str] = []
         # Not necessary, season and episode already in label
         # episode_season = None
@@ -946,7 +970,9 @@ class MediaBrowser:
                     if self.add_back_entry(item.media_id, paging):
                         item.items.append(self.get_back_item("kodi://sources"))
                     for file in data.get("files", data.get("sources", [])):
-                        item.items.append(self.get_item_from_file(file, media_type, False))
+                        sub = self.get_item_from_file(file, media_type, False)
+                        if sub is not None:
+                            item.items.append(sub)
                 elif entry.output == KodiObjectType.MOVIE:
                     if self.add_back_entry(item.media_id, paging):
                         item.items.append(self.get_back_item("kodi://videos", str(MediaContentType.MOVIE.value)))
@@ -960,7 +986,9 @@ class MediaBrowser:
                     if self.add_back_entry(item.media_id, paging):
                         item.items.append(self.get_back_item("kodi://tvshows", str(MediaContentType.TV_SHOW.value)))
                     for episode in data.get("episodes", []):
-                        item.items.append(self.get_item_from_episode(episode))
+                        sub = self.get_item_from_episode(episode)
+                        if sub is not None:
+                            item.items.append(sub)
                 elif entry.output == KodiObjectType.TV_SHOW:
                     if self.add_back_entry(item.media_id, paging):
                         item.items.append(self.get_back_item("kodi://tvshows", str(MediaContentType.TV_SHOW.value)))
@@ -970,7 +998,9 @@ class MediaBrowser:
                     if self.add_back_entry(item.media_id, paging):
                         item.items.append(self.get_back_item("kodi://tvshows", str(MediaContentType.TV_SHOW.value)))
                     for episode in data.get("episodes", []):
-                        item.items.append(self.get_item_from_episode(episode))
+                        sub = self.get_item_from_episode(episode)
+                        if sub is not None:
+                            item.items.append(sub)
                 elif entry.output == KodiObjectType.ALBUM:
                     if self.add_back_entry(item.media_id, paging):
                         item.items.append(self.get_back_item("kodi://music", str(MediaContentType.MUSIC.value)))
@@ -1074,39 +1104,16 @@ class MediaBrowser:
                                 self._persist_favorites()
                             item.items.append(self._make_pin_item(media_id, media_type or "addondir", media_id))
                     if data:
-                        skipped = 0
                         for file in data.get("files", []) or []:
-                            file_id = file.get("file", "") or ""
-                            # ucapi caps media_id at 255 chars; some Kodi addons
-                            # (e.g. Twitch followed channels) emit longer URLs.
-                            # Skip those entries instead of aborting the whole
-                            # listing so the user still sees the rest.
-                            if len(file_id) > 255:
-                                _LOG.warning(
-                                    "[%s] Skipping addon entry with media_id > 255 chars: %s",
-                                    self._device.device_config.address,
-                                    file_id[:120] + "...",
-                                )
-                                skipped += 1
+                            sub = self.get_item_from_file(file, "addondir", extract_thumbnail=False)
+                            if sub is None:
                                 continue
-                            try:
-                                sub = self.get_item_from_file(file, "addondir", extract_thumbnail=False)
-                                # Re-attach thumbnail from JSON-RPC response if present
-                                thumb = file.get("thumbnail") or (file.get("art") or {}).get("thumb")
-                                if thumb:
-                                    sub.thumbnail = self.get_artwork_url(thumb)
-                                item.items.append(sub)
-                            # pylint: disable=W0718
-                            except Exception as item_ex:
-                                _LOG.warning(
-                                    "[%s] Skipping malformed addon entry %s: %s",
-                                    self._device.device_config.address,
-                                    file_id[:120],
-                                    item_ex,
-                                )
-                                skipped += 1
-                        total = data.get("limits", {}).get("total", len(item.items) + skipped)
-                        paging.count = max(total - skipped, len(item.items))
+                            # Re-attach thumbnail from JSON-RPC response if present
+                            thumb = file.get("thumbnail") or (file.get("art") or {}).get("thumb")
+                            if thumb:
+                                sub.thumbnail = self.get_artwork_url(thumb)
+                            item.items.append(sub)
+                        paging.count = data.get("limits", {}).get("total", len(item.items))
                         # If this directory is a saved favorite that was previously
                         # broken, clear the flag now that it works again.
                         cfg = self._device.device_config
@@ -1167,32 +1174,13 @@ class MediaBrowser:
                     )
                     data = await self._device.server.Files.GetDirectory(**arguments)
                     if data:
-                        skipped = 0
                         for file in data["files"]:
-                            file_id = file.get("file", "") or ""
-                            if len(file_id) > 255:
-                                _LOG.warning(
-                                    "[%s] Skipping source entry with media_id > 255 chars: %s",
-                                    self._device.device_config.address,
-                                    file_id[:120] + "...",
-                                )
-                                skipped += 1
-                                continue
                             # Thumbnail extraction only works with pictures
                             extract_thumbnail = media == KodiMediaTypes.PICTURES.value
-                            try:
-                                item.items.append(self.get_item_from_file(file, media_type, extract_thumbnail))
-                            # pylint: disable=W0718
-                            except Exception as item_ex:
-                                _LOG.warning(
-                                    "[%s] Skipping malformed source entry %s: %s",
-                                    self._device.device_config.address,
-                                    file_id[:120],
-                                    item_ex,
-                                )
-                                skipped += 1
-                        total = data.get("limits", {}).get("total", 0)
-                        paging.count = max(total - skipped, len(item.items))
+                            sub = self.get_item_from_file(file, media_type, extract_thumbnail)
+                            if sub is not None:
+                                item.items.append(sub)
+                        paging.count = data.get("limits", {}).get("total", 0)
                         if self._back_support:
                             paging.count = paging.count + back_buttons
                     return item, paging
@@ -1283,7 +1271,9 @@ class MediaBrowser:
                         show_title = episodes["episodes"][0].get("showtitle", "")
                         item.title = f"{show_title} - S{season}"
                     for episode in episodes["episodes"]:
-                        item.items.append(self.get_item_from_episode(episode))
+                        sub = self.get_item_from_episode(episode)
+                        if sub is not None:
+                            item.items.append(sub)
 
                 elif media_type == MediaContentType.ALBUM.value:
                     item = self.get_root_item(MediaClass.ALBUM, MediaContentType.MUSIC)
