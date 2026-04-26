@@ -218,22 +218,33 @@ class MediaBrowser:
                 ex,
             )
 
-    def _favorite_item(self, fav: dict, *, with_unpin: bool = False) -> BrowseMediaItem:
+    def _favorite_item(self, fav: dict, *, with_unpin: bool = False) -> BrowseMediaItem | None:
         """Render a saved favorite as a BrowseMediaItem.
 
         When ``with_unpin`` is True, the returned item itself toggles (unpins)
         the favorite on click; this is used in the management view so dead
         favorites can still be removed without navigating into them.
+
+        Returns None when the resulting media_id would exceed the ucapi
+        255-char cap (would otherwise crash the whole browse listing).
         """
         title = fav.get("title") or fav.get("media_id", "")
         if fav.get("broken"):
             title = f"⚠ {title}"
         if with_unpin:
+            toggle_id = favorites.encode_toggle(
+                fav["media_id"], fav["media_type"], fav.get("title", title), favorites.FAVORITES_MANAGE
+            )
+            if len(toggle_id) > MAX_MEDIA_ID_LEN:
+                _LOG.warning(
+                    "Skipping unpin item, toggle media_id exceeds %d chars for %s",
+                    MAX_MEDIA_ID_LEN,
+                    str(fav.get("media_id", ""))[:120],
+                )
+                return None
             return BrowseMediaItem(
                 title=self.get_localized("Unpin") + ": " + title,
-                media_id=favorites.encode_toggle(
-                    fav["media_id"], fav["media_type"], fav.get("title", title), favorites.FAVORITES_MANAGE
-                ),
+                media_id=toggle_id,
                 media_class=MediaClass.DIRECTORY,
                 media_type=MediaContentType.URL.value,
                 can_browse=True,
@@ -247,6 +258,13 @@ class MediaBrowser:
         # leave the user stuck.
         media_id = fav["media_id"]
         media_type = fav["media_type"]
+        if len(media_id) > MAX_MEDIA_ID_LEN:
+            _LOG.warning(
+                "Skipping favorite, media_id exceeds %d chars: %s",
+                MAX_MEDIA_ID_LEN,
+                media_id[:120],
+            )
+            return None
         can_play = media_type in ("channel",) or media_id.startswith("plugin://") and "?" in media_id
         return BrowseMediaItem(
             title=title,
@@ -267,7 +285,9 @@ class MediaBrowser:
         favs = favorites.list_favorites(self._device.device_config.favorites)
         sub: list[BrowseMediaItem] = [self.get_back_item("kodi://")]
         for fav in favs:
-            sub.append(self._favorite_item(fav))
+            entry = self._favorite_item(fav)
+            if entry is not None:
+                sub.append(entry)
         if favs:
             sub.append(
                 BrowseMediaItem(
@@ -292,7 +312,9 @@ class MediaBrowser:
         favs = favorites.list_favorites(self._device.device_config.favorites)
         sub: list[BrowseMediaItem] = [self.get_back_item(favorites.FAVORITES_ROOT)]
         for fav in favs:
-            sub.append(self._favorite_item(fav, with_unpin=True))
+            entry = self._favorite_item(fav, with_unpin=True)
+            if entry is not None:
+                sub.append(entry)
         if any(f.get("broken") for f in favs):
             sub.append(
                 BrowseMediaItem(
@@ -356,13 +378,22 @@ class MediaBrowser:
             paging,
         )
 
-    def _make_pin_item(self, media_id: str, media_type: str, title: str) -> BrowseMediaItem:
-        """Build the pin/unpin entry shown at the top of pinnable directories."""
+    def _make_pin_item(self, media_id: str, media_type: str, title: str) -> BrowseMediaItem | None:
+        """Build the pin/unpin entry. Returns None when the toggle URL would exceed 255 chars."""
         pinned = favorites.is_favorite(self._device.device_config.favorites, media_id, media_type)
         label_key = "📍 Unpin this folder" if pinned else "📍 Pin this folder"
+        toggle_id = favorites.encode_toggle(media_id, media_type, title, parent=media_id)
+        if len(toggle_id) > MAX_MEDIA_ID_LEN:
+            _LOG.debug(
+                "Skipping pin item, toggle media_id would exceed %d chars (%d) for %s",
+                MAX_MEDIA_ID_LEN,
+                len(toggle_id),
+                media_id[:120],
+            )
+            return None
         return BrowseMediaItem(
             title=self.get_localized(label_key),
-            media_id=favorites.encode_toggle(media_id, media_type, title, parent=media_id),
+            media_id=toggle_id,
             media_class=MediaClass.DIRECTORY,
             media_type=MediaContentType.URL.value,
             can_browse=True,
@@ -386,7 +417,9 @@ class MediaBrowser:
             return
         # Insert just AFTER an existing back item if present, otherwise at top
         insert_at = 1 if item.items and item.items[0].title in ("..", self.get_localized("..")) else 0
-        item.items.insert(insert_at, self._make_pin_item(media_id, media_type or "", title))
+        pin = self._make_pin_item(media_id, media_type or "", title)
+        if pin is not None:
+            item.items.insert(insert_at, pin)
 
     def get_localized(self, value: str) -> str:
         """Return localized value."""
@@ -804,25 +837,28 @@ class MediaBrowser:
         """Add now playing item."""
         current_playlist = await self._device.get_current_playlist()
         if current_playlist and current_playlist.position >= 0:
-            art = get_artwork(current_playlist.playlist["items"][current_playlist.position].get("art", None))
+            playing = current_playlist.playlist["items"][current_playlist.position]
+            art = get_artwork(playing.get("art", None))
             if art:
                 art = self.get_artwork_url(art)
-            duration = current_playlist.playlist["items"][current_playlist.position].get("duration", None)
+            duration = playing.get("duration", None)
+            # ucapi rejects empty strings for album/artist ("must be at least 1
+            # characters"); coerce "" to None to avoid aborting the whole root
+            # listing when Kodi returns an empty tag.
+            album = playing.get("album", None) or None
+            artist = get_element(playing.get("artist", None)) or None
             items.insert(
                 position,
                 BrowseMediaItem(
-                    title=f"{self.get_localized('Now playing')} "
-                    f"({current_playlist.playlist['items'][current_playlist.position].get('label', '')})",
+                    title=f"{self.get_localized('Now playing')} " f"({playing.get('label', '')})",
                     media_class=MediaClass.PLAYLIST,
                     media_type=MediaClass.PLAYLIST,
                     media_id="kodi://playing",
                     thumbnail=art,
                     can_browse=True,
                     duration=int(duration) if duration else None,
-                    album=current_playlist.playlist["items"][current_playlist.position].get("album", None),
-                    artist=get_element(
-                        current_playlist.playlist["items"][current_playlist.position].get("artist", None)
-                    ),
+                    album=album,
+                    artist=artist,
                 ),
             )
 
@@ -869,7 +905,9 @@ class MediaBrowser:
                 if getattr(self._device.device_config, "favorites_in_root", False):
                     favs = favorites.list_favorites(self._device.device_config.favorites)
                     for fav in favs:
-                        items.insert(0, self._favorite_item(fav))
+                        entry = self._favorite_item(fav)
+                        if entry is not None:
+                            items.insert(0, entry)
                 paging.count = len(items)
                 item.title = self.get_localized(item.title)
                 item.items = items
