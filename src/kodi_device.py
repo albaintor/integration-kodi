@@ -599,9 +599,10 @@ class KodiDevice(IKodiDevice):
 
         :returns: True if device is connected or if the connection retries has not reached it limit
         """
-        if not self._kodi_connection.connected and self._reconnect_retry >= CONNECTION_RETRIES:
+        connection = self._kodi_connection
+        if (connection is None or not connection.connected) and self._reconnect_retry >= CONNECTION_RETRIES:
             return False
-        if self._kodi_connection is None or not self._kodi_connection.connected:
+        if connection is None or not connection.connected:
             self._reconnect_retry += 1
             self._available = False
             _LOG.debug(
