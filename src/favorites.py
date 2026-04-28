@@ -12,6 +12,7 @@ browse-media root.
 
 from __future__ import annotations
 
+import hashlib
 import logging
 from typing import Any
 from urllib.parse import parse_qs, quote, urlencode
@@ -43,6 +44,7 @@ def normalize(entry: Any) -> dict | None:
         "title": str(entry.get("title") or media_id),
         "thumbnail": entry.get("thumbnail") or None,
         "broken": bool(entry.get("broken", False)),
+        "source": str(entry["source"]) if entry.get("source") else None,
     }
 
 
@@ -71,7 +73,14 @@ def is_favorite(raw: list | None, media_id: str, media_type: str) -> bool:
     return find_index(raw, media_id, media_type) >= 0
 
 
-def add(raw: list, media_id: str, media_type: str, title: str, thumbnail: str | None = None) -> bool:
+def add(
+    raw: list,
+    media_id: str,
+    media_type: str,
+    title: str,
+    thumbnail: str | None = None,
+    source: str | None = None,
+) -> bool:
     """Add a favorite if not already present. Returns True if added."""
     if find_index(raw, media_id, media_type) >= 0:
         return False
@@ -82,6 +91,7 @@ def add(raw: list, media_id: str, media_type: str, title: str, thumbnail: str | 
             "title": title or media_id,
             "thumbnail": thumbnail,
             "broken": False,
+            "source": source or None,
         }
     )
     return True
@@ -160,6 +170,17 @@ def encode_toggle(media_id: str, media_type: str, title: str, parent: str | None
     return FAVORITES_TOGGLE_PREFIX + qs
 
 
+def make_toggle_key(media_id: str, media_type: str, title: str, parent: str | None = None) -> str:
+    """Build a compact deterministic key for long toggle payloads."""
+    raw = "\x1f".join([media_id or "", media_type or "", title or "", parent or ""])
+    return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:16]
+
+
+def encode_toggle_key(key: str) -> str:
+    """Build the special media_id used by compact pin/unpin toggle entries."""
+    return FAVORITES_TOGGLE_PREFIX + urlencode({"k": key}, quote_via=quote)
+
+
 def decode_toggle(media_id: str) -> dict | None:
     """Parse a toggle media_id into its components, or return None."""
     if not media_id or not media_id.startswith(FAVORITES_TOGGLE_PREFIX):
@@ -170,6 +191,10 @@ def decode_toggle(media_id: str) -> dict | None:
     def _first(key: str) -> str:
         values = parts.get(key) or [""]
         return values[0]
+
+    compact_key = _first("k")
+    if compact_key:
+        return {"key": compact_key}
 
     target_id = _first("id")
     target_type = _first("type")
