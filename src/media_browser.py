@@ -167,11 +167,14 @@ class MediaBrowser:
                     return True
             self._pvr_available = False
         # pylint: disable=W0718
-        except Exception:
-            # Fail-open on transient connection errors so root entries remain
-            # visible and recover automatically once Kodi is reachable again.
-            self._pvr_available = None
-            return True
+        except Exception as ex:
+            # Do not cache transient probe failures as "unavailable".
+            _LOG.debug(
+                "[%s] PVR availability probe failed, will retry: %s",
+                self._device.device_config.address,
+                ex,
+            )
+            return False
         return self._pvr_available
 
     async def _is_addons_available(self, content: str) -> bool:
@@ -186,10 +189,15 @@ class MediaBrowser:
             )
             available = bool((result or {}).get("addons"))
         # pylint: disable=W0718
-        except Exception:
-            # Fail-open on transient connection errors so root entries remain
-            # visible and recover automatically once Kodi is reachable again.
-            return True
+        except Exception as ex:
+            # Do not cache transient probe failures as "unavailable".
+            _LOG.debug(
+                "[%s] Addons(%s) availability probe failed, will retry: %s",
+                self._device.device_config.address,
+                content,
+                ex,
+            )
+            return False
         setattr(self, cache_attr, available)
         return available
 
