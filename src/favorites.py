@@ -79,6 +79,7 @@ def add(
     media_type: str,
     title: str,
     thumbnail: str | None = None,
+    *,
     source: str | None = None,
 ) -> bool:
     """Add a favorite if not already present. Returns True if added."""
