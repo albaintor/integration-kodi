@@ -42,6 +42,7 @@ _LOG = logging.getLogger(__name__)
 # the construction sites or the BrowseMediaItem constructor raises
 # ValueError mid-loop and aborts the whole listing.
 MAX_MEDIA_ID_LEN = 255
+MAX_ROOT_FAVORITES = 10
 
 
 MEDIA_CONTENT_LABELS = {
@@ -147,6 +148,12 @@ class MediaBrowser:
         self._pvr_available: bool | None = None
         self._addons_video_available: bool | None = None
         self._addons_audio_available: bool | None = None
+        # Runtime cache for compact favorites toggle actions. Needed when the
+        # original media_id is too long to fit in ucapi's 255-char media_id cap.
+        self._favorites_toggle_cache: dict[str, dict[str, str]] = {}
+        # Remember browse entry titles by media_id so deep plugin:// navigation
+        # and favorites can show a human-readable label instead of raw URLs.
+        self._browse_title_cache: dict[str, str] = {}
 
     async def _is_pvr_available(self) -> bool:
         """Return True if Kodi has at least one PVR channel group (TV or Radio)."""
@@ -161,7 +168,10 @@ class MediaBrowser:
             self._pvr_available = False
         # pylint: disable=W0718
         except Exception:
-            self._pvr_available = False
+            # Fail-open on transient connection errors so root entries remain
+            # visible and recover automatically once Kodi is reachable again.
+            self._pvr_available = None
+            return True
         return self._pvr_available
 
     async def _is_addons_available(self, content: str) -> bool:
@@ -177,7 +187,9 @@ class MediaBrowser:
             available = bool((result or {}).get("addons"))
         # pylint: disable=W0718
         except Exception:
-            available = False
+            # Fail-open on transient connection errors so root entries remain
+            # visible and recover automatically once Kodi is reachable again.
+            return True
         setattr(self, cache_attr, available)
         return available
 
@@ -218,6 +230,95 @@ class MediaBrowser:
                 ex,
             )
 
+    def _build_toggle_media_id(self, media_id: str, media_type: str, title: str, parent: str | None = None) -> str:
+        """Build a toggle media_id and transparently fall back to compact mode.
+
+        ucapi caps media_id to 255 chars. For long plugin paths, we keep the
+        real payload in an in-memory cache and expose only a short key.
+        """
+        toggle_id = favorites.encode_toggle(media_id, media_type, title, parent=parent)
+        if len(toggle_id) <= MAX_MEDIA_ID_LEN:
+            return toggle_id
+        key = favorites.make_toggle_key(media_id, media_type, title, parent=parent)
+        if len(self._favorites_toggle_cache) >= 2048:
+            self._favorites_toggle_cache.clear()
+        self._favorites_toggle_cache[key] = {
+            "media_id": media_id,
+            "media_type": media_type,
+            "title": title or media_id,
+            "parent": parent or "",
+        }
+        return favorites.encode_toggle_key(key)
+
+    def _remember_browse_title(self, media_id: str | None, title: str | None) -> None:
+        """Remember a browse title for later lookups."""
+        if not media_id or not title:
+            return
+        cleaned = strip_kodi_formatting(title).strip()
+        if not cleaned:
+            return
+        if len(self._browse_title_cache) >= 4096:
+            self._browse_title_cache.clear()
+        self._browse_title_cache[media_id] = cleaned
+
+    def _get_cached_title(self, media_id: str, default: str | None = None) -> str:
+        """Return cached title for media_id, falling back to default/raw id."""
+        cached = self._browse_title_cache.get(media_id)
+        if cached:
+            return cached
+        return default or media_id
+
+    def _get_source_label(self, media_id: str, media_type: str) -> str | None:
+        """Derive a human-readable source/addon label for a pinnable item.
+
+        For plugin:// addons: looks up the addon root title from the browse
+        cache (populated when the user browses the addons list).
+        For PVR / sources items: returns a fixed label.
+        Returns None when no label is available (no API call is made).
+        """
+        if media_id.startswith("plugin://"):
+            # plugin://plugin.video.twitch/following/... -> plugin.video.twitch
+            parts = media_id.split("/")
+            if len(parts) >= 3 and parts[2]:
+                addon_id = parts[2]
+                label = self._browse_title_cache.get(f"plugin://{addon_id}/")
+                if label:
+                    return label
+                # Fallback: titlecase the last segment of the addon_id
+                # e.g. "plugin.video.twitch" -> "Twitch"
+                segments = addon_id.split(".")
+                if segments:
+                    return segments[-1].capitalize()
+            return None
+        if media_id.startswith("kodi://pvr") or media_type in ("channel", "channelgroup"):
+            return self.get_localized("Live TV")
+        if media_id.startswith("kodi://sources"):
+            return self.get_localized("Sources")
+        return None
+
+    def _resolve_toggle_params(self, media_id: str) -> dict[str, str] | None:
+        """Resolve a favorites toggle media_id (direct payload or compact key)."""
+        params = favorites.decode_toggle(media_id)
+        if not params:
+            return None
+        key = params.get("key")
+        if not key:
+            return {
+                "media_id": str(params["media_id"]),
+                "media_type": str(params["media_type"]),
+                "title": str(params.get("title") or params["media_id"]),
+                "parent": str(params.get("parent") or ""),
+            }
+        cached = self._favorites_toggle_cache.get(str(key))
+        if not cached:
+            return None
+        return {
+            "media_id": str(cached.get("media_id") or ""),
+            "media_type": str(cached.get("media_type") or ""),
+            "title": str(cached.get("title") or cached.get("media_id") or ""),
+            "parent": str(cached.get("parent") or ""),
+        }
+
     def _favorite_item(self, fav: dict, *, with_unpin: bool = False) -> BrowseMediaItem | None:
         """Render a saved favorite as a BrowseMediaItem.
 
@@ -231,19 +332,17 @@ class MediaBrowser:
         title = fav.get("title") or fav.get("media_id", "")
         if fav.get("broken"):
             title = f"⚠ {title}"
+        source: str | None = fav.get("source") or None
         if with_unpin:
-            toggle_id = favorites.encode_toggle(
-                fav["media_id"], fav["media_type"], fav.get("title", title), favorites.FAVORITES_MANAGE
+            toggle_id = self._build_toggle_media_id(
+                fav["media_id"],
+                fav["media_type"],
+                fav.get("title", title),
+                favorites.FAVORITES_MANAGE,
             )
-            if len(toggle_id) > MAX_MEDIA_ID_LEN:
-                _LOG.warning(
-                    "Skipping unpin item, toggle media_id exceeds %d chars for %s",
-                    MAX_MEDIA_ID_LEN,
-                    str(fav.get("media_id", ""))[:120],
-                )
-                return None
             return BrowseMediaItem(
                 title=self.get_localized("Unpin") + ": " + title,
+                subtitle=source,
                 media_id=toggle_id,
                 media_class=MediaClass.DIRECTORY,
                 media_type=MediaContentType.URL.value,
@@ -268,6 +367,7 @@ class MediaBrowser:
         can_play = media_type in ("channel",) or media_id.startswith("plugin://") and "?" in media_id
         return BrowseMediaItem(
             title=title,
+            subtitle=source,
             media_id=media_id,
             media_class=MediaClass.DIRECTORY,
             media_type=media_type,
@@ -342,29 +442,84 @@ class MediaBrowser:
         paging.count = 1
         return item, paging
 
-    def _handle_favorites_toggle(
+    async def _handle_favorites_toggle(
         self, media_id: str, paging: PaginationOptions
     ) -> tuple[BrowseMediaItem, PaginationOptions]:
         """Add or remove a favorite based on a toggle media_id."""
-        params = favorites.decode_toggle(media_id)
+        params = self._resolve_toggle_params(media_id)
         if not params:
             return self._build_confirmation(self.get_localized("Invalid favorite"), favorites.FAVORITES_ROOT, paging)
         cfg = self._device.device_config
         if cfg.favorites is None:
             cfg.favorites = []
         parent = params.get("parent") or favorites.FAVORITES_ROOT
-        if favorites.is_favorite(cfg.favorites, params["media_id"], params["media_type"]):
-            favorites.remove(cfg.favorites, params["media_id"], params["media_type"])
-            self._persist_favorites()
-            return self._build_confirmation(self.get_localized("Unpinned"), parent, paging)
-        favorites.add(
-            cfg.favorites,
+        changed = False
+        action = "remove" if favorites.is_favorite(cfg.favorites, params["media_id"], params["media_type"]) else "add"
+        _LOG.debug(
+            "[%s] Favorites toggle request: action=%s target=%s type=%s parent=%s",
+            self._device.device_config.address,
+            action,
             params["media_id"],
             params["media_type"],
-            params.get("title") or params["media_id"],
+            parent,
         )
-        self._persist_favorites()
-        return self._build_confirmation(self.get_localized("Pinned"), parent, paging)
+        if favorites.is_favorite(cfg.favorites, params["media_id"], params["media_type"]):
+            changed = favorites.remove(cfg.favorites, params["media_id"], params["media_type"])
+        else:
+            source = self._get_source_label(params["media_id"], params["media_type"])
+            changed = favorites.add(
+                cfg.favorites,
+                params["media_id"],
+                params["media_type"],
+                params.get("title") or params["media_id"],
+                source=source,
+            )
+        if changed:
+            self._persist_favorites()
+
+        # Stay in context: return the same logical view the user was at so the
+        # toggle response replaces the current screen.  The hardware Back button
+        # on the remote may still show a stale cached level below – this is a
+        # remote firmware limitation that cannot be solved server-side.
+        if parent == favorites.FAVORITES_ROOT:
+            result = self._build_favorites_root(paging)
+            _LOG.debug(
+                "[%s] Favorites toggle response: view=%s title=%s items=%s",
+                self._device.device_config.address,
+                result[0].media_id,
+                result[0].title,
+                len(result[0].items or []),
+            )
+            return result
+        if parent == favorites.FAVORITES_MANAGE:
+            result = self._build_favorites_manage(paging)
+            _LOG.debug(
+                "[%s] Favorites toggle response: view=%s title=%s items=%s",
+                self._device.device_config.address,
+                result[0].media_id,
+                result[0].title,
+                len(result[0].items or []),
+            )
+            return result
+        refreshed = await self.browse_media(parent, params.get("media_type"), paging)
+        if refreshed is not None:
+            _LOG.debug(
+                "[%s] Favorites toggle response: view=%s title=%s items=%s",
+                self._device.device_config.address,
+                refreshed[0].media_id,
+                refreshed[0].title,
+                len(refreshed[0].items or []),
+            )
+            return refreshed
+        result = self._build_confirmation(self.get_localized("Pinned"), parent, paging)
+        _LOG.debug(
+            "[%s] Favorites toggle response: view=%s title=%s items=%s",
+            self._device.device_config.address,
+            result[0].media_id,
+            result[0].title,
+            len(result[0].items or []),
+        )
+        return result
 
     def _handle_favorites_cleanup(self, paging: PaginationOptions) -> tuple[BrowseMediaItem, PaginationOptions]:
         """Remove all broken favorites."""
@@ -379,18 +534,14 @@ class MediaBrowser:
         )
 
     def _make_pin_item(self, media_id: str, media_type: str, title: str) -> BrowseMediaItem | None:
-        """Build the pin/unpin entry. Returns None when the toggle URL would exceed 255 chars."""
+        """Build the pin/unpin entry."""
         pinned = favorites.is_favorite(self._device.device_config.favorites, media_id, media_type)
         label_key = "📍 Unpin this folder" if pinned else "📍 Pin this folder"
-        toggle_id = favorites.encode_toggle(media_id, media_type, title, parent=media_id)
-        if len(toggle_id) > MAX_MEDIA_ID_LEN:
-            _LOG.debug(
-                "Skipping pin item, toggle media_id would exceed %d chars (%d) for %s",
-                MAX_MEDIA_ID_LEN,
-                len(toggle_id),
-                media_id[:120],
-            )
-            return None
+        # UX workaround: after pin/unpin from deep folder views, jump back to
+        # Home so users immediately see updated root favorites and don't need
+        # to back out through the whole navigation path.
+        parent = "kodi://"
+        toggle_id = self._build_toggle_media_id(media_id, media_type, title, parent=parent)
         return BrowseMediaItem(
             title=self.get_localized(label_key),
             media_id=toggle_id,
@@ -481,7 +632,7 @@ class MediaBrowser:
             return None
         label = strip_kodi_formatting(file.get("label", ""))
         if file.get("filetype", "directory") == "directory":
-            return BrowseMediaItem(
+            item = BrowseMediaItem(
                 title=label,
                 media_id=media_id,
                 media_class=MediaClass.DIRECTORY,
@@ -491,13 +642,15 @@ class MediaBrowser:
                 can_search=True,
                 items=[],
             )
+            self._remember_browse_title(media_id, label)
+            return item
         if extract_thumbnail:
             thumbnail: str = file.get("file")
             if thumbnail:
                 thumbnail = self._device.client.get_thumbnail_from_file(thumbnail.rstrip("/"))
         else:
             thumbnail: str | None = None
-        return BrowseMediaItem(
+        item = BrowseMediaItem(
             title=label,
             media_id=media_id,
             media_class=MediaClass.VIDEO,
@@ -508,6 +661,8 @@ class MediaBrowser:
             thumbnail=thumbnail,
             items=[],
         )
+        self._remember_browse_title(media_id, label)
+        return item
 
     def get_artwork_url(self, url: str) -> str | None:
         """Return artwork url."""
@@ -758,7 +913,7 @@ class MediaBrowser:
     def get_item_from_channel_group(self, group: dict[str, Any], parent_id: str) -> BrowseMediaItem:
         """Build item from a PVR channel group."""
         media_id = f"{parent_id}/{int(group.get('channelgroupid', 0))}"
-        return BrowseMediaItem(
+        item = BrowseMediaItem(
             title=group.get("label", ""),
             media_id=media_id,
             media_class=MediaClass.DIRECTORY,
@@ -767,6 +922,8 @@ class MediaBrowser:
             can_search=False,
             items=[],
         )
+        self._remember_browse_title(media_id, group.get("label", ""))
+        return item
 
     def get_item_from_channel(self, channel: dict[str, Any]) -> BrowseMediaItem:
         """Build item from a PVR channel (live TV / radio)."""
@@ -805,17 +962,21 @@ class MediaBrowser:
             if len(subtitle) > 255:
                 subtitle = subtitle[:252].rstrip() + "..."
         addon_id = str(addon.get("addonid", ""))
-        return BrowseMediaItem(
-            title=strip_kodi_formatting(addon.get("name")) or addon_id,
+        title = strip_kodi_formatting(addon.get("name")) or addon_id
+        media_id = f"plugin://{addon_id}/" if addon_id else ""
+        item = BrowseMediaItem(
+            title=title,
             subtitle=subtitle,
             # Addons are browsed via Kodi's virtual file system: plugin://<addonid>/
-            media_id=f"plugin://{addon_id}/" if addon_id else "",
+            media_id=media_id,
             media_class=MediaClass.APP if hasattr(MediaClass, "APP") else MediaClass.DIRECTORY,
             media_type="addondir",
             can_play=False,
             can_browse=True,
             thumbnail=thumbnail,
         )
+        self._remember_browse_title(media_id, title)
+        return item
 
     @staticmethod
     def get_sorting(sorting: str) -> dict[str, str]:
@@ -831,6 +992,28 @@ class MediaBrowser:
         found = [x.get_media_item() for x in self._library_items if x.media_id == media_id]
         if len(found) > 0:
             return found[0]
+        return None
+
+    async def _get_channel_group_title(self, parent_id: str | None, group_id: str) -> str | None:
+        """Resolve the display title for a PVR channel group."""
+        if not parent_id:
+            return None
+        parent = parent_id.rstrip("/")
+        if not parent.startswith("kodi://pvr/"):
+            return None
+        channel_type = parent.rsplit("/", 1)[-1]
+        if channel_type not in ("tv", "radio"):
+            return None
+        try:
+            data = await self._device.server.PVR.GetChannelGroups(channeltype=channel_type)
+        # pylint: disable=W0718
+        except Exception:
+            return None
+        for group in (data or {}).get("channelgroups", []):
+            if str(group.get("channelgroupid", "")) == str(group_id):
+                label = group.get("label")
+                if label:
+                    return str(label)
         return None
 
     async def add_now_playing_item(self, items: list[BrowseMediaItem], position: int):
@@ -882,6 +1065,19 @@ class MediaBrowser:
             else:
                 paging = PaginationOptions(page=paging.page, limit=paging.limit, count=0)
 
+            if media_id and (
+                media_id.startswith(favorites.FAVORITES_ROOT)
+                or media_id.startswith(favorites.FAVORITES_TOGGLE_PREFIX)
+            ):
+                _LOG.debug(
+                    "[%s] Browse request: media_id=%s media_type=%s page=%s limit=%s",
+                    self._device.device_config.address,
+                    media_id,
+                    media_type,
+                    paging.page,
+                    paging.limit,
+                )
+
             # Change media_id if empty (root) and a custom category has been defined by user
             # add_now_playing = False
             if (media_id is None or media_id == "") and self._device.device_config.browse_media_root != "":
@@ -904,10 +1100,36 @@ class MediaBrowser:
                 # Optionally inject favorites flat into the browse root
                 if getattr(self._device.device_config, "favorites_in_root", False):
                     favs = favorites.list_favorites(self._device.device_config.favorites)
-                    for fav in favs:
+                    root_favorites: list[BrowseMediaItem] = []
+                    has_more_favorites = len(favs) > MAX_ROOT_FAVORITES
+                    visible_favorites = (
+                        favs[: MAX_ROOT_FAVORITES - 1] if has_more_favorites else favs[:MAX_ROOT_FAVORITES]
+                    )
+                    for fav in visible_favorites:
                         entry = self._favorite_item(fav)
                         if entry is not None:
-                            items.insert(0, entry)
+                            root_favorites.append(entry)
+
+                    if has_more_favorites:
+                        # Show first N-1 favorites directly and keep slot N as
+                        # a link to the full favorites view for the overflow.
+                        root_favorites.append(
+                            BrowseMediaItem(
+                                title=self.get_localized("Favorites"),
+                                media_id=favorites.FAVORITES_ROOT,
+                                media_class=MediaClass.DIRECTORY,
+                                media_type=MediaContentType.URL.value,
+                                can_browse=True,
+                                can_play=False,
+                                items=[],
+                            )
+                        )
+                        # Avoid duplicate favorites root entry when the
+                        # overflow link is already injected in the top section.
+                        items = [x for x in items if x.media_id != favorites.FAVORITES_ROOT]
+
+                    for entry in reversed(root_favorites):
+                        items.insert(0, entry)
                 paging.count = len(items)
                 item.title = self.get_localized(item.title)
                 item.items = items
@@ -919,7 +1141,7 @@ class MediaBrowser:
             if media_id == favorites.FAVORITES_MANAGE:
                 return self._build_favorites_manage(paging)
             if media_id.startswith(favorites.FAVORITES_TOGGLE_PREFIX):
-                return self._handle_favorites_toggle(media_id, paging)
+                return await self._handle_favorites_toggle(media_id, paging)
             if media_id == favorites.FAVORITES_CLEANUP:
                 return self._handle_favorites_cleanup(paging)
             # ----------------------------------------------
@@ -1105,7 +1327,8 @@ class MediaBrowser:
                 # Browsing inside a Kodi addon (plugin://...) - works like a Source
                 if media_type == "addondir" or media_id.startswith("plugin://"):
                     item = self.get_root_item()
-                    item.title = media_id
+                    item.media_id = media_id
+                    item.title = self._get_cached_title(media_id, media_id)
                     limit = paging.limit
                     end = paging.page * limit
                     arguments = {
@@ -1160,10 +1383,12 @@ class MediaBrowser:
                     # Inject the pin/unpin shortcut at the top so the user can
                     # bookmark this exact location.
                     self._maybe_inject_pin_item(item, media_id, media_type or "addondir")
+                    self._remember_browse_title(media_id, item.title)
                     return item, paging
                 if media_type.startswith("kodi://sources"):
                     back_buttons = 0
                     item = self.get_root_item()
+                    item.media_id = media_id
                     if not media_id.startswith("multipath://"):
                         item.title = media_id
                     limit = paging.limit
@@ -1557,6 +1782,8 @@ class MediaBrowser:
                         paging.count = paging.count + 1
                     for channel in channels.get("channels", []):
                         item.items.append(self.get_item_from_channel(channel))
+                    if resolved_title := await self._get_channel_group_title(parent_id, real_media_id):
+                        item.title = resolved_title
                     # Allow pinning of the whole channel group
                     self._maybe_inject_pin_item(item, media_id, "channelgroup")
                 elif media_type == MediaContentType.PLAYLIST.value:
@@ -1606,6 +1833,11 @@ class MediaBrowser:
                         media_id,
                     )
                     return None
+                # Dynamic browse branches often start from get_root_item(), which
+                # defaults to media_id="library". Return the actual browsed id so
+                # the remote can correlate the response with the current view.
+                if media_id and item.media_id == "library":
+                    item.media_id = media_id
                 return item, paging
         # pylint: disable = W0718
         except Exception as ex:
