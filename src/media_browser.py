@@ -22,7 +22,6 @@ from ucapi.media_player import (
     SearchMediaFilter,
 )
 
-import config
 import favorites
 from const import (
     IKodiDevice,
@@ -148,11 +147,8 @@ class MediaBrowser:
         self._pvr_available: bool | None = None
         self._addons_video_available: bool | None = None
         self._addons_audio_available: bool | None = None
-        # Runtime cache for compact favorites toggle actions. Needed when the
-        # original media_id is too long to fit in ucapi's 255-char media_id cap.
-        self._favorites_toggle_cache: dict[str, dict[str, str]] = {}
         # Remember browse entry titles by media_id so deep plugin:// navigation
-        # and favorites can show a human-readable label instead of raw URLs.
+        # can show a human-readable label instead of raw URLs.
         self._browse_title_cache: dict[str, str] = {}
 
     async def _is_pvr_available(self) -> bool:
@@ -219,44 +215,10 @@ class MediaBrowser:
                 if not await self._is_addons_available("audio"):
                     continue
             elif mid == "kodi://favorites":
-                if not favorites.list_favorites(self._device.device_config.favorites):
+                if not await favorites.get_kodi_favourites(self._device.server):
                     continue
             result.append(it)
         return result
-
-    # ---------------------------------------------------------------- favorites
-    def _persist_favorites(self) -> None:
-        """Persist the current device configuration after a favorites change."""
-        try:
-            if config.devices is not None:
-                config.devices.update(self._device.device_config)
-        # pylint: disable=W0718
-        except Exception as ex:
-            _LOG.warning(
-                "[%s] Could not persist favorites: %s",
-                self._device.device_config.address,
-                ex,
-            )
-
-    def _build_toggle_media_id(self, media_id: str, media_type: str, title: str, parent: str | None = None) -> str:
-        """Build a toggle media_id and transparently fall back to compact mode.
-
-        ucapi caps media_id to 255 chars. For long plugin paths, we keep the
-        real payload in an in-memory cache and expose only a short key.
-        """
-        toggle_id = favorites.encode_toggle(media_id, media_type, title, parent=parent)
-        if len(toggle_id) <= MAX_MEDIA_ID_LEN:
-            return toggle_id
-        key = favorites.make_toggle_key(media_id, media_type, title, parent=parent)
-        if len(self._favorites_toggle_cache) >= 2048:
-            self._favorites_toggle_cache.clear()
-        self._favorites_toggle_cache[key] = {
-            "media_id": media_id,
-            "media_type": media_type,
-            "title": title or media_id,
-            "parent": parent or "",
-        }
-        return favorites.encode_toggle_key(key)
 
     def _remember_browse_title(self, media_id: str | None, title: str | None) -> None:
         """Remember a browse title for later lookups."""
@@ -276,344 +238,35 @@ class MediaBrowser:
             return cached
         return default or media_id
 
-    def _get_source_label(self, media_id: str, media_type: str) -> str | None:
-        """Derive a human-readable source/addon label for a pinnable item.
-
-        For plugin:// addons: looks up the addon root title from the browse
-        cache (populated when the user browses the addons list).
-        For PVR / sources items: returns a fixed label.
-        Returns None when no label is available (no API call is made).
-        """
-        if media_id.startswith("plugin://"):
-            # plugin://plugin.video.twitch/following/... -> plugin.video.twitch
-            parts = media_id.split("/")
-            if len(parts) >= 3 and parts[2]:
-                addon_id = parts[2]
-                label = self._browse_title_cache.get(f"plugin://{addon_id}/")
-                if label:
-                    return label
-                # Fallback: titlecase the last segment of the addon_id
-                # e.g. "plugin.video.twitch" -> "Twitch"
-                segments = addon_id.split(".")
-                if segments:
-                    return segments[-1].capitalize()
-            return None
-        if media_id.startswith("kodi://pvr") or media_type in ("channel", "channelgroup"):
-            return self.get_localized("Live TV")
-        if media_id.startswith("kodi://sources"):
-            return self.get_localized("Sources")
-        return None
-
-    def _resolve_toggle_params(self, media_id: str) -> dict[str, str] | None:
-        """Resolve a favorites toggle media_id (direct payload or compact key)."""
-        params = favorites.decode_toggle(media_id)
-        if not params:
-            return None
-        key = params.get("key")
-        if not key:
-            return {
-                "media_id": str(params["media_id"]),
-                "media_type": str(params["media_type"]),
-                "title": str(params.get("title") or params["media_id"]),
-                "parent": str(params.get("parent") or ""),
-            }
-        cached = self._favorites_toggle_cache.get(str(key))
-        if not cached:
-            return None
-        return {
-            "media_id": str(cached.get("media_id") or ""),
-            "media_type": str(cached.get("media_type") or ""),
-            "title": str(cached.get("title") or cached.get("media_id") or ""),
-            "parent": str(cached.get("parent") or ""),
-        }
-
-    def _favorite_item(self, fav: dict, *, with_unpin: bool = False) -> BrowseMediaItem | None:
-        """Render a saved favorite as a BrowseMediaItem.
-
-        When ``with_unpin`` is True, the returned item itself toggles (unpins)
-        the favorite on click; this is used in the management view so dead
-        favorites can still be removed without navigating into them.
-
-        Returns None when the resulting media_id would exceed the ucapi
-        255-char cap (would otherwise crash the whole browse listing).
-        """
-        title = fav.get("title") or fav.get("media_id", "")
-        if fav.get("broken"):
-            title = f"⚠ {title}"
-        source: str | None = fav.get("source") or None
-        if with_unpin:
-            toggle_id = self._build_toggle_media_id(
-                fav["media_id"],
-                fav["media_type"],
-                fav.get("title", title),
-                favorites.FAVORITES_MANAGE,
-            )
-            return BrowseMediaItem(
-                title=self.get_localized("Unpin") + ": " + title,
-                subtitle=source,
-                media_id=toggle_id,
-                media_class=MediaClass.DIRECTORY,
-                media_type=MediaContentType.URL.value,
-                can_browse=True,
-                can_play=False,
-                thumbnail=fav.get("thumbnail"),
-                items=[],
-            )
-        # Normal favorite: keep the original media_id/media_type so the
-        # standard browse/play handlers do the work. We still wrap browsing
-        # in a try/except later so that broken plugin:// targets do not
-        # leave the user stuck.
-        media_id = fav["media_id"]
-        media_type = fav["media_type"]
-        if len(media_id) > MAX_MEDIA_ID_LEN:
-            _LOG.warning(
-                "Skipping favorite, media_id exceeds %d chars: %s",
-                MAX_MEDIA_ID_LEN,
-                media_id[:120],
-            )
-            return None
-        can_play = media_type in ("channel",) or media_id.startswith("plugin://") and "?" in media_id
-        return BrowseMediaItem(
-            title=title,
-            subtitle=source,
-            media_id=media_id,
-            media_class=MediaClass.DIRECTORY,
-            media_type=media_type,
-            can_browse=True,
-            can_play=can_play,
-            thumbnail=fav.get("thumbnail"),
-            items=[],
-        )
-
-    def _build_favorites_root(self, paging: PaginationOptions) -> tuple[BrowseMediaItem, PaginationOptions]:
-        """Render the ``kodi://favorites`` root listing."""
+    # ---------------------------------------------------------------- favourites
+    async def _build_favorites_root(self, paging: PaginationOptions) -> tuple[BrowseMediaItem, PaginationOptions]:
+        """Render the ``kodi://favorites`` listing from Kodi's native favourites."""
         item = self.get_root_item()
         item.media_id = favorites.FAVORITES_ROOT
         item.title = self.get_localized("Favorites")
-        favs = favorites.list_favorites(self._device.device_config.favorites)
+        favs = await favorites.get_kodi_favourites(self._device.server)
         sub: list[BrowseMediaItem] = [self.get_back_item("kodi://")]
         for fav in favs:
-            entry = self._favorite_item(fav)
-            if entry is not None:
-                sub.append(entry)
-        if favs:
+            title = fav.get("title", "")
+            path = fav.get("path") or fav.get("window") or fav.get("windowparameter") or ""
+            if not path:
+                continue
+            thumbnail = fav.get("thumbnail") or None
             sub.append(
                 BrowseMediaItem(
-                    title=self.get_localized("Manage favorites"),
-                    media_id=favorites.FAVORITES_MANAGE,
+                    title=title,
+                    media_id=path,
                     media_class=MediaClass.DIRECTORY,
                     media_type=MediaContentType.URL.value,
                     can_browse=True,
-                    can_play=False,
+                    can_play=True,
+                    thumbnail=thumbnail,
                     items=[],
                 )
             )
         item.items = sub
         paging.count = len(sub)
         return item, paging
-
-    def _build_favorites_manage(self, paging: PaginationOptions) -> tuple[BrowseMediaItem, PaginationOptions]:
-        """Render the management view (one toggle entry per favorite + cleanup)."""
-        item = self.get_root_item()
-        item.media_id = favorites.FAVORITES_MANAGE
-        item.title = self.get_localized("Manage favorites")
-        favs = favorites.list_favorites(self._device.device_config.favorites)
-        sub: list[BrowseMediaItem] = [self.get_back_item(favorites.FAVORITES_ROOT)]
-        for fav in favs:
-            entry = self._favorite_item(fav, with_unpin=True)
-            if entry is not None:
-                sub.append(entry)
-        if any(f.get("broken") for f in favs):
-            sub.append(
-                BrowseMediaItem(
-                    title=self.get_localized("Cleanup broken favorites"),
-                    media_id=favorites.FAVORITES_CLEANUP,
-                    media_class=MediaClass.DIRECTORY,
-                    media_type=MediaContentType.URL.value,
-                    can_browse=True,
-                    can_play=False,
-                    items=[],
-                )
-            )
-        item.items = sub
-        paging.count = len(sub)
-        return item, paging
-
-    def _build_confirmation(
-        self, message: str, parent_id: str, paging: PaginationOptions
-    ) -> tuple[BrowseMediaItem, PaginationOptions]:
-        """Build a tiny browse view used as feedback after a favorites action."""
-        item = self.get_root_item()
-        item.media_id = parent_id
-        item.title = message
-        item.items = [self.get_back_item(parent_id)]
-        paging.count = 1
-        return item, paging
-
-    async def _handle_favorites_toggle(
-        self, media_id: str, paging: PaginationOptions
-    ) -> tuple[BrowseMediaItem, PaginationOptions]:
-        """Add or remove a favorite based on a toggle media_id."""
-        params = self._resolve_toggle_params(media_id)
-        if not params:
-            return self._build_confirmation(self.get_localized("Invalid favorite"), favorites.FAVORITES_ROOT, paging)
-        cfg = self._device.device_config
-        if cfg.favorites is None:
-            cfg.favorites = []
-        parent = params.get("parent") or favorites.FAVORITES_ROOT
-        changed = False
-        action = "remove" if favorites.is_favorite(cfg.favorites, params["media_id"], params["media_type"]) else "add"
-        _LOG.debug(
-            "[%s] Favorites toggle request: action=%s target=%s type=%s parent=%s",
-            self._device.device_config.address,
-            action,
-            params["media_id"],
-            params["media_type"],
-            parent,
-        )
-        if favorites.is_favorite(cfg.favorites, params["media_id"], params["media_type"]):
-            changed = favorites.remove(cfg.favorites, params["media_id"], params["media_type"])
-        else:
-            source = self._get_source_label(params["media_id"], params["media_type"])
-            changed = favorites.add(
-                cfg.favorites,
-                params["media_id"],
-                params["media_type"],
-                params.get("title") or params["media_id"],
-                source=source,
-            )
-        if changed:
-            self._persist_favorites()
-
-        # Stay in context: return the same logical view the user was at so the
-        # toggle response replaces the current screen.  The hardware Back button
-        # on the remote may still show a stale cached level below – this is a
-        # remote firmware limitation that cannot be solved server-side.
-        if parent == favorites.FAVORITES_ROOT:
-            result = self._build_favorites_root(paging)
-            _LOG.debug(
-                "[%s] Favorites toggle response: view=%s title=%s items=%s",
-                self._device.device_config.address,
-                result[0].media_id,
-                result[0].title,
-                len(result[0].items or []),
-            )
-            return result
-        if parent == favorites.FAVORITES_MANAGE:
-            result = self._build_favorites_manage(paging)
-            _LOG.debug(
-                "[%s] Favorites toggle response: view=%s title=%s items=%s",
-                self._device.device_config.address,
-                result[0].media_id,
-                result[0].title,
-                len(result[0].items or []),
-            )
-            return result
-        refreshed = await self.browse_media(parent, params.get("media_type"), paging)
-        if refreshed is not None:
-            _LOG.debug(
-                "[%s] Favorites toggle response: view=%s title=%s items=%s",
-                self._device.device_config.address,
-                refreshed[0].media_id,
-                refreshed[0].title,
-                len(refreshed[0].items or []),
-            )
-            return refreshed
-        result = self._build_confirmation(self.get_localized("Pinned"), parent, paging)
-        _LOG.debug(
-            "[%s] Favorites toggle response: view=%s title=%s items=%s",
-            self._device.device_config.address,
-            result[0].media_id,
-            result[0].title,
-            len(result[0].items or []),
-        )
-        return result
-
-    async def _handle_favorites_play_toggle(self, media_id: str) -> None:
-        """Process a favorites toggle triggered via play_media.
-
-        Adds or removes a favorite silently.  No browse response is returned
-        because the remote stays on the current screen (play_media does not
-        push a navigation level).
-        """
-        params = self._resolve_toggle_params(media_id)
-        if not params:
-            return
-        cfg = self._device.device_config
-        if cfg.favorites is None:
-            cfg.favorites = []
-        _LOG.debug(
-            "[%s] Favorites play toggle: action=%s target=%s type=%s",
-            self._device.device_config.address,
-            "remove" if favorites.is_favorite(cfg.favorites, params["media_id"], params["media_type"]) else "add",
-            params["media_id"],
-            params["media_type"],
-        )
-        changed = False
-        if favorites.is_favorite(cfg.favorites, params["media_id"], params["media_type"]):
-            changed = favorites.remove(cfg.favorites, params["media_id"], params["media_type"])
-        else:
-            source = self._get_source_label(params["media_id"], params["media_type"])
-            changed = favorites.add(
-                cfg.favorites,
-                params["media_id"],
-                params["media_type"],
-                params.get("title") or params["media_id"],
-                source=source,
-            )
-        if changed:
-            self._persist_favorites()
-
-    def _handle_favorites_cleanup(self, paging: PaginationOptions) -> tuple[BrowseMediaItem, PaginationOptions]:
-        """Remove all broken favorites."""
-        cfg = self._device.device_config
-        removed = favorites.remove_broken(cfg.favorites or [])
-        if removed:
-            self._persist_favorites()
-        return self._build_confirmation(
-            self.get_localized("Removed {0} broken favorites").replace("{0}", str(removed)),
-            favorites.FAVORITES_ROOT,
-            paging,
-        )
-
-    def _make_pin_item(self, media_id: str, media_type: str, title: str) -> BrowseMediaItem | None:
-        """Build the pin/unpin entry."""
-        pinned = favorites.is_favorite(self._device.device_config.favorites, media_id, media_type)
-        label_key = "📍 Unpin this folder" if pinned else "📍 Pin this folder"
-        # Use can_play so the remote sends a play_media command instead of
-        # browse_media.  This avoids pushing a new navigation level and the
-        # stale back-entry that comes with it.  The play_media handler in
-        # MediaBrowser intercepts the toggle URL and silently updates the
-        # favorites list.
-        toggle_id = self._build_toggle_media_id(media_id, media_type, title, parent=media_id)
-        return BrowseMediaItem(
-            title=self.get_localized(label_key),
-            media_id=toggle_id,
-            media_class=MediaClass.DIRECTORY,
-            media_type=MediaContentType.URL.value,
-            can_browse=False,
-            can_play=True,
-        )
-
-    def _maybe_inject_pin_item(self, item: BrowseMediaItem, media_id: str | None, media_type: str | None) -> None:
-        """Insert the pin/unpin item at the top of ``item.items`` if applicable."""
-        if not media_id or not item or not item.items:
-            return
-        if not favorites.can_pin(media_id, media_type):
-            return
-        title = item.title or media_id
-        # Skip if already injected (defensive against double calls)
-        if (
-            item.items
-            and isinstance(item.items[0], BrowseMediaItem)
-            and (item.items[0].media_id or "").startswith(favorites.FAVORITES_TOGGLE_PREFIX)
-        ):
-            return
-        # Insert just AFTER an existing back item if present, otherwise at top
-        insert_at = 1 if item.items and item.items[0].title in ("..", self.get_localized("..")) else 0
-        pin = self._make_pin_item(media_id, media_type or "", title)
-        if pin is not None:
-            item.items.insert(insert_at, pin)
 
     def get_localized(self, value: str) -> str:
         """Return localized value."""
@@ -1108,9 +761,7 @@ class MediaBrowser:
             else:
                 paging = PaginationOptions(page=paging.page, limit=paging.limit, count=0)
 
-            if media_id and (
-                media_id.startswith(favorites.FAVORITES_ROOT) or media_id.startswith(favorites.FAVORITES_TOGGLE_PREFIX)
-            ):
+            if media_id and media_id.startswith(favorites.FAVORITES_ROOT):
                 _LOG.debug(
                     "[%s] Browse request: media_id=%s media_type=%s page=%s limit=%s",
                     self._device.device_config.address,
@@ -1139,22 +790,33 @@ class MediaBrowser:
                 await self.add_now_playing_item(items, 0)
                 for sub_item in items:
                     sub_item.title = self.get_localized(sub_item.title)
-                # Optionally inject favorites flat into the browse root
+                # Optionally inject Kodi favourites flat into the browse root
                 if getattr(self._device.device_config, "favorites_in_root", False):
-                    favs = favorites.list_favorites(self._device.device_config.favorites)
+                    favs = await favorites.get_kodi_favourites(self._device.server)
                     root_favorites: list[BrowseMediaItem] = []
                     has_more_favorites = len(favs) > MAX_ROOT_FAVORITES
                     visible_favorites = (
                         favs[: MAX_ROOT_FAVORITES - 1] if has_more_favorites else favs[:MAX_ROOT_FAVORITES]
                     )
                     for fav in visible_favorites:
-                        entry = self._favorite_item(fav)
-                        if entry is not None:
-                            root_favorites.append(entry)
+                        title = fav.get("title", "")
+                        path = fav.get("path") or fav.get("window") or fav.get("windowparameter") or ""
+                        if not path:
+                            continue
+                        root_favorites.append(
+                            BrowseMediaItem(
+                                title=title,
+                                media_id=path,
+                                media_class=MediaClass.DIRECTORY,
+                                media_type=MediaContentType.URL.value,
+                                can_browse=True,
+                                can_play=True,
+                                thumbnail=fav.get("thumbnail") or None,
+                                items=[],
+                            )
+                        )
 
                     if has_more_favorites:
-                        # Show first N-1 favorites directly and keep slot N as
-                        # a link to the full favorites view for the overflow.
                         root_favorites.append(
                             BrowseMediaItem(
                                 title=self.get_localized("Favorites"),
@@ -1166,8 +828,6 @@ class MediaBrowser:
                                 items=[],
                             )
                         )
-                        # Avoid duplicate favorites root entry when the
-                        # overflow link is already injected in the top section.
                         items = [x for x in items if x.media_id != favorites.FAVORITES_ROOT]
 
                     for entry in reversed(root_favorites):
@@ -1177,15 +837,9 @@ class MediaBrowser:
                 item.items = items
                 return item, paging
 
-            # ---------- Favorites special routes ----------
+            # ---------- Favourites special routes ----------
             if media_id == favorites.FAVORITES_ROOT:
-                return self._build_favorites_root(paging)
-            if media_id == favorites.FAVORITES_MANAGE:
-                return self._build_favorites_manage(paging)
-            if media_id.startswith(favorites.FAVORITES_TOGGLE_PREFIX):
-                return await self._handle_favorites_toggle(media_id, paging)
-            if media_id == favorites.FAVORITES_CLEANUP:
-                return self._handle_favorites_cleanup(paging)
+                return await self._build_favorites_root(paging)
             # ----------------------------------------------
 
             # Find given media_id in the library items
@@ -1399,13 +1053,6 @@ class MediaBrowser:
                             ex,
                         )
                         data = None
-                        # If this id is a saved favorite, flag it as broken and
-                        # always offer an unpin button so the user is not stuck.
-                        cfg = self._device.device_config
-                        if favorites.is_favorite(cfg.favorites, media_id, media_type or "addondir"):
-                            if favorites.mark_broken(cfg.favorites, media_id, media_type or "addondir", True):
-                                self._persist_favorites()
-                            item.items.append(self._make_pin_item(media_id, media_type or "addondir", media_id))
                     if data:
                         for file in data.get("files", []) or []:
                             sub = self.get_item_from_file(file, "addondir", extract_thumbnail=False)
@@ -1417,14 +1064,6 @@ class MediaBrowser:
                                 sub.thumbnail = self.get_artwork_url(thumb)
                             item.items.append(sub)
                         paging.count = data.get("limits", {}).get("total", len(item.items))
-                        # If this directory is a saved favorite that was previously
-                        # broken, clear the flag now that it works again.
-                        cfg = self._device.device_config
-                        if favorites.mark_broken(cfg.favorites, media_id, media_type or "addondir", False):
-                            self._persist_favorites()
-                    # Inject the pin/unpin shortcut at the top so the user can
-                    # bookmark this exact location.
-                    self._maybe_inject_pin_item(item, media_id, media_type or "addondir")
                     self._remember_browse_title(media_id, item.title)
                     return item, paging
                 if media_type.startswith("kodi://sources"):
@@ -1826,8 +1465,6 @@ class MediaBrowser:
                         item.items.append(self.get_item_from_channel(channel))
                     if resolved_title := await self._get_channel_group_title(parent_id, real_media_id):
                         item.title = resolved_title
-                    # Allow pinning of the whole channel group
-                    self._maybe_inject_pin_item(item, media_id, "channelgroup")
                 elif media_type == MediaContentType.PLAYLIST.value:
                     item = self.get_root_item(MediaClass.PLAYLIST, MediaContentType.PLAYLIST)
                     limit = paging.limit
@@ -1939,12 +1576,6 @@ class MediaBrowser:
         item: dict[str, Any] = {}
         if media_id is None or media_type is None:
             return StatusCodes.BAD_REQUEST
-        # Intercept favorites toggle URLs: the pin/unpin button uses
-        # can_play so the remote sends play_media instead of browse_media,
-        # avoiding a stale back-navigation level.
-        if media_id.startswith(favorites.FAVORITES_TOGGLE_PREFIX):
-            await self._handle_favorites_play_toggle(media_id)
-            return StatusCodes.OK
         if media_type == "channel":
             if media_id.startswith("kodi://"):
                 media_id = media_id.rstrip("/").rsplit("/", 1)[-1]
