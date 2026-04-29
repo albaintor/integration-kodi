@@ -610,12 +610,7 @@ class SetupFlow:
         sensor_include_device_name = msg.input_values.get("sensor_include_device_name", "false") == "true"
         power_off_command = msg.input_values.get("power_off_command", next(iter(KODI_POWEROFF_COMMANDS)))
         browse_media_root = msg.input_values.get("browse_media_root", "")
-        raw_favorites_in_root = msg.input_values.get("favorites_in_root", False)
-        favorites_in_root = (
-            raw_favorites_in_root
-            if isinstance(raw_favorites_in_root, bool)
-            else str(raw_favorites_in_root).lower() == "true"
-        )
+        favorites_in_root = msg.input_values.get("favorites_in_root", "false") == "true"
 
         try:
             sensor_audio_stream_config = int(
@@ -761,12 +756,7 @@ class SetupFlow:
         sensor_include_device_name = msg.input_values.get("sensor_include_device_name", "false") == "true"
         power_off_command = msg.input_values.get("power_off_command", next(iter(KODI_POWEROFF_COMMANDS)))
         browse_media_root = msg.input_values.get("browse_media_root", "")
-        raw_favorites_in_root = msg.input_values.get("favorites_in_root", False)
-        favorites_in_root = (
-            raw_favorites_in_root
-            if isinstance(raw_favorites_in_root, bool)
-            else str(raw_favorites_in_root).lower() == "true"
-        )
+        favorites_in_root = msg.input_values.get("favorites_in_root", "false") == "true"
         name = msg.input_values["name"]
         try:
             sensor_audio_stream_config = int(
