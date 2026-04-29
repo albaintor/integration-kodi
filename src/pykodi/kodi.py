@@ -8,6 +8,7 @@ Implementation of a Kodi interface.
 import asyncio
 import logging
 import urllib.parse
+from typing import Literal, Any
 from urllib.parse import quote
 
 import aiohttp
@@ -498,6 +499,28 @@ class Kodi:
             await self._server.Player.SetSubtitle(
                 **{"playerid": players[0]["playerid"], "subtitle": stream_index, "enable": enable}
             )
+
+    async def get_favourites(self) -> list[dict[str, Any]]:
+        """Get user favourites."""
+        return await self._server.Favourites.GetFavourites(
+            **_build_query(properties=["window", "windowparameter", "thumbnail", "path"])
+        )
+
+    async def add_favourites(
+        self,
+        title: str,
+        type: Literal["media", "window", "script", "androidapp", "unknown"],
+        path: str | None = None,
+        window: str | None = None,
+        windowparameter: str | None = None,
+        thumbnail: str | None = None,
+    ) -> str:
+        """Add a user favourites."""
+        return await self._server.Favourites.AddFavourites(
+            **_build_query(
+                title=title, type=type, path=path, window=window, windowparameter=windowparameter, thumbnail=thumbnail
+            )
+        )
 
 
 def _build_query(**kwargs):
