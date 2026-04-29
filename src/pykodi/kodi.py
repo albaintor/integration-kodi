@@ -8,7 +8,7 @@ Implementation of a Kodi interface.
 import asyncio
 import logging
 import urllib.parse
-from typing import Literal, Any
+from typing import Any, Literal
 from urllib.parse import quote
 
 import aiohttp
