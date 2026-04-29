@@ -346,18 +346,6 @@ class Kodi:
             raise ValueError(f"Invalid method: {method}")
         return await getattr(self._server, method)(*args)
 
-    async def get_favourites(self, properties=None):
-        """Retrieve all Kodi favourites.
-
-        :param properties: list of properties to retrieve (path, thumbnail,
-            window, windowparameter).  Defaults to all properties when None.
-        :returns: dict with ``favourites`` list and ``limits``.
-        """
-        params: dict = {}
-        if properties is not None:
-            params["properties"] = properties
-        return await self._server.Favourites.GetFavourites(**params)
-
     async def _add_item_to_playlist(self, item):
         await self._server.Playlist.Add(**{"playlistid": 0, "item": item})
 
@@ -521,7 +509,7 @@ class Kodi:
     async def add_favourites(
         self,
         title: str,
-        type: Literal["media", "window", "script", "androidapp", "unknown"],
+        fav_type: Literal["media", "window", "script", "androidapp", "unknown"],
         path: str | None = None,
         window: str | None = None,
         windowparameter: str | None = None,
@@ -530,7 +518,7 @@ class Kodi:
         """Add a user favourites."""
         return await self._server.Favourites.AddFavourites(
             **_build_query(
-                title=title, type=type, path=path, window=window, windowparameter=windowparameter, thumbnail=thumbnail
+                title=title, type=fav_type, path=path, window=window, windowparameter=windowparameter, thumbnail=thumbnail
             )
         )
 
