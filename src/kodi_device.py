@@ -2103,7 +2103,8 @@ class KodiDevice(IKodiDevice):
     async def add_favourites(
         self,
         title: str,
-        type: Literal["media", "window", "script", "androidapp", "unknown"],
+        *,
+        fav_type: Literal["media", "window", "script", "androidapp", "unknown"],
         path: str | None = None,
         window: str | None = None,
         windowparameter: str | None = None,
@@ -2112,6 +2113,6 @@ class KodiDevice(IKodiDevice):
         """Add a new item to the favourite menu."""
         if self._kodi is None:
             return None
-        results = await self._kodi.add_favourites(title, type, path, window, windowparameter, thumbnail)
+        results = await self._kodi.add_favourites(title, fav_type=fav_type, path=path, window=window, windowparameter=windowparameter, thumbnail=thumbnail)
         _LOG.debug("[%s] Add favourite %s (%s) : %s", self.device_config.address, title, path, results)
         return results
