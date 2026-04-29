@@ -151,6 +151,16 @@ class MediaBrowser:
         # can show a human-readable label instead of raw URLs.
         self._browse_title_cache: dict[str, str] = {}
 
+    def reset_feature_cache(self) -> None:
+        """Reset cached feature-availability flags.
+
+        Called on each new connection so that PVR/Addons probes are
+        re-evaluated against the current Kodi state.
+        """
+        self._pvr_available = None
+        self._addons_video_available = None
+        self._addons_audio_available = None
+
     async def _is_pvr_available(self) -> bool:
         """Return True if Kodi has at least one PVR channel group (TV or Radio)."""
         if self._pvr_available is not None:
@@ -164,9 +174,11 @@ class MediaBrowser:
             self._pvr_available = False
         # pylint: disable=W0718
         except Exception as ex:
-            # Do not cache transient probe failures as "unavailable".
+            # Cache the failure so we don't retry on every browse request.
+            # The cache is reset on each new connection via reset_feature_cache().
+            self._pvr_available = False
             _LOG.debug(
-                "[%s] PVR availability probe failed, will retry: %s",
+                "[%s] PVR availability probe failed, cached as unavailable: %s",
                 self._device.device_config.address,
                 ex,
             )
@@ -186,9 +198,11 @@ class MediaBrowser:
             available = bool((result or {}).get("addons"))
         # pylint: disable=W0718
         except Exception as ex:
-            # Do not cache transient probe failures as "unavailable".
+            # Cache the failure so we don't retry on every browse request.
+            # The cache is reset on each new connection via reset_feature_cache().
+            setattr(self, cache_attr, False)
             _LOG.debug(
-                "[%s] Addons(%s) availability probe failed, will retry: %s",
+                "[%s] Addons(%s) availability probe failed, cached as unavailable: %s",
                 self._device.device_config.address,
                 content,
                 ex,
@@ -248,7 +262,7 @@ class MediaBrowser:
         sub: list[BrowseMediaItem] = [self.get_back_item("kodi://")]
         for fav in favs:
             title = fav.get("title", "")
-            path = fav.get("path") or fav.get("window") or fav.get("windowparameter") or ""
+            path = fav.get("path") or fav.get("windowparameter") or fav.get("window") or ""
             if not path:
                 continue
             thumbnail = fav.get("thumbnail") or None
@@ -800,7 +814,7 @@ class MediaBrowser:
                     )
                     for fav in visible_favorites:
                         title = fav.get("title", "")
-                        path = fav.get("path") or fav.get("window") or fav.get("windowparameter") or ""
+                        path = fav.get("path") or fav.get("windowparameter") or fav.get("window") or ""
                         if not path:
                             continue
                         root_favorites.append(
@@ -1065,6 +1079,37 @@ class MediaBrowser:
                             item.items.append(sub)
                         paging.count = data.get("limits", {}).get("total", len(item.items))
                     self._remember_browse_title(media_id, item.title)
+                    return item, paging
+                # Browsing a file path (smb://, nfs://, etc.) - treat as source browsing
+                if media_id.startswith(("smb://", "nfs://", "multipath://", "special://", "plugin://")):
+                    item = self.get_root_item()
+                    item.media_id = media_id
+                    item.title = media_id
+                    limit = paging.limit
+                    end = paging.page * limit
+                    arguments: dict[str, Any] = {
+                        "directory": media_id,
+                        "properties": ["mimetype"],
+                        "limits": {
+                            "start": (paging.page - 1) * limit,
+                            "end": end,
+                        },
+                    }
+                    if self._device.device_config.browsing_files_sort:
+                        arguments["sort"] = MediaBrowser.get_sorting(self._device.device_config.browsing_files_sort)
+                    _LOG.debug(
+                        "[%s] Browsing file path %s : %s",
+                        self._device.device_config.address,
+                        media_id,
+                        arguments,
+                    )
+                    data = await self._device.server.Files.GetDirectory(**arguments)
+                    if data:
+                        for file in data.get("files", []):
+                            sub = self.get_item_from_file(file, media_type, False)
+                            if sub is not None:
+                                item.items.append(sub)
+                        paging.count = data.get("limits", {}).get("total", 0)
                     return item, paging
                 if media_type.startswith("kodi://sources"):
                     back_buttons = 0
