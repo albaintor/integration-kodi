@@ -72,11 +72,7 @@ class KodiConfigDevice:
     browsing_album_sort: str = field(default="album")
     browsing_files_sort: str = field(default="")
     browse_media_root: str = field(default="")
-    # Pinned shortcuts (favorites) added by the user from within the browse menu.
-    # Each entry: {"media_id": str, "media_type": str, "title": str,
-    #              "thumbnail": str | None, "broken": bool}
-    favorites: list = field(default_factory=list)
-    # Show favorites flat in the browse root in addition to the "Favorites" entry
+    # Show Kodi favourites flat in the browse root in addition to the "Favourites" entry
     favorites_in_root: bool = field(default=False)
 
     # pylint: disable=R0801
