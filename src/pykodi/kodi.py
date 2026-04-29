@@ -500,8 +500,13 @@ class Kodi:
                 **{"playerid": players[0]["playerid"], "subtitle": stream_index, "enable": enable}
             )
 
-    async def get_favourites(self) -> list[dict[str, Any]]:
-        """Get user favourites."""
+    async def get_favourites(self) -> dict[str, Any]:
+        """Get user favourites.
+
+        Returns the raw JSON-RPC result with ``favourites`` array and
+        ``limits`` object.  Use ``favorites.get_kodi_favourites`` for a
+        validated, extracted list.
+        """
         return await self._server.Favourites.GetFavourites(
             **_build_query(properties=["window", "windowparameter", "thumbnail", "path"])
         )
