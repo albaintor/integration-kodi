@@ -518,8 +518,11 @@ class Kodi:
         """Add a user favourites."""
         return await self._server.Favourites.AddFavourites(
             **_build_query(
-                title=title, type=fav_type, path=path,
-                window=window, windowparameter=windowparameter,
+                title=title,
+                type=fav_type,
+                path=path,
+                window=window,
+                windowparameter=windowparameter,
                 thumbnail=thumbnail,
             )
         )
