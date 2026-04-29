@@ -545,10 +545,10 @@ class MediaBrowser:
         """Build the pin/unpin entry."""
         pinned = favorites.is_favorite(self._device.device_config.favorites, media_id, media_type)
         label_key = "📍 Unpin this folder" if pinned else "📍 Pin this folder"
-        # UX workaround: after pin/unpin from deep folder views, jump back to
-        # Home so users immediately see updated root favorites and don't need
-        # to back out through the whole navigation path.
-        parent = "kodi://"
+        # After pin/unpin, stay in the current directory by re-browsing it.
+        # This avoids stale back-navigation levels on the remote since the
+        # toggle response replaces the current screen with the same view.
+        parent = media_id
         toggle_id = self._build_toggle_media_id(media_id, media_type, title, parent=parent)
         return BrowseMediaItem(
             title=self.get_localized(label_key),
