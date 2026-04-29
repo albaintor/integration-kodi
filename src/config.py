@@ -72,6 +72,8 @@ class KodiConfigDevice:
     browsing_album_sort: str = field(default="album")
     browsing_files_sort: str = field(default="")
     browse_media_root: str = field(default="")
+    # Show Kodi favourites flat in the browse root in addition to the "Favourites" entry
+    favorites_in_root: bool = field(default=False)
 
     # pylint: disable=R0801
     def __post_init__(self):

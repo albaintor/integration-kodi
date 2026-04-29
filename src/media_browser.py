@@ -22,6 +22,7 @@ from ucapi.media_player import (
     SearchMediaFilter,
 )
 
+import favorites
 from const import (
     IKodiDevice,
     KodiMediaTypes,
@@ -33,6 +34,14 @@ from translations import TRANSLATIONS
 _LOG = logging.getLogger(__name__)
 
 # pylint: disable=C0302,R0801,R0917,W1405
+
+# ucapi BrowseMediaItem.media_id is hard-capped at 255 characters.
+# Some Kodi addons (e.g. plugin.video.twitch followed channels) emit child
+# entries whose 'file' URL exceeds that limit. We must filter them out at
+# the construction sites or the BrowseMediaItem constructor raises
+# ValueError mid-loop and aborts the whole listing.
+MAX_MEDIA_ID_LEN = 255
+MAX_ROOT_FAVORITES = 10
 
 
 MEDIA_CONTENT_LABELS = {
@@ -138,6 +147,9 @@ class MediaBrowser:
         self._pvr_available: bool | None = None
         self._addons_video_available: bool | None = None
         self._addons_audio_available: bool | None = None
+        # Remember browse entry titles by media_id so deep plugin:// navigation
+        # can show a human-readable label instead of raw URLs.
+        self._browse_title_cache: dict[str, str] = {}
 
     async def _is_pvr_available(self) -> bool:
         """Return True if Kodi has at least one PVR channel group (TV or Radio)."""
@@ -151,8 +163,14 @@ class MediaBrowser:
                     return True
             self._pvr_available = False
         # pylint: disable=W0718
-        except Exception:
-            self._pvr_available = False
+        except Exception as ex:
+            # Do not cache transient probe failures as "unavailable".
+            _LOG.debug(
+                "[%s] PVR availability probe failed, will retry: %s",
+                self._device.device_config.address,
+                ex,
+            )
+            return False
         return self._pvr_available
 
     async def _is_addons_available(self, content: str) -> bool:
@@ -167,8 +185,15 @@ class MediaBrowser:
             )
             available = bool((result or {}).get("addons"))
         # pylint: disable=W0718
-        except Exception:
-            available = False
+        except Exception as ex:
+            # Do not cache transient probe failures as "unavailable".
+            _LOG.debug(
+                "[%s] Addons(%s) availability probe failed, will retry: %s",
+                self._device.device_config.address,
+                content,
+                ex,
+            )
+            return False
         setattr(self, cache_attr, available)
         return available
 
@@ -189,8 +214,59 @@ class MediaBrowser:
             elif mid == "kodi://addons/audio":
                 if not await self._is_addons_available("audio"):
                     continue
+            elif mid == "kodi://favorites":
+                if not await favorites.get_kodi_favourites(self._device.client):
+                    continue
             result.append(it)
         return result
+
+    def _remember_browse_title(self, media_id: str | None, title: str | None) -> None:
+        """Remember a browse title for later lookups."""
+        if not media_id or not title:
+            return
+        cleaned = strip_kodi_formatting(title).strip()
+        if not cleaned:
+            return
+        if len(self._browse_title_cache) >= 4096:
+            self._browse_title_cache.clear()
+        self._browse_title_cache[media_id] = cleaned
+
+    def _get_cached_title(self, media_id: str, default: str | None = None) -> str:
+        """Return cached title for media_id, falling back to default/raw id."""
+        cached = self._browse_title_cache.get(media_id)
+        if cached:
+            return cached
+        return default or media_id
+
+    # ---------------------------------------------------------------- favourites
+    async def _build_favorites_root(self, paging: PaginationOptions) -> tuple[BrowseMediaItem, PaginationOptions]:
+        """Render the ``kodi://favorites`` listing from Kodi's native favourites."""
+        item = self.get_root_item()
+        item.media_id = favorites.FAVORITES_ROOT
+        item.title = self.get_localized("Favorites")
+        favs = await favorites.get_kodi_favourites(self._device.client)
+        sub: list[BrowseMediaItem] = [self.get_back_item("kodi://")]
+        for fav in favs:
+            title = fav.get("title", "")
+            path = fav.get("path") or fav.get("window") or fav.get("windowparameter") or ""
+            if not path:
+                continue
+            thumbnail = fav.get("thumbnail") or None
+            sub.append(
+                BrowseMediaItem(
+                    title=title,
+                    media_id=path,
+                    media_class=MediaClass.DIRECTORY,
+                    media_type=MediaContentType.URL.value,
+                    can_browse=True,
+                    can_play=True,
+                    thumbnail=thumbnail,
+                    items=[],
+                )
+            )
+        item.items = sub
+        paging.count = len(sub)
+        return item, paging
 
     def get_localized(self, value: str) -> str:
         """Return localized value."""
@@ -238,13 +314,23 @@ class MediaBrowser:
             items=[],
         )
 
-    def get_item_from_file(self, file: dict[str, Any], media_type: str, extract_thumbnail=True) -> BrowseMediaItem:
-        """Build item from file."""
+    def get_item_from_file(
+        self, file: dict[str, Any], media_type: str, extract_thumbnail=True
+    ) -> BrowseMediaItem | None:
+        """Build item from file. Returns None when media_id exceeds the ucapi 255-char cap."""
+        media_id = file.get("file", "") or ""
+        if len(media_id) > MAX_MEDIA_ID_LEN:
+            _LOG.warning(
+                "Skipping file entry, media_id exceeds %d chars: %s...",
+                MAX_MEDIA_ID_LEN,
+                media_id[:120],
+            )
+            return None
         label = strip_kodi_formatting(file.get("label", ""))
         if file.get("filetype", "directory") == "directory":
-            return BrowseMediaItem(
+            item = BrowseMediaItem(
                 title=label,
-                media_id=file.get("file", ""),
+                media_id=media_id,
                 media_class=MediaClass.DIRECTORY,
                 media_type=media_type,
                 can_browse=True,
@@ -252,15 +338,17 @@ class MediaBrowser:
                 can_search=True,
                 items=[],
             )
+            self._remember_browse_title(media_id, label)
+            return item
         if extract_thumbnail:
             thumbnail: str = file.get("file")
             if thumbnail:
                 thumbnail = self._device.client.get_thumbnail_from_file(thumbnail.rstrip("/"))
         else:
             thumbnail: str | None = None
-        return BrowseMediaItem(
+        item = BrowseMediaItem(
             title=label,
-            media_id=file.get("file", ""),
+            media_id=media_id,
             media_class=MediaClass.VIDEO,
             media_type=media_type,
             can_browse=False,
@@ -269,6 +357,8 @@ class MediaBrowser:
             thumbnail=thumbnail,
             items=[],
         )
+        self._remember_browse_title(media_id, label)
+        return item
 
     def get_artwork_url(self, url: str) -> str | None:
         """Return artwork url."""
@@ -325,12 +415,19 @@ class MediaBrowser:
             duration=MediaBrowser.get_duration(movie),
         )
 
-    def get_item_from_episode(self, episode: dict[str, Any]) -> BrowseMediaItem:
-        """Build item from episode."""
+    def get_item_from_episode(self, episode: dict[str, Any]) -> BrowseMediaItem | None:
+        """Build item from episode. Returns None when media_id exceeds the ucapi 255-char cap."""
         art = get_artwork(episode.get("art", None))
         if art:
             art = self.get_artwork_url(art)
         media_id = str(episode.get("file", ""))
+        if len(media_id) > MAX_MEDIA_ID_LEN:
+            _LOG.warning(
+                "Skipping episode entry, media_id exceeds %d chars: %s...",
+                MAX_MEDIA_ID_LEN,
+                media_id[:120],
+            )
+            return None
         subtitles: list[str] = []
         # Not necessary, season and episode already in label
         # episode_season = None
@@ -512,7 +609,7 @@ class MediaBrowser:
     def get_item_from_channel_group(self, group: dict[str, Any], parent_id: str) -> BrowseMediaItem:
         """Build item from a PVR channel group."""
         media_id = f"{parent_id}/{int(group.get('channelgroupid', 0))}"
-        return BrowseMediaItem(
+        item = BrowseMediaItem(
             title=group.get("label", ""),
             media_id=media_id,
             media_class=MediaClass.DIRECTORY,
@@ -521,6 +618,8 @@ class MediaBrowser:
             can_search=False,
             items=[],
         )
+        self._remember_browse_title(media_id, group.get("label", ""))
+        return item
 
     def get_item_from_channel(self, channel: dict[str, Any]) -> BrowseMediaItem:
         """Build item from a PVR channel (live TV / radio)."""
@@ -559,17 +658,21 @@ class MediaBrowser:
             if len(subtitle) > 255:
                 subtitle = subtitle[:252].rstrip() + "..."
         addon_id = str(addon.get("addonid", ""))
-        return BrowseMediaItem(
-            title=strip_kodi_formatting(addon.get("name")) or addon_id,
+        title = strip_kodi_formatting(addon.get("name")) or addon_id
+        media_id = f"plugin://{addon_id}/" if addon_id else ""
+        item = BrowseMediaItem(
+            title=title,
             subtitle=subtitle,
             # Addons are browsed via Kodi's virtual file system: plugin://<addonid>/
-            media_id=f"plugin://{addon_id}/" if addon_id else "",
+            media_id=media_id,
             media_class=MediaClass.APP if hasattr(MediaClass, "APP") else MediaClass.DIRECTORY,
             media_type="addondir",
             can_play=False,
             can_browse=True,
             thumbnail=thumbnail,
         )
+        self._remember_browse_title(media_id, title)
+        return item
 
     @staticmethod
     def get_sorting(sorting: str) -> dict[str, str]:
@@ -587,29 +690,54 @@ class MediaBrowser:
             return found[0]
         return None
 
+    async def _get_channel_group_title(self, parent_id: str | None, group_id: str) -> str | None:
+        """Resolve the display title for a PVR channel group."""
+        if not parent_id:
+            return None
+        parent = parent_id.rstrip("/")
+        if not parent.startswith("kodi://pvr/"):
+            return None
+        channel_type = parent.rsplit("/", 1)[-1]
+        if channel_type not in ("tv", "radio"):
+            return None
+        try:
+            data = await self._device.server.PVR.GetChannelGroups(channeltype=channel_type)
+        # pylint: disable=W0718
+        except Exception:
+            return None
+        for group in (data or {}).get("channelgroups", []):
+            if str(group.get("channelgroupid", "")) == str(group_id):
+                label = group.get("label")
+                if label:
+                    return str(label)
+        return None
+
     async def add_now_playing_item(self, items: list[BrowseMediaItem], position: int):
         """Add now playing item."""
         current_playlist = await self._device.get_current_playlist()
         if current_playlist and current_playlist.position >= 0:
-            art = get_artwork(current_playlist.playlist["items"][current_playlist.position].get("art", None))
+            playing = current_playlist.playlist["items"][current_playlist.position]
+            art = get_artwork(playing.get("art", None))
             if art:
                 art = self.get_artwork_url(art)
-            duration = current_playlist.playlist["items"][current_playlist.position].get("duration", None)
+            duration = playing.get("duration", None)
+            # ucapi rejects empty strings for album/artist ("must be at least 1
+            # characters"); coerce "" to None to avoid aborting the whole root
+            # listing when Kodi returns an empty tag.
+            album = playing.get("album", None) or None
+            artist = get_element(playing.get("artist", None)) or None
             items.insert(
                 position,
                 BrowseMediaItem(
-                    title=f"{self.get_localized('Now playing')} "
-                    f"({current_playlist.playlist['items'][current_playlist.position].get('label', '')})",
+                    title=f"{self.get_localized('Now playing')} " f"({playing.get('label', '')})",
                     media_class=MediaClass.PLAYLIST,
                     media_type=MediaClass.PLAYLIST,
                     media_id="kodi://playing",
                     thumbnail=art,
                     can_browse=True,
                     duration=int(duration) if duration else None,
-                    album=current_playlist.playlist["items"][current_playlist.position].get("album", None),
-                    artist=get_element(
-                        current_playlist.playlist["items"][current_playlist.position].get("artist", None)
-                    ),
+                    album=album,
+                    artist=artist,
                 ),
             )
 
@@ -633,6 +761,16 @@ class MediaBrowser:
             else:
                 paging = PaginationOptions(page=paging.page, limit=paging.limit, count=0)
 
+            if media_id and media_id.startswith(favorites.FAVORITES_ROOT):
+                _LOG.debug(
+                    "[%s] Browse request: media_id=%s media_type=%s page=%s limit=%s",
+                    self._device.device_config.address,
+                    media_id,
+                    media_type,
+                    paging.page,
+                    paging.limit,
+                )
+
             # Change media_id if empty (root) and a custom category has been defined by user
             # add_now_playing = False
             if (media_id is None or media_id == "") and self._device.device_config.browse_media_root != "":
@@ -652,10 +790,57 @@ class MediaBrowser:
                 await self.add_now_playing_item(items, 0)
                 for sub_item in items:
                     sub_item.title = self.get_localized(sub_item.title)
+                # Optionally inject Kodi favourites flat into the browse root
+                if getattr(self._device.device_config, "favorites_in_root", False):
+                    favs = await favorites.get_kodi_favourites(self._device.client)
+                    root_favorites: list[BrowseMediaItem] = []
+                    has_more_favorites = len(favs) > MAX_ROOT_FAVORITES
+                    visible_favorites = (
+                        favs[: MAX_ROOT_FAVORITES - 1] if has_more_favorites else favs[:MAX_ROOT_FAVORITES]
+                    )
+                    for fav in visible_favorites:
+                        title = fav.get("title", "")
+                        path = fav.get("path") or fav.get("window") or fav.get("windowparameter") or ""
+                        if not path:
+                            continue
+                        root_favorites.append(
+                            BrowseMediaItem(
+                                title=title,
+                                media_id=path,
+                                media_class=MediaClass.DIRECTORY,
+                                media_type=MediaContentType.URL.value,
+                                can_browse=True,
+                                can_play=True,
+                                thumbnail=fav.get("thumbnail") or None,
+                                items=[],
+                            )
+                        )
+
+                    if has_more_favorites:
+                        root_favorites.append(
+                            BrowseMediaItem(
+                                title=self.get_localized("Favorites"),
+                                media_id=favorites.FAVORITES_ROOT,
+                                media_class=MediaClass.DIRECTORY,
+                                media_type=MediaContentType.URL.value,
+                                can_browse=True,
+                                can_play=False,
+                                items=[],
+                            )
+                        )
+                        items = [x for x in items if x.media_id != favorites.FAVORITES_ROOT]
+
+                    for entry in reversed(root_favorites):
+                        items.insert(0, entry)
                 paging.count = len(items)
                 item.title = self.get_localized(item.title)
                 item.items = items
                 return item, paging
+
+            # ---------- Favourites special routes ----------
+            if media_id == favorites.FAVORITES_ROOT:
+                return await self._build_favorites_root(paging)
+            # ----------------------------------------------
 
             # Find given media_id in the library items
             entry: KodiMediaEntry | None = None
@@ -741,7 +926,9 @@ class MediaBrowser:
                     if self.add_back_entry(item.media_id, paging):
                         item.items.append(self.get_back_item("kodi://sources"))
                     for file in data.get("files", data.get("sources", [])):
-                        item.items.append(self.get_item_from_file(file, media_type, False))
+                        sub = self.get_item_from_file(file, media_type, False)
+                        if sub is not None:
+                            item.items.append(sub)
                 elif entry.output == KodiObjectType.MOVIE:
                     if self.add_back_entry(item.media_id, paging):
                         item.items.append(self.get_back_item("kodi://videos", str(MediaContentType.MOVIE.value)))
@@ -755,7 +942,9 @@ class MediaBrowser:
                     if self.add_back_entry(item.media_id, paging):
                         item.items.append(self.get_back_item("kodi://tvshows", str(MediaContentType.TV_SHOW.value)))
                     for episode in data.get("episodes", []):
-                        item.items.append(self.get_item_from_episode(episode))
+                        sub = self.get_item_from_episode(episode)
+                        if sub is not None:
+                            item.items.append(sub)
                 elif entry.output == KodiObjectType.TV_SHOW:
                     if self.add_back_entry(item.media_id, paging):
                         item.items.append(self.get_back_item("kodi://tvshows", str(MediaContentType.TV_SHOW.value)))
@@ -765,7 +954,9 @@ class MediaBrowser:
                     if self.add_back_entry(item.media_id, paging):
                         item.items.append(self.get_back_item("kodi://tvshows", str(MediaContentType.TV_SHOW.value)))
                     for episode in data.get("episodes", []):
-                        item.items.append(self.get_item_from_episode(episode))
+                        sub = self.get_item_from_episode(episode)
+                        if sub is not None:
+                            item.items.append(sub)
                 elif entry.output == KodiObjectType.ALBUM:
                     if self.add_back_entry(item.media_id, paging):
                         item.items.append(self.get_back_item("kodi://music", str(MediaContentType.MUSIC.value)))
@@ -832,7 +1023,8 @@ class MediaBrowser:
                 # Browsing inside a Kodi addon (plugin://...) - works like a Source
                 if media_type == "addondir" or media_id.startswith("plugin://"):
                     item = self.get_root_item()
-                    item.title = media_id
+                    item.media_id = media_id
+                    item.title = self._get_cached_title(media_id, media_id)
                     limit = paging.limit
                     end = paging.page * limit
                     arguments = {
@@ -864,16 +1056,20 @@ class MediaBrowser:
                     if data:
                         for file in data.get("files", []) or []:
                             sub = self.get_item_from_file(file, "addondir", extract_thumbnail=False)
+                            if sub is None:
+                                continue
                             # Re-attach thumbnail from JSON-RPC response if present
                             thumb = file.get("thumbnail") or (file.get("art") or {}).get("thumb")
                             if thumb:
                                 sub.thumbnail = self.get_artwork_url(thumb)
                             item.items.append(sub)
                         paging.count = data.get("limits", {}).get("total", len(item.items))
+                    self._remember_browse_title(media_id, item.title)
                     return item, paging
                 if media_type.startswith("kodi://sources"):
                     back_buttons = 0
                     item = self.get_root_item()
+                    item.media_id = media_id
                     if not media_id.startswith("multipath://"):
                         item.title = media_id
                     limit = paging.limit
@@ -925,7 +1121,9 @@ class MediaBrowser:
                         for file in data["files"]:
                             # Thumbnail extraction only works with pictures
                             extract_thumbnail = media == KodiMediaTypes.PICTURES.value
-                            item.items.append(self.get_item_from_file(file, media_type, extract_thumbnail))
+                            sub = self.get_item_from_file(file, media_type, extract_thumbnail)
+                            if sub is not None:
+                                item.items.append(sub)
                         paging.count = data.get("limits", {}).get("total", 0)
                         if self._back_support:
                             paging.count = paging.count + back_buttons
@@ -1017,7 +1215,9 @@ class MediaBrowser:
                         show_title = episodes["episodes"][0].get("showtitle", "")
                         item.title = f"{show_title} - S{season}"
                     for episode in episodes["episodes"]:
-                        item.items.append(self.get_item_from_episode(episode))
+                        sub = self.get_item_from_episode(episode)
+                        if sub is not None:
+                            item.items.append(sub)
 
                 elif media_type == MediaContentType.ALBUM.value:
                     item = self.get_root_item(MediaClass.ALBUM, MediaContentType.MUSIC)
@@ -1263,6 +1463,8 @@ class MediaBrowser:
                         paging.count = paging.count + 1
                     for channel in channels.get("channels", []):
                         item.items.append(self.get_item_from_channel(channel))
+                    if resolved_title := await self._get_channel_group_title(parent_id, real_media_id):
+                        item.title = resolved_title
                 elif media_type == MediaContentType.PLAYLIST.value:
                     item = self.get_root_item(MediaClass.PLAYLIST, MediaContentType.PLAYLIST)
                     limit = paging.limit
@@ -1310,6 +1512,11 @@ class MediaBrowser:
                         media_id,
                     )
                     return None
+                # Dynamic browse branches often start from get_root_item(), which
+                # defaults to media_id="library". Return the actual browsed id so
+                # the remote can correlate the response with the current view.
+                if media_id and item.media_id == "library":
+                    item.media_id = media_id
                 return item, paging
         # pylint: disable = W0718
         except Exception as ex:
@@ -2260,5 +2467,15 @@ KODI_BROWSING: list[KodiMediaEntry] = [
         },
         child_media_type=MediaContentType.URL,
         output=KodiObjectType.ADDON,
+    ),
+    # ---- Favorites (pinned shortcuts) ----
+    KodiMediaEntry(
+        parent_id=None,
+        title="Favorites",
+        media_type=MediaContentType.URL,
+        media_class=MediaClass.DIRECTORY,
+        media_id="kodi://favorites",
+        child_media_type=MediaContentType.URL,
+        output=KodiObjectType.EMPTY,
     ),
 ]

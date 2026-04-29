@@ -599,9 +599,10 @@ class KodiDevice(IKodiDevice):
 
         :returns: True if device is connected or if the connection retries has not reached it limit
         """
-        if not self._kodi_connection.connected and self._reconnect_retry >= CONNECTION_RETRIES:
+        connection = self._kodi_connection
+        if (connection is None or not connection.connected) and self._reconnect_retry >= CONNECTION_RETRIES:
             return False
-        if self._kodi_connection is None or not self._kodi_connection.connected:
+        if connection is None or not connection.connected:
             self._reconnect_retry += 1
             self._available = False
             _LOG.debug(
@@ -1986,7 +1987,7 @@ class KodiDevice(IKodiDevice):
     async def play_media(self, params: dict[str, Any]):
         """Play media."""
         _LOG.debug("[%s] Play media %s", self.device_config.address, params)
-        await self.media_browser.play_media(params)
+        return await self.media_browser.play_media(params)
 
     @retry()
     async def clear_playlist(self):
@@ -2090,3 +2091,35 @@ class KodiDevice(IKodiDevice):
                 exc,
             )
         return None
+
+    async def get_favourites(self) -> list[dict[str, Any]]:
+        """Return the user favourites."""
+        if self._kodi is None:
+            return []
+        results = await self._kodi.get_favourites()
+        _LOG.debug("[%s] Extract favourites %s", self.device_config.address, results)
+        return results
+
+    async def add_favourites(
+        self,
+        title: str,
+        *,
+        fav_type: Literal["media", "window", "script", "androidapp", "unknown"],
+        path: str | None = None,
+        window: str | None = None,
+        windowparameter: str | None = None,
+        thumbnail: str | None = None,
+    ) -> str | None:
+        """Add a new item to the favourite menu."""
+        if self._kodi is None:
+            return None
+        results = await self._kodi.add_favourites(
+            title,
+            fav_type=fav_type,
+            path=path,
+            window=window,
+            windowparameter=windowparameter,
+            thumbnail=thumbnail,
+        )
+        _LOG.debug("[%s] Add favourite %s (%s) : %s", self.device_config.address, title, path, results)
+        return results
