@@ -507,6 +507,7 @@ class Kodi:
         ``limits`` object.  Use ``favorites.get_kodi_favourites`` for a
         validated, extracted list.
         """
+        # TODO this method returns pagination results but doesn't take pagination parameters. To be checked
         return await self._server.Favourites.GetFavourites(
             **_build_query(properties=["window", "windowparameter", "thumbnail", "path"])
         )

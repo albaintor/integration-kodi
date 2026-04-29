@@ -2093,10 +2093,10 @@ class KodiDevice(IKodiDevice):
             )
         return None
 
-    async def get_favourites(self) -> list[dict[str, Any]]:
+    async def get_favourites(self) -> dict[str, Any]:
         """Return the user favourites."""
         if self._kodi is None:
-            return []
+            return {}
         results = await self._kodi.get_favourites()
         _LOG.debug("[%s] Extract favourites %s", self.device_config.address, results)
         return results

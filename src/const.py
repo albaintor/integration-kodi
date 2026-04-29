@@ -68,6 +68,10 @@ class IKodiDevice:
         """Return current position in playlist and current playlist."""
         raise NotImplementedError()
 
+    async def get_favourites(self) -> dict[str, Any]:
+        """Return favourites."""
+        raise NotImplementedError()
+
 
 class ButtonKeymap(TypedDict):
     """Kodi keymap."""

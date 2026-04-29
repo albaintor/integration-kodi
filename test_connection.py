@@ -19,9 +19,9 @@ import jsonrpc_base
 from rich import print_json
 from ucapi import Events
 
-import kodi
+import kodi_device
 from config import KodiConfigDevice
-from kodi import KodiDevice
+from kodi_device import KodiDevice
 
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -69,7 +69,7 @@ async def main():
         )
     )
     # await client.power_on()
-    client.events.on(kodi.Events.UPDATE, on_device_update)
+    client.events.on(kodi_device.Events.UPDATE, on_device_update)
     client.events.on(Events.ENTITY_ATTRIBUTES_UPDATED, on_entity_attributes_updated)
     await client.connect()
 
@@ -83,10 +83,27 @@ async def main():
     # properties = await client.get_chapters()
     # print_json(data=properties)
 
-    properties = await client.browse_media(media_id=None, media_type=None, paging=None)
-    _LOG.debug("Properties: %s", str(properties))
-    print("Browse media")
-    print_json(data=properties)
+    # properties = await client.browse_media(media_id=None, media_type=None, paging=None)
+    # _LOG.debug("Properties: %s", str(properties))
+    # print("Browse media")
+    # print_json(data=properties)
+
+    # arguments = {
+    #     "properties": ["art", "artist", "albumduration"],
+    #     "limits": {"start": 0, "end": 144},
+    #     "filter": {
+    #         "or": [
+    #             {"field": "album", "operator": "contains", "value": "rock"},
+    #             {"field": "artist", "operator": "contains", "value": "rock"},
+    #         ]
+    #     },
+    # }
+    # properties = await client.server.AudioLibrary.GetAlbums(**arguments)
+    # print("Results")
+    # print_json(data=properties)
+
+    # properties = await client.get_favourites()
+    # print_json(data=properties)
 
     # properties = await client.get_app_language()
     # print_json(data=properties)
