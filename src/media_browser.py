@@ -1074,8 +1074,7 @@ class MediaBrowser:
                 paging = PaginationOptions(page=paging.page, limit=paging.limit, count=0)
 
             if media_id and (
-                media_id.startswith(favorites.FAVORITES_ROOT)
-                or media_id.startswith(favorites.FAVORITES_TOGGLE_PREFIX)
+                media_id.startswith(favorites.FAVORITES_ROOT) or media_id.startswith(favorites.FAVORITES_TOGGLE_PREFIX)
             ):
                 _LOG.debug(
                     "[%s] Browse request: media_id=%s media_type=%s page=%s limit=%s",
