@@ -529,6 +529,41 @@ class MediaBrowser:
         )
         return result
 
+    async def _handle_favorites_play_toggle(self, media_id: str) -> None:
+        """Process a favorites toggle triggered via play_media.
+
+        Adds or removes a favorite silently.  No browse response is returned
+        because the remote stays on the current screen (play_media does not
+        push a navigation level).
+        """
+        params = self._resolve_toggle_params(media_id)
+        if not params:
+            return
+        cfg = self._device.device_config
+        if cfg.favorites is None:
+            cfg.favorites = []
+        _LOG.debug(
+            "[%s] Favorites play toggle: action=%s target=%s type=%s",
+            self._device.device_config.address,
+            "remove" if favorites.is_favorite(cfg.favorites, params["media_id"], params["media_type"]) else "add",
+            params["media_id"],
+            params["media_type"],
+        )
+        changed = False
+        if favorites.is_favorite(cfg.favorites, params["media_id"], params["media_type"]):
+            changed = favorites.remove(cfg.favorites, params["media_id"], params["media_type"])
+        else:
+            source = self._get_source_label(params["media_id"], params["media_type"])
+            changed = favorites.add(
+                cfg.favorites,
+                params["media_id"],
+                params["media_type"],
+                params.get("title") or params["media_id"],
+                source=source,
+            )
+        if changed:
+            self._persist_favorites()
+
     def _handle_favorites_cleanup(self, paging: PaginationOptions) -> tuple[BrowseMediaItem, PaginationOptions]:
         """Remove all broken favorites."""
         cfg = self._device.device_config
@@ -545,19 +580,19 @@ class MediaBrowser:
         """Build the pin/unpin entry."""
         pinned = favorites.is_favorite(self._device.device_config.favorites, media_id, media_type)
         label_key = "📍 Unpin this folder" if pinned else "📍 Pin this folder"
-        # After pin/unpin, stay in the current directory by re-browsing it.
-        # This avoids stale back-navigation levels on the remote since the
-        # toggle response replaces the current screen with the same view.
-        parent = media_id
-        toggle_id = self._build_toggle_media_id(media_id, media_type, title, parent=parent)
+        # Use can_play so the remote sends a play_media command instead of
+        # browse_media.  This avoids pushing a new navigation level and the
+        # stale back-entry that comes with it.  The play_media handler in
+        # MediaBrowser intercepts the toggle URL and silently updates the
+        # favorites list.
+        toggle_id = self._build_toggle_media_id(media_id, media_type, title, parent=media_id)
         return BrowseMediaItem(
             title=self.get_localized(label_key),
             media_id=toggle_id,
             media_class=MediaClass.DIRECTORY,
             media_type=MediaContentType.URL.value,
-            can_browse=True,
-            can_play=False,
-            items=[],
+            can_browse=False,
+            can_play=True,
         )
 
     def _maybe_inject_pin_item(self, item: BrowseMediaItem, media_id: str | None, media_type: str | None) -> None:
@@ -1904,6 +1939,12 @@ class MediaBrowser:
         item: dict[str, Any] = {}
         if media_id is None or media_type is None:
             return StatusCodes.BAD_REQUEST
+        # Intercept favorites toggle URLs: the pin/unpin button uses
+        # can_play so the remote sends play_media instead of browse_media,
+        # avoiding a stale back-navigation level.
+        if media_id.startswith(favorites.FAVORITES_TOGGLE_PREFIX):
+            await self._handle_favorites_play_toggle(media_id)
+            return StatusCodes.OK
         if media_type == "channel":
             if media_id.startswith("kodi://"):
                 media_id = media_id.rstrip("/").rsplit("/", 1)[-1]
