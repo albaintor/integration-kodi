@@ -254,9 +254,7 @@ class KodiMediaPlayer(KodiEntity, MediaPlayer):
         if self._device.app_language is None:
             await self._device.update_app_language()
 
-        result = await self._device.media_browser.browse_media(
-            options.media_id, options.media_type, options.paging
-        )
+        result = await self._device.media_browser.browse_media(options.media_id, options.media_type, options.paging)
         if result is None:
             return StatusCodes.NOT_FOUND
         browse_media_results, pagination = result
