@@ -29,6 +29,6 @@ async def get_kodi_favourites(server: Any) -> list[dict]:
     try:
         result = await server.get_favourites()
         return result.get("favourites", [])
-    except Exception:
+    except Exception:  # pylint: disable=W0718
         _LOG.warning("Failed to fetch Kodi favourites", exc_info=True)
         return []
