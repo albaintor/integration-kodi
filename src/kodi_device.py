@@ -677,6 +677,7 @@ class KodiDevice(IKodiDevice):
             await self._kodi_connection.connect()
             await self._register_callbacks()
             await self._ping()
+            self._media_browser.reset_feature_cache()
             await self._update_states()
 
             _LOG.debug("[%s] Connection successful", self._device_config.address)
