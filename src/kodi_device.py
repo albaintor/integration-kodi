@@ -2091,3 +2091,27 @@ class KodiDevice(IKodiDevice):
                 exc,
             )
         return None
+
+    async def get_favourites(self) -> list[dict[str, Any]]:
+        """Return the user favourites."""
+        if self._kodi is None:
+            return []
+        results = await self._kodi.get_favourites()
+        _LOG.debug("[%s] Extract favourites %s", self.device_config.address, results)
+        return results
+
+    async def add_favourites(
+        self,
+        title: str,
+        type: Literal["media", "window", "script", "androidapp", "unknown"],
+        path: str | None = None,
+        window: str | None = None,
+        windowparameter: str | None = None,
+        thumbnail: str | None = None,
+    ) -> str | None:
+        """Add a new item to the favourite menu."""
+        if self._kodi is None:
+            return None
+        results = await self._kodi.add_favourites(title, type, path, window, windowparameter, thumbnail)
+        _LOG.debug("[%s] Add favourite %s (%s) : %s", self.device_config.address, title, path, results)
+        return results
