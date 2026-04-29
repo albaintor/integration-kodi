@@ -52,7 +52,7 @@ jobs:
       - name: Prepare for aarch64 build
         if: matrix.platform == 'aarch64'
         run: |
-          sudo apt-get update && sudo apt-get install -y qemu binfmt-support qemu-user-static
+          sudo apt-get install -y qemu-system-arm binfmt-support qemu-user-static
           docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
 
       - name: Build for aarch64
@@ -156,7 +156,7 @@ jobs:
     name: Create Release
     if: github.ref == 'refs/heads/main' || contains(github.ref, 'tags/v')
     # using ubuntu-24.04: Package 'qemu' has no installation candidate
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: [build]
 
     steps:
