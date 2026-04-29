@@ -2114,8 +2114,12 @@ class KodiDevice(IKodiDevice):
         if self._kodi is None:
             return None
         results = await self._kodi.add_favourites(
-            title, fav_type=fav_type, path=path, window=window,
-            windowparameter=windowparameter, thumbnail=thumbnail,
+            title,
+            fav_type=fav_type,
+            path=path,
+            window=window,
+            windowparameter=windowparameter,
+            thumbnail=thumbnail,
         )
         _LOG.debug("[%s] Add favourite %s (%s) : %s", self.device_config.address, title, path, results)
         return results
