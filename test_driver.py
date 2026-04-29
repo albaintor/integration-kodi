@@ -1545,7 +1545,7 @@ class RemoteInterface(tk.Tk):
                             self._setup_data.mapping[field_id] = text_area
                             self._setup_data.mapping_type[field_id] = "textarea"
                         elif checkbox := field.get("checkbox"):
-                            var = tk.IntVar(value=1 if checkbox.get("value", "false") == "true" else 0)
+                            var = tk.IntVar(value=1 if checkbox.get("value", False) else 0)
                             checkbox_button = tk.Checkbutton(
                                 self._setup_data.window, variable=var, onvalue=1, offvalue=0
                             )

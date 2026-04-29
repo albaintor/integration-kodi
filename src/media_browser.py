@@ -248,16 +248,19 @@ class MediaBrowser:
         sub: list[BrowseMediaItem] = [self.get_back_item("kodi://")]
         for fav in favs:
             title = fav.get("title", "")
-            path = fav.get("path") or fav.get("window") or fav.get("windowparameter") or ""
+            path = fav.get("path") or fav.get("windowparameter") or fav.get("window") or ""
             if not path:
                 continue
+            media_type = MediaContentType.URL.value
+            if fav.get("window") == "videos":
+                media_type = "kodi://sources/videos"
             thumbnail = fav.get("thumbnail") or None
             sub.append(
                 BrowseMediaItem(
                     title=title,
                     media_id=path,
                     media_class=MediaClass.DIRECTORY,
-                    media_type=MediaContentType.URL.value,
+                    media_type=media_type,
                     can_browse=True,
                     can_play=True,
                     thumbnail=thumbnail,
