@@ -1987,7 +1987,7 @@ class KodiDevice(IKodiDevice):
     async def play_media(self, params: dict[str, Any]):
         """Play media."""
         _LOG.debug("[%s] Play media %s", self.device_config.address, params)
-        await self.media_browser.play_media(params)
+        return await self.media_browser.play_media(params)
 
     @retry()
     async def clear_playlist(self):
