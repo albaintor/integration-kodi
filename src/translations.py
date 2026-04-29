@@ -34,25 +34,4 @@ TRANSLATIONS = {
     "Now": {"fr": "Maintenant", "de": "Jetzt"},
     "Next": {"fr": "Ensuite", "de": "Danach"},
     "Favorites": {"fr": "Favoris", "de": "Favoriten"},
-    "Manage favorites": {"fr": "Gérer les favoris", "de": "Favoriten verwalten"},
-    "Cleanup broken favorites": {
-        "fr": "Nettoyer les favoris cassés",
-        "de": "Defekte Favoriten aufräumen",
-    },
-    "Removed {0} broken favorites": {
-        "fr": "{0} favoris cassés supprimés",
-        "de": "{0} defekte Favoriten entfernt",
-    },
-    "Pinned": {"fr": "Épinglé", "de": "Angepinnt"},
-    "Unpinned": {"fr": "Désépinglé", "de": "Entpinnt"},
-    "Unpin": {"fr": "Désépingler", "de": "Entpinnen"},
-    "Invalid favorite": {"fr": "Favori invalide", "de": "Ungültiger Favorit"},
-    "📍 Pin this folder": {
-        "fr": "📍 Épingler ce dossier",
-        "de": "📍 Diesen Ordner anpinnen",
-    },
-    "📍 Unpin this folder": {
-        "fr": "📍 Désépingler ce dossier",
-        "de": "📍 Diesen Ordner entpinnen",
-    },
 }
