@@ -215,7 +215,7 @@ class MediaBrowser:
                 if not await self._is_addons_available("audio"):
                     continue
             elif mid == "kodi://favorites":
-                if not await favorites.get_kodi_favourites(self._device.server):
+                if not await favorites.get_kodi_favourites(self._device.client):
                     continue
             result.append(it)
         return result
@@ -244,7 +244,7 @@ class MediaBrowser:
         item = self.get_root_item()
         item.media_id = favorites.FAVORITES_ROOT
         item.title = self.get_localized("Favorites")
-        favs = await favorites.get_kodi_favourites(self._device.server)
+        favs = await favorites.get_kodi_favourites(self._device.client)
         sub: list[BrowseMediaItem] = [self.get_back_item("kodi://")]
         for fav in favs:
             title = fav.get("title", "")
@@ -792,7 +792,7 @@ class MediaBrowser:
                     sub_item.title = self.get_localized(sub_item.title)
                 # Optionally inject Kodi favourites flat into the browse root
                 if getattr(self._device.device_config, "favorites_in_root", False):
-                    favs = await favorites.get_kodi_favourites(self._device.server)
+                    favs = await favorites.get_kodi_favourites(self._device.client)
                     root_favorites: list[BrowseMediaItem] = []
                     has_more_favorites = len(favs) > MAX_ROOT_FAVORITES
                     visible_favorites = (
