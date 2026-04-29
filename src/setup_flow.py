@@ -400,6 +400,9 @@ class SetupFlow:
                         user_input.settings, "browse_media_root", self._reconfigured_device.browse_media_root
                     )
                     set_setup_field(
+                        user_input.settings, "favorites_in_root", self._reconfigured_device.favorites_in_root
+                    )
+                    set_setup_field(
                         user_input.settings, "browsing_video_sort", self._reconfigured_device.browsing_video_sort
                     )
                     set_setup_field(
@@ -607,6 +610,7 @@ class SetupFlow:
         sensor_include_device_name = msg.input_values.get("sensor_include_device_name", "false") == "true"
         power_off_command = msg.input_values.get("power_off_command", next(iter(KODI_POWEROFF_COMMANDS)))
         browse_media_root = msg.input_values.get("browse_media_root", "")
+        favorites_in_root = msg.input_values.get("favorites_in_root", "false") == "true"
 
         try:
             sensor_audio_stream_config = int(
@@ -709,6 +713,7 @@ class SetupFlow:
                 browsing_album_sort=browsing_album_sort,
                 browsing_files_sort=browsing_files_sort,
                 browse_media_root=browse_media_root,
+                favorites_in_root=favorites_in_root,
             )
         )  # triggers SonyLG TV instance creation
         config.devices.store()
@@ -751,6 +756,7 @@ class SetupFlow:
         sensor_include_device_name = msg.input_values.get("sensor_include_device_name", "false") == "true"
         power_off_command = msg.input_values.get("power_off_command", next(iter(KODI_POWEROFF_COMMANDS)))
         browse_media_root = msg.input_values.get("browse_media_root", "")
+        favorites_in_root = msg.input_values.get("favorites_in_root", "false") == "true"
         name = msg.input_values["name"]
         try:
             sensor_audio_stream_config = int(
@@ -788,6 +794,7 @@ class SetupFlow:
         self._reconfigured_device.browsing_album_sort = browsing_album_sort
         self._reconfigured_device.browsing_files_sort = browsing_files_sort
         self._reconfigured_device.browse_media_root = browse_media_root
+        self._reconfigured_device.favorites_in_root = favorites_in_root
 
         config.devices.add_or_update(self._reconfigured_device)  # triggers ATV instance update
         await asyncio.sleep(1)

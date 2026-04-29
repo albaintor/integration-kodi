@@ -33,4 +33,5 @@ TRANSLATIONS = {
     "Music addons": {"fr": "Extensions musique", "de": "Musik-Addons"},
     "Now": {"fr": "Maintenant", "de": "Jetzt"},
     "Next": {"fr": "Ensuite", "de": "Danach"},
+    "Favorites": {"fr": "Favoris", "de": "Favoriten"},
 }

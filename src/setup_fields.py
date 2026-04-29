@@ -87,6 +87,7 @@ KODI_BROWSING_CATEGORIES = [
     {"id": "kodi://addons", "label": {"en": "Addons", "fr": "Extensions", "de": "Addons"}},
     {"id": "kodi://addons/video", "label": {"en": "Video addons", "fr": "Extensions vidéo", "de": "Video-Addons"}},
     {"id": "kodi://addons/audio", "label": {"en": "Music addons", "fr": "Extensions musique", "de": "Musik-Addons"}},
+    {"id": "kodi://favorites", "label": {"en": "Favorites", "fr": "Favoris", "de": "Favoriten"}},
 ]
 
 SETUP_FIELDS = [
@@ -142,6 +143,15 @@ SETUP_FIELDS = [
         "label": {
             "en": "Default browsing media category",
             "fr": "Catégorie de navigation par défaut",
+        },
+    },
+    {
+        "field": {"checkbox": {"value": False}},
+        "id": "favorites_in_root",
+        "label": {
+            "en": "Show favorites directly in the browse root",
+            "fr": "Afficher les favoris directement dans la racine de navigation",
+            "de": "Favoriten direkt im Browse-Hauptmenü anzeigen",
         },
     },
     {
