@@ -261,7 +261,7 @@ class MediaBrowser:
         favs = await favorites.get_kodi_favourites(self._device.client)
         sub: list[BrowseMediaItem] = [self.get_back_item("kodi://")]
         for fav in favs:
-            title = fav.get("title", "")
+            title = favorites.decode_favorite_title(fav.get("title", ""))
             window = fav.get("window")
             path = fav.get("path") or fav.get("windowparameter") or window or ""
             if not path:
@@ -275,6 +275,18 @@ class MediaBrowser:
                 case "pictures":
                     media_type = "kodi://sources/pictures"
 
+            can_play = True
+            media_class = MediaClass.DIRECTORY
+            rewrite = favorites.rewrite_favorite_path(path)
+            if rewrite is not None:
+                path, rewritten_type, can_play = rewrite
+                if rewritten_type is not None:
+                    media_type = rewritten_type
+                if rewritten_type == "channel":
+                    media_class = MediaClass.CHANNEL if hasattr(MediaClass, "CHANNEL") else MediaClass.VIDEO
+                elif rewritten_type == "channelgroup":
+                    media_class = MediaClass.DIRECTORY
+
             thumbnail: str | None = fav.get("thumbnail") or None
             if thumbnail:
                 thumbnail = self.get_artwork_url(thumbnail)
@@ -282,10 +294,10 @@ class MediaBrowser:
                 BrowseMediaItem(
                     title=title,
                     media_id=path,
-                    media_class=MediaClass.DIRECTORY,
+                    media_class=media_class,
                     media_type=media_type,
                     can_browse=True,
-                    can_play=True,
+                    can_play=can_play,
                     thumbnail=thumbnail,
                     items=[],
                 )
@@ -825,19 +837,37 @@ class MediaBrowser:
                         favs[: MAX_ROOT_FAVORITES - 1] if has_more_favorites else favs[:MAX_ROOT_FAVORITES]
                     )
                     for fav in visible_favorites:
-                        title = fav.get("title", "")
+                        title = favorites.decode_favorite_title(fav.get("title", ""))
                         path = fav.get("path") or fav.get("window") or fav.get("windowparameter") or ""
                         if not path:
                             continue
+
+                        media_type = MediaContentType.URL.value
+                        can_play = True
+                        media_class = MediaClass.DIRECTORY
+                        rewrite = favorites.rewrite_favorite_path(path)
+                        if rewrite is not None:
+                            path, rewritten_type, can_play = rewrite
+                            if rewritten_type is not None:
+                                media_type = rewritten_type
+                            if rewritten_type == "channel":
+                                media_class = (
+                                    MediaClass.CHANNEL if hasattr(MediaClass, "CHANNEL") else MediaClass.VIDEO
+                                )
+
+                        thumbnail = fav.get("thumbnail") or None
+                        if thumbnail:
+                            thumbnail = self.get_artwork_url(thumbnail)
+
                         root_favorites.append(
                             BrowseMediaItem(
                                 title=title,
                                 media_id=path,
-                                media_class=MediaClass.DIRECTORY,
-                                media_type=MediaContentType.URL.value,
+                                media_class=media_class,
+                                media_type=media_type,
                                 can_browse=True,
-                                can_play=True,
-                                thumbnail=fav.get("thumbnail") or None,
+                                can_play=can_play,
+                                thumbnail=thumbnail,
                                 items=[],
                             )
                         )

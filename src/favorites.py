@@ -11,6 +11,8 @@ endpoint so the media browser can display the user's Kodi-native favourites.
 from __future__ import annotations
 
 import logging
+import re
+import urllib.parse
 from typing import Any
 
 from const import IKodiDevice
@@ -21,6 +23,72 @@ _LOG = logging.getLogger(__name__)
 FAVORITES_ROOT = "kodi://favorites"
 
 VALID_FAVOURITE_TYPES = frozenset({"media", "window", "script", "androidapp", "unknown"})
+
+# Kodi PVR favourite URL patterns, e.g.
+#   pvr://channels/tv/All%20channels@-1/
+#   pvr://channels/tv/My%20Group@7/
+#   pvr://channels/tv/My%20Group@7/12.pvr
+#   pvr://channels/radio/Stations@3/
+_PVR_GROUP_RE = re.compile(
+    r"^pvr://channels/(?P<ctype>tv|radio)/(?P<group>[^/]*?)@(?P<gid>-?\d+)/?(?P<rest>.*)$"
+)
+
+
+def rewrite_favorite_path(path: str) -> tuple[str, str | None, bool] | None:
+    """Translate a Kodi favourite *path* into the integration's internal media id.
+
+    Returns ``(media_id, media_type, can_play)`` when the path is recognised as a
+    PVR resource that the media browser knows how to render natively, or ``None``
+    when the favourite should be passed through unchanged (Kodi will resolve it
+    via ``Player.Open`` / ``Files.GetDirectory``).
+
+    *media_type* is set to a string the router in ``MediaBrowser.browse_media``
+    matches against (``channel`` for a single channel, ``channelgroup`` for a
+    group listing, ``None`` to keep the caller's default).
+    """
+    if not isinstance(path, str) or not path:
+        return None
+
+    pvr_match = _PVR_GROUP_RE.match(path)
+    if not pvr_match:
+        return None
+
+    ctype = pvr_match.group("ctype")
+    gid = int(pvr_match.group("gid"))
+    rest = pvr_match.group("rest") or ""
+
+    # Direct channel favourite: <groupurl>/<channelid>.pvr
+    channel_match = re.match(r"^(?P<channelid>\d+)\.pvr/?$", rest)
+    if channel_match:
+        channel_id = channel_match.group("channelid")
+        return channel_id, "channel", True
+
+    # "All channels" pseudo-group (gid == -1) → show the group list instead so
+    # the router does not crash on PVR.GetChannels(channelgroupid=-1).
+    if gid < 0:
+        return f"kodi://pvr/{ctype}", None, False
+
+    # Real channel group → use the existing kodi://pvr/<type>/<gid> handler.
+    return f"kodi://pvr/{ctype}/{gid}", "channelgroup", False
+
+
+def get_favorite_thumbnail(thumbnail: Any) -> str | None:
+    """Return a usable thumbnail URL from a Kodi favourite payload."""
+    if not isinstance(thumbnail, str) or not thumbnail:
+        return None
+    return thumbnail
+
+
+def decode_favorite_title(title: Any) -> str:
+    """Decode a percent-encoded favourite title (Kodi sometimes URL-encodes them)."""
+    if not isinstance(title, str):
+        return ""
+    if "%" in title:
+        try:
+            return urllib.parse.unquote(title)
+        except Exception:  # pylint: disable=W0718
+            return title
+    return title
 
 
 async def get_kodi_favourites(client: IKodiDevice) -> list[dict]:
