@@ -155,6 +155,15 @@ SETUP_FIELDS = [
         },
     },
     {
+        "field": {"checkbox": {"value": True}},
+        "id": "show_channel_groups",
+        "label": {
+            "en": "Show channel groups in Live TV / Radio",
+            "fr": "Afficher les groupes de chaînes dans la TV en direct / Radio",
+            "de": "Kanalgruppen in Live-TV / Radio anzeigen",
+        },
+    },
+    {
         "field": {
             "dropdown": {
                 "value": "title",

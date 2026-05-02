@@ -1045,8 +1045,32 @@ class MediaBrowser:
                 elif entry.output == KodiObjectType.CHANNEL_GROUP:
                     if self.add_back_entry(item.media_id, pagination_options):
                         item.items.append(self.get_back_item("kodi://pvr"))
-                    for group in data.get("channelgroups", []):
-                        item.items.append(self.get_item_from_channel_group(group, media_id))
+                    show_groups = getattr(self._device, "show_channel_groups", True)
+                    channel_type = (entry.arguments or {}).get("channeltype", "tv")
+                    if not show_groups:
+                        # Skip groups entirely and list every channel of the type
+                        try:
+                            chan_data = await self._device.server.PVR.GetChannels(
+                                channelgroupid=f"all{channel_type}",
+                                properties=[
+                                    "thumbnail",
+                                    "channeltype",
+                                    "broadcastnow",
+                                    "broadcastnext",
+                                    "channel",
+                                    "lastplayed",
+                                    "hidden",
+                                    "locked",
+                                ],
+                            )
+                        except Exception as err:  # pylint: disable=W0718
+                            _LOG.warning("PVR.GetChannels(all%s) failed: %s", channel_type, err)
+                            chan_data = {}
+                        for channel in chan_data.get("channels", []):
+                            item.items.append(self.get_item_from_channel(channel, media_id))
+                    else:
+                        for group in data.get("channelgroups", []):
+                            item.items.append(self.get_item_from_channel_group(group, media_id))
                 elif entry.output == KodiObjectType.CHANNEL:
                     if self.add_back_entry(item.media_id, pagination_options):
                         item.items.append(self.get_back_item(entry.parent_id or "kodi://pvr"))

@@ -74,6 +74,8 @@ class KodiConfigDevice:
     browse_media_root: str = field(default="")
     # Show Kodi favourites flat in the browse root in addition to the "Favourites" entry
     favorites_in_root: bool = field(default=False)
+    # Show PVR channel groups when browsing Live TV / Radio (otherwise jump straight to channels)
+    show_channel_groups: bool = field(default=True)
 
     # pylint: disable=R0801
     def __post_init__(self):
