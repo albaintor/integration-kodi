@@ -1039,7 +1039,7 @@ class MediaBrowser:
                         item.items.append(self.get_back_item(entry.parent_id))
                     for media in data.get("files", []):
                         # Strip off extension file
-                        media["label"] = os.path.splitext(media.get("label"))[0]
+                        media["label"] = os.path.splitext(media.get("label") or "")[0]
                         media["filetype"] = "file"
                         item.items.append(self.get_item_from_file(media, media_id, extract_thumbnail=False))
                 elif entry.output == KodiObjectType.CHANNEL_GROUP:
