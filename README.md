@@ -41,7 +41,7 @@ Note : this release requires remote firmware `>= 1.7.10`
 **Selectors**
 - Audio stream selector
 - Subtitle stream selector
-- Chapter selector (Kodi >=22)
+- Chapter selector (Kodi `>=22`)
 
 **Sensors**
 Several sensors are available with the following attributes exposed :
@@ -332,6 +332,7 @@ Additional data is returned depending on the media : for movies and TV Shows the
 |                      | Genres                            | Genre                 | Albums  | Albums   | Songs    |
 |                      | Songs                             |                       |         |          |          |
 |                      | Playlists                         | Playlist              | Songs   |          |          |
+| **Favorites**        | ...                               |                       |         |          |          |
 | **Sources**          | Videos                            | _Directories & files_ | ...     | ...      | ...      |
 |                      | Music                             | _Directories & files_ | ...     | ...      | ...      |
 |                      | Pictures                          | _Directories & files_ | ...     | ...      | ...      |
@@ -368,37 +369,38 @@ Selecting an addon launches it in Kodi (`Addons.ExecuteAddon`).
 
 For internal use.
 
-| Browsing category                | Media id                | Media type              |
-|----------------------------------|-------------------------|-------------------------|
-| Videos main                      | kodi://videos           | movie                   |
-| All videos                       | kodi://videos/all       | movie                   |
-| Currently played videos          | kodi://videos/current   | movie                   |
-| Recently added videos            | kodi://videos/recent    | movie                   |
-| Videos genres                    | kodi://videos/genres    | genre                   |
-| Videos playlists                 | kodi://videos/playlists | playlist                |
-| TV Shows main                    | kodi://tvshows          | tv_show                 |
-| All videos                       | kodi://tvshows/all      | tv_show                 |
-| Currently played TV Shows        | kodi://tvshows/current  | tv_show                 |
-| Recently added TV Shows episodes | kodi://tvshows/recent   | tv_show                 |
-| TV Shows genres                  | kodi://tvshows/genres   | genre                   |
-| Music main                       | kodi://music            | music                   |
-| Albums                           | kodi://music/albums     | albums                  |
-| Artists                          | kodi://music/artists    | artist                  |
-| Music genres                     | kodi://music/genres     | genre                   |
-| Music playlists                  | kodi://music/playlists  | playlist                |
-| Sources                          | kodi://sources          | url                     |
-| Videos sources                   | kodi://sources/videos   | kodi://sources/videos   |
-| Music sources                    | kodi://sources/music    | kodi://sources/music    |
-| Pictures sources                 | kodi://sources/pictures | kodi://sources/pictures |
-| Files sources                    | kodi://sources/files    | kodi://sources/files    |
-| PVR / Live TV main               | kodi://pvr              | url                     |
-| PVR TV channels                  | kodi://pvr/tv           | url                     |
-| PVR Radio channels               | kodi://pvr/radio        | url                     |
-| PVR channel group (TV)           | kodi://pvr/tv/&lt;id&gt;     | channelgroup            |
-| PVR channel group (Radio)        | kodi://pvr/radio/&lt;id&gt;  | channelgroup            |
-| Addons main                      | kodi://addons           | url                     |
-| Video addons                     | kodi://addons/video     | url                     |
-| Music addons                     | kodi://addons/audio     | url                     |
+| Browsing category                | Media id                    | Media type              |
+|----------------------------------|-----------------------------|-------------------------|
+| Videos main                      | kodi://videos               | movie                   |
+| All videos                       | kodi://videos/all           | movie                   |
+| Currently played videos          | kodi://videos/current       | movie                   |
+| Recently added videos            | kodi://videos/recent        | movie                   |
+| Videos genres                    | kodi://videos/genres        | genre                   |
+| Videos playlists                 | kodi://videos/playlists     | playlist                |
+| TV Shows main                    | kodi://tvshows              | tv_show                 |
+| All videos                       | kodi://tvshows/all          | tv_show                 |
+| Currently played TV Shows        | kodi://tvshows/current      | tv_show                 |
+| Recently added TV Shows episodes | kodi://tvshows/recent       | tv_show                 |
+| TV Shows genres                  | kodi://tvshows/genres       | genre                   |
+| Music main                       | kodi://music                | music                   |
+| Albums                           | kodi://music/albums         | albums                  |
+| Artists                          | kodi://music/artists        | artist                  |
+| Music genres                     | kodi://music/genres         | genre                   |
+| Music playlists                  | kodi://music/playlists      | playlist                |
+| Favorites                        | kodi://favorites            | url                     |
+| Sources                          | kodi://sources              | url                     |
+| Videos sources                   | kodi://sources/videos       | kodi://sources/videos   |
+| Music sources                    | kodi://sources/music        | kodi://sources/music    |
+| Pictures sources                 | kodi://sources/pictures     | kodi://sources/pictures |
+| Files sources                    | kodi://sources/files        | kodi://sources/files    |
+| PVR / Live TV main               | kodi://pvr                  | url                     |
+| PVR TV channels                  | kodi://pvr/tv               | url                     |
+| PVR Radio channels               | kodi://pvr/radio            | url                     |
+| PVR channel group (TV)           | kodi://pvr/tv/&lt;id&gt;    | channelgroup            |
+| PVR channel group (Radio)        | kodi://pvr/radio/&lt;id&gt; | channelgroup            |
+| Addons main                      | kodi://addons               | url                     |
+| Video addons                     | kodi://addons/video         | url                     |
+| Music addons                     | kodi://addons/audio         | url                     |
 
 
 ## Media Search
