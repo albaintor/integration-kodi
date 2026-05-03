@@ -29,9 +29,7 @@ VALID_FAVOURITE_TYPES = frozenset({"media", "window", "script", "androidapp", "u
 #   pvr://channels/tv/My%20Group@7/
 #   pvr://channels/tv/My%20Group@7/12.pvr
 #   pvr://channels/radio/Stations@3/
-_PVR_GROUP_RE = re.compile(
-    r"^pvr://channels/(?P<ctype>tv|radio)/(?P<group>[^/]*?)@(?P<gid>-?\d+)/?(?P<rest>.*)$"
-)
+_PVR_GROUP_RE = re.compile(r"^pvr://channels/(?P<ctype>tv|radio)/(?P<group>[^/]*?)@(?P<gid>-?\d+)/?(?P<rest>.*)$")
 
 
 def rewrite_favorite_path(path: str) -> tuple[str, str | None, bool] | None:

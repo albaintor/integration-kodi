@@ -851,9 +851,7 @@ class MediaBrowser:
                             if rewritten_type is not None:
                                 media_type = rewritten_type
                             if rewritten_type == "channel":
-                                media_class = (
-                                    MediaClass.CHANNEL if hasattr(MediaClass, "CHANNEL") else MediaClass.VIDEO
-                                )
+                                media_class = MediaClass.CHANNEL if hasattr(MediaClass, "CHANNEL") else MediaClass.VIDEO
 
                         thumbnail = fav.get("thumbnail") or None
                         if thumbnail:
@@ -1067,7 +1065,7 @@ class MediaBrowser:
                             _LOG.warning("PVR.GetChannels(all%s) failed: %s", channel_type, err)
                             chan_data = {}
                         for channel in chan_data.get("channels", []):
-                            item.items.append(self.get_item_from_channel(channel, media_id))
+                            item.items.append(self.get_item_from_channel(channel))
                     else:
                         for group in data.get("channelgroups", []):
                             item.items.append(self.get_item_from_channel_group(group, media_id))
