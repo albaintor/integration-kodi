@@ -31,8 +31,8 @@ Note : this release requires remote firmware `>= 1.7.10`
 - Media position / duration
 - Volume (level and up/down) and mute
 - Sources : corresponds to the list of video chapters (Kodi >=22 only)
-- Media browsing : videos, tv shows, music, pictures, sources with sub-categories 🚧
-- Media search 🚧
+- Media browsing : videos, tv shows, music, pictures, sources with sub-categories, favorites & extensions
+- Media search
 
 **Remote entity**
 - Predefined buttons mapping and interface buttons
