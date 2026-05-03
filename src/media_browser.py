@@ -261,7 +261,7 @@ class MediaBrowser:
         favs = await favorites.get_kodi_favourites(self._device.client)
         sub: list[BrowseMediaItem] = [self.get_back_item("kodi://")]
         for fav in favs:
-            title = fav.get("title", "")
+            title = favorites.decode_favorite_title(fav.get("title", ""))
             window = fav.get("window")
             path = fav.get("path") or fav.get("windowparameter") or window or ""
             if not path:
@@ -275,6 +275,18 @@ class MediaBrowser:
                 case "pictures":
                     media_type = "kodi://sources/pictures"
 
+            can_play = True
+            media_class = MediaClass.DIRECTORY
+            rewrite = favorites.rewrite_favorite_path(path)
+            if rewrite is not None:
+                path, rewritten_type, can_play = rewrite
+                if rewritten_type is not None:
+                    media_type = rewritten_type
+                if rewritten_type == "channel":
+                    media_class = MediaClass.CHANNEL if hasattr(MediaClass, "CHANNEL") else MediaClass.VIDEO
+                elif rewritten_type == "channelgroup":
+                    media_class = MediaClass.DIRECTORY
+
             thumbnail: str | None = fav.get("thumbnail") or None
             if thumbnail:
                 thumbnail = self.get_artwork_url(thumbnail)
@@ -282,10 +294,10 @@ class MediaBrowser:
                 BrowseMediaItem(
                     title=title,
                     media_id=path,
-                    media_class=MediaClass.DIRECTORY,
+                    media_class=media_class,
                     media_type=media_type,
                     can_browse=True,
-                    can_play=True,
+                    can_play=can_play,
                     thumbnail=thumbnail,
                     items=[],
                 )
@@ -431,7 +443,7 @@ class MediaBrowser:
         if parent_id:
             media_id = parent_id + "/" + media_id
         return BrowseMediaItem(
-            title=movie.get("label", ""),
+            title=strip_kodi_formatting(movie.get("label", "")),
             subtitle=subtitle,
             media_id=media_id,
             media_class=MediaClass.MOVIE,
@@ -482,7 +494,7 @@ class MediaBrowser:
         subtitle = " ".join(subtitles)
 
         return BrowseMediaItem(
-            title=episode.get("label", ""),
+            title=strip_kodi_formatting(episode.get("label", "")),
             subtitle=subtitle,
             media_id=media_id,
             media_class=MediaClass.EPISODE,
@@ -501,7 +513,7 @@ class MediaBrowser:
         if parent_id:
             media_id = parent_id + "/" + media_id
         return BrowseMediaItem(
-            title=show.get("label", ""),
+            title=strip_kodi_formatting(show.get("label", "")),
             media_id=media_id,
             media_class=MediaClass.TV_SHOW,
             media_type=MediaContentType.TV_SHOW,
@@ -519,7 +531,7 @@ class MediaBrowser:
         if parent_id:
             media_id = parent_id + "/" + media_id
         return BrowseMediaItem(
-            title=season.get("label", ""),
+            title=strip_kodi_formatting(season.get("label", "")),
             media_id=media_id,
             media_class=MediaClass.SEASON,
             media_type=MediaContentType.SEASON,
@@ -553,14 +565,14 @@ class MediaBrowser:
         artist = get_element(album.get("artist", None))
         duration: int | None = album.get("albumduration", None)
         return BrowseMediaItem(
-            title=album.get("label", ""),
+            title=strip_kodi_formatting(album.get("label", "")),
             media_id=media_id,
             media_class=MediaClass.ALBUM,
             media_type=MediaContentType.ALBUM,
             can_browse=True,
             can_search=True,
             thumbnail=art,
-            album=album.get("label", None),
+            album=strip_kodi_formatting(album.get("label", "")) or None,
             artist=artist,
             duration=int(duration) if duration else None,
         )
@@ -575,7 +587,7 @@ class MediaBrowser:
         if parent_id:
             media_id = f"{parent_id}/{media_id}?artist={quote(artist_name)}"
         return BrowseMediaItem(
-            title=artist_name,
+            title=strip_kodi_formatting(artist_name),
             media_id=media_id,
             media_class=MediaClass.ARTIST,
             media_type=MediaContentType.ARTIST,
@@ -590,7 +602,7 @@ class MediaBrowser:
         art = get_artwork(song.get("art", None))
         if art:
             art = self.get_artwork_url(art)
-        title = song.get("label", "")
+        title = strip_kodi_formatting(song.get("label", ""))
         if song.get("track", None):
             title = f"{song.get('track', 0)}. {title}"
         if song.get("duration", None):
@@ -610,8 +622,8 @@ class MediaBrowser:
             can_search=True,
             can_play=True,
             thumbnail=art,
-            album=song.get("album", None),
-            artist=get_element(song.get("artist", None)),
+            album=strip_kodi_formatting(song.get("album", "")) or None,
+            artist=strip_kodi_formatting(get_element(song.get("artist", None)) or "") or None,
         )
 
     def get_item_from_genre(self, media_type: str, genre: dict[str, Any], parent_id: str) -> BrowseMediaItem:
@@ -623,7 +635,7 @@ class MediaBrowser:
         if parent_id:
             media_id = parent_id + "/" + media_id
         return BrowseMediaItem(
-            title=genre.get("label", ""),
+            title=strip_kodi_formatting(genre.get("label", "")),
             media_id=media_id,
             media_class=MediaClass.GENRE,
             media_type=media_type + "/" + quote(genre.get("label", "")),
@@ -636,7 +648,7 @@ class MediaBrowser:
         """Build item from a PVR channel group."""
         media_id = f"{parent_id}/{int(group.get('channelgroupid', 0))}"
         item = BrowseMediaItem(
-            title=group.get("label", ""),
+            title=strip_kodi_formatting(group.get("label", "")),
             media_id=media_id,
             media_class=MediaClass.DIRECTORY,
             media_type="channelgroup",
@@ -656,14 +668,14 @@ class MediaBrowser:
         broadcast_now = channel.get("broadcastnow") or {}
         broadcast_next = channel.get("broadcastnext") or {}
         if title_now := broadcast_now.get("title"):
-            subtitles.append(f"{self.get_localized('Now')}: {title_now}")
+            subtitles.append(f"{self.get_localized('Now')}: {strip_kodi_formatting(title_now)}")
         if title_next := broadcast_next.get("title"):
-            subtitles.append(f"{self.get_localized('Next')}: {title_next}")
+            subtitles.append(f"{self.get_localized('Next')}: {strip_kodi_formatting(title_next)}")
         subtitle: str | None = " | ".join(subtitles) if subtitles else None
         if subtitle is not None and len(subtitle) > 255:
             subtitle = subtitle[:252].rstrip() + "..."  # pylint: disable=E1136
         return BrowseMediaItem(
-            title=channel.get("label", ""),
+            title=strip_kodi_formatting(channel.get("label", "")),
             subtitle=subtitle,
             media_id=str(channel.get("channelid", 0)),
             media_class=MediaClass.CHANNEL if hasattr(MediaClass, "CHANNEL") else MediaClass.VIDEO,
@@ -755,7 +767,7 @@ class MediaBrowser:
             items.insert(
                 position,
                 BrowseMediaItem(
-                    title=f"{self.get_localized('Now playing')} " f"({playing.get('label', '')})",
+                    title=f"{self.get_localized('Now playing')} ({strip_kodi_formatting(playing.get('label', ''))})",
                     media_class=MediaClass.PLAYLIST,
                     media_type=MediaClass.PLAYLIST,
                     media_id="kodi://playing",
@@ -825,19 +837,35 @@ class MediaBrowser:
                         favs[: MAX_ROOT_FAVORITES - 1] if has_more_favorites else favs[:MAX_ROOT_FAVORITES]
                     )
                     for fav in visible_favorites:
-                        title = fav.get("title", "")
+                        title = favorites.decode_favorite_title(fav.get("title", ""))
                         path = fav.get("path") or fav.get("window") or fav.get("windowparameter") or ""
                         if not path:
                             continue
+
+                        media_type = MediaContentType.URL.value
+                        can_play = True
+                        media_class = MediaClass.DIRECTORY
+                        rewrite = favorites.rewrite_favorite_path(path)
+                        if rewrite is not None:
+                            path, rewritten_type, can_play = rewrite
+                            if rewritten_type is not None:
+                                media_type = rewritten_type
+                            if rewritten_type == "channel":
+                                media_class = MediaClass.CHANNEL if hasattr(MediaClass, "CHANNEL") else MediaClass.VIDEO
+
+                        thumbnail = fav.get("thumbnail") or None
+                        if thumbnail:
+                            thumbnail = self.get_artwork_url(thumbnail)
+
                         root_favorites.append(
                             BrowseMediaItem(
                                 title=title,
                                 media_id=path,
-                                media_class=MediaClass.DIRECTORY,
-                                media_type=MediaContentType.URL.value,
+                                media_class=media_class,
+                                media_type=media_type,
                                 can_browse=True,
-                                can_play=True,
-                                thumbnail=fav.get("thumbnail") or None,
+                                can_play=can_play,
+                                thumbnail=thumbnail,
                                 items=[],
                             )
                         )
@@ -1009,14 +1037,38 @@ class MediaBrowser:
                         item.items.append(self.get_back_item(entry.parent_id))
                     for media in data.get("files", []):
                         # Strip off extension file
-                        media["label"] = os.path.splitext(media.get("label"))[0]
+                        media["label"] = os.path.splitext(media.get("label") or "")[0]
                         media["filetype"] = "file"
                         item.items.append(self.get_item_from_file(media, media_id, extract_thumbnail=False))
                 elif entry.output == KodiObjectType.CHANNEL_GROUP:
                     if self.add_back_entry(item.media_id, pagination_options):
                         item.items.append(self.get_back_item("kodi://pvr"))
-                    for group in data.get("channelgroups", []):
-                        item.items.append(self.get_item_from_channel_group(group, media_id))
+                    show_groups = getattr(self._device, "show_channel_groups", True)
+                    channel_type = (entry.arguments or {}).get("channeltype", "tv")
+                    if not show_groups:
+                        # Skip groups entirely and list every channel of the type
+                        try:
+                            chan_data = await self._device.server.PVR.GetChannels(
+                                channelgroupid=f"all{channel_type}",
+                                properties=[
+                                    "thumbnail",
+                                    "channeltype",
+                                    "broadcastnow",
+                                    "broadcastnext",
+                                    "channel",
+                                    "lastplayed",
+                                    "hidden",
+                                    "locked",
+                                ],
+                            )
+                        except Exception as err:  # pylint: disable=W0718
+                            _LOG.warning("PVR.GetChannels(all%s) failed: %s", channel_type, err)
+                            chan_data = {}
+                        for channel in chan_data.get("channels", []):
+                            item.items.append(self.get_item_from_channel(channel))
+                    else:
+                        for group in data.get("channelgroups", []):
+                            item.items.append(self.get_item_from_channel_group(group, media_id))
                 elif entry.output == KodiObjectType.CHANNEL:
                     if self.add_back_entry(item.media_id, pagination_options):
                         item.items.append(self.get_back_item(entry.parent_id or "kodi://pvr"))
@@ -1540,9 +1592,9 @@ class MediaBrowser:
                             item.items.append(
                                 BrowseMediaItem(
                                     title=(
-                                        playlist_item.get("label", "")
+                                        strip_kodi_formatting(playlist_item.get("label", ""))
                                         if position != current_playlist.position or not tag_current
-                                        else f">> {playlist_item.get('label', '')} <<"
+                                        else f">> {strip_kodi_formatting(playlist_item.get('label', ''))} <<"
                                     ),
                                     media_class=MediaClass(media_type.value),
                                     media_type=MediaContentType.PLAYLIST,
