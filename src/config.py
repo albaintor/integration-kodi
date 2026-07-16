@@ -101,7 +101,7 @@ class _EnhancedJSONEncoder(json.JSONEncoder):
 
     def default(self, o: Any) -> Any:
         if dataclasses.is_dataclass(o):
-            return dataclasses.asdict(cast(Any, o))
+            return dataclasses.asdict(cast("Any", o))
         return super().default(o)
 
 

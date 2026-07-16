@@ -182,7 +182,7 @@ class KodiMediaPlayer(KodiEntity, MediaPlayer):
                     mode = int(mode)
                 except ValueError:
                     pass
-            return await device.zoom(cast(int | Literal["in", "out"], mode))
+            return await device.zoom(cast('int | Literal["in", "out"]', mode))
         if command_key == "speed" and len(arguments) == 2:
             value = arguments[1]
             if value not in ["increment", "decrement"]:
@@ -190,7 +190,7 @@ class KodiMediaPlayer(KodiEntity, MediaPlayer):
                     value = int(value)
                 except ValueError:
                     pass
-            return await device.speed(cast(int | Literal["increment", "decrement"], value))
+            return await device.speed(cast('int | Literal["increment", "decrement"]', value))
         if command_key == "audiodelay" and len(arguments) == 2:
             value = arguments[1]
             try:

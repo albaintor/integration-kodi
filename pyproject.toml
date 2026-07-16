@@ -49,6 +49,9 @@ ignore = [
     "FBT001",  # external APIs use positional booleans
     "FBT002",  # external APIs use positional booleans
     "FBT003",  # external APIs use positional booleans
+    "ASYNC109",  # retry helper uses timeout as a domain parameter, not asyncio.timeout misuse
+    "FURB110",  # refactor-only
+    "FURB132",  # refactor-only
     "I001",  # keep import sorting non-blocking for now
     "INP001",  # src/pykodi intentionally has no package __init__
     "ISC001",  # conflicts with ruff format
@@ -60,6 +63,7 @@ ignore = [
     "PLR0912", # too-many-branches
     "PLR0913", # too-many-arguments: integration constructors mirror external config fields
     "PLR0915", # too-many-statements in integration flow handlers
+    "PLR1714", # refactor-only
     "PLR2004", # magic-value-comparison (noisy)
     "PLR5501", # refactor-only
     "PLW2901", # loop variable reassignment is harmless in command normalization
@@ -91,6 +95,7 @@ ignore = [
     "TRY003",  # exception-message style is too noisy for this project
     "UP015",  # refactor-only
     "UP017",  # timezone refactor is not part of this check
+    "UP042",  # StrEnum migration is not part of this check
     "UP041",  # py311 compatibility with asyncio aliases is acceptable
 ]
 
