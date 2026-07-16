@@ -90,7 +90,7 @@ ignore = [
     "SIM118",  # refactor-only
     "SIM910",  # explicit None defaults are intentional
     "SLF001",  # integration code deliberately touches ucapi/jsonrpc internals
-    "TCH001",  # import-at-runtime is acceptable for this driver
+    "TC001",  # import-at-runtime is acceptable for this driver
     "TRY300",  # try-consider-else
     "TRY003",  # exception-message style is too noisy for this project
     "UP015",  # refactor-only

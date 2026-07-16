@@ -1502,7 +1502,7 @@ class KodiDevice(IKodiDevice):
         if codec:
             stream_info = codec.title()
             if bitrate > 0:
-                stream_info = f"{stream_info} {int(bitrate/1000)}kbps"
+                stream_info = f"{stream_info} {int(bitrate / 1000)}kbps"
             if channels > 0:
                 stream_info = f"{stream_info} {channels} channels"
             if samplerate > 0:
