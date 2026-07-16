@@ -747,7 +747,6 @@ class SetupFlow:
         :param msg: response data from the requested user data
         :return: the setup action on how to continue: SetupComplete after updating configuration
         """
-        # flake8: noqa:F824
         # pylint: disable=W0602, R0915, R0914
 
         _LOG.debug("Handle device reconfigure")
@@ -829,7 +828,6 @@ class SetupFlow:
         :param msg: response data from the requested user data
         :return: the setup action on how to continue: SetupComplete after updating configuration
         """
-        # flake8: noqa:F824
         # pylint: disable=W0602
         _LOG.debug("Handle backup/restore")
         devices = _configured_devices()

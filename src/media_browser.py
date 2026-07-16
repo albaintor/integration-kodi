@@ -7,11 +7,12 @@ Browsing definitions used for Kodi integration.
 
 import dataclasses
 import logging
+from pathlib import PurePath
 import re
 import time
 from dataclasses import dataclass, field, fields
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import quote, unquote
 
 from ucapi import StatusCodes
 from ucapi.media_player import (
@@ -1036,7 +1037,7 @@ class MediaBrowser:
                         item.items.append(self.get_back_item(entry.parent_id))
                     for media in data.get("files", []):
                         # Strip off extension file
-                        media["label"] = os.path.splitext(media.get("label") or "")[0]
+                        media["label"] = PurePath(media.get("label") or "").stem
                         media["filetype"] = "file"
                         item.items.append(self.get_item_from_file(media, media_id, extract_thumbnail=False))
                 elif entry.output == KodiObjectType.CHANNEL_GROUP:

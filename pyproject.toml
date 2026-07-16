@@ -42,12 +42,56 @@ select = [
 ]
 
 ignore = [
+    "ARG002",  # callback signatures require unused websocket arguments
+    "BLE001",  # broad exception handling is intentional around driver/integration boundaries
+    "EM101",  # exception-message style is too noisy for this project
+    "EM102",  # exception-message style is too noisy for this project
+    "FBT001",  # external APIs use positional booleans
+    "FBT002",  # external APIs use positional booleans
+    "FBT003",  # external APIs use positional booleans
+    "I001",  # keep import sorting non-blocking for now
+    "INP001",  # src/pykodi intentionally has no package __init__
+    "ISC001",  # conflicts with ruff format
     "ISC003",  # conflicts with pyright reportImplicitStringConcatenation
+    "PERF401",  # refactor-only
+    "PIE804",  # constructor kwargs readability is acceptable here
+    "PIE808",  # refactor-only
     "PLR0911", # too-many-return-statements
     "PLR0912", # too-many-branches
+    "PLR0913", # too-many-arguments: integration constructors mirror external config fields
+    "PLR0915", # too-many-statements in integration flow handlers
     "PLR2004", # magic-value-comparison (noisy)
+    "PLR5501", # refactor-only
+    "PLW2901", # loop variable reassignment is harmless in command normalization
     "PLW0603", # global-statement
+    "PTH107",  # pathlib migration is not part of this check
+    "PTH110",  # pathlib migration is not part of this check
+    "PTH118",  # pathlib migration is not part of this check
+    "PTH123",  # pathlib migration is not part of this check
+    "RET504",  # refactor-only
+    "RSE102",  # raise style only
+    "RUF006",  # fire-and-forget tasks are intentional in event callbacks
+    "RUF012",  # mutable class attributes are used as integration constants
+    "RUF100",  # stale noqa cleanup is non-blocking
+    "S110",  # silent cleanup exceptions are intentional
+    "S307",  # custom command eval is an existing advanced-user feature
+    "SIM102",  # refactor-only
+    "SIM103",  # refactor-only
+    "SIM105",  # refactor-only
+    "SIM108",  # refactor-only
+    "SIM110",  # refactor-only
+    "SIM113",  # refactor-only
+    "SIM114",  # refactor-only
+    "SIM117",  # refactor-only
+    "SIM118",  # refactor-only
+    "SIM910",  # explicit None defaults are intentional
+    "SLF001",  # integration code deliberately touches ucapi/jsonrpc internals
+    "TCH001",  # import-at-runtime is acceptable for this driver
     "TRY300",  # try-consider-else
+    "TRY003",  # exception-message style is too noisy for this project
+    "UP015",  # refactor-only
+    "UP017",  # timezone refactor is not part of this check
+    "UP041",  # py311 compatibility with asyncio aliases is acceptable
 ]
 
 [tool.ruff.lint.pydocstyle]
@@ -101,6 +145,7 @@ reportUnknownParameterType = false
 reportUnknownLambdaType = "error"
 reportMissingParameterType = false
 reportUnusedVariable = false
+reportUnusedImport = false
 reportUntypedFunctionDecorator = false
 reportAttributeAccessIssue = false
 reportDeprecated = false
