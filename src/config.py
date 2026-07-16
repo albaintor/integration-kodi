@@ -9,9 +9,10 @@ import dataclasses
 import json
 import logging
 import os
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field, fields
 from enum import Enum
-from typing import Callable, Iterator
+from typing import Any, cast
 
 from ucapi import Entity, EntityTypes
 
@@ -98,9 +99,9 @@ class KodiConfigDevice:
 class _EnhancedJSONEncoder(json.JSONEncoder):
     """Python dataclass json encoder."""
 
-    def default(self, o):
+    def default(self, o: Any) -> Any:
         if dataclasses.is_dataclass(o):
-            return dataclasses.asdict(o)
+            return dataclasses.asdict(cast(Any, o))
         return super().default(o)
 
 

@@ -9,7 +9,7 @@ import asyncio
 import copy
 import logging
 from enum import IntEnum
-from typing import Any
+from typing import Any, cast
 
 from aiohttp import ClientSession
 from ucapi import (
@@ -17,9 +17,7 @@ from ucapi import (
     DriverSetupRequest,
     IntegrationSetupError,
     RequestUserInput,
-    SetupAction,
     SetupComplete,
-    SetupDriver,
     SetupError,
     UserDataResponse,
 )
@@ -73,6 +71,13 @@ def set_setup_field(fields: list[dict[str, Any]], field_id: str, value: Any):
                         val["value"] = value
 
 
+def _configured_devices() -> config.Devices:
+    """Return initialized device configuration."""
+    if config.devices is None:
+        raise RuntimeError("Device configuration has not been initialized")
+    return config.devices
+
+
 class SetupFlow:
     """Setup flow."""
 
@@ -116,7 +121,7 @@ class SetupFlow:
     )
 
     # pylint: disable=R0911
-    async def driver_setup_handler(self, msg: SetupDriver) -> SetupAction:
+    async def driver_setup_handler(self, msg: Any) -> Any:
         """
         Dispatch driver setup requests to corresponding handlers.
 
@@ -185,7 +190,7 @@ class SetupFlow:
 
         return SetupError()
 
-    async def handle_driver_setup(self, msg: DriverSetupRequest) -> RequestUserInput | SetupError:
+    async def handle_driver_setup(self, msg: Any) -> Any:
         """
         Start driver setup.
 
@@ -199,6 +204,7 @@ class SetupFlow:
         # workaround for web-configurator not picking up first response
         await asyncio.sleep(1)
 
+        devices = _configured_devices()
         reconfigure = msg.reconfigure
         _LOG.debug("Handle driver setup, reconfigure=%s", reconfigure)
         if reconfigure:
@@ -206,7 +212,7 @@ class SetupFlow:
 
             # get all configured devices for the user to choose from
             dropdown_devices = []
-            for device in config.devices.all():
+            for device in devices.all():
                 dropdown_devices.append({"id": device.id, "label": {"en": f"{device.name} ({device.id})"}})
 
             # TODO #12 externalize language texts
@@ -292,7 +298,7 @@ class SetupFlow:
             )
 
         # Initial setup, make sure we have a clean configuration
-        config.devices.clear()  # triggers device instance removal
+        devices.clear()  # triggers device instance removal
         self._setup_step = SetupSteps.WORKFLOW_MODE
         return RequestUserInput(
             {"en": "Configuration mode", "de": "Konfigurations-Modus"},
@@ -328,7 +334,7 @@ class SetupFlow:
             ],
         )
 
-    async def handle_configuration_mode(self, msg: UserDataResponse) -> RequestUserInput | SetupComplete | SetupError:
+    async def handle_configuration_mode(self, msg: Any) -> Any:
         """
         Process user data response in a setup process.
 
@@ -338,6 +344,7 @@ class SetupFlow:
         :param msg: response data from the requested user data
         :return: the setup action on how to continue
         """
+        devices = _configured_devices()
         action = msg.input_values["action"]
 
         _LOG.debug("Handle configuration mode")
@@ -350,15 +357,15 @@ class SetupFlow:
                 self._cfg_add_device = True
             case "remove":
                 choice = msg.input_values["choice"]
-                if not config.devices.remove(choice):
+                if not devices.remove(choice):
                     _LOG.warning("Could not remove device from configuration: %s", choice)
                     return SetupError(error_type=IntegrationSetupError.OTHER)
-                config.devices.store()
+                devices.store()
                 return SetupComplete()
             case "configure":
                 # Reconfigure device if the identifier has changed
                 choice = msg.input_values["choice"]
-                selected_device = config.devices.get(choice)
+                selected_device = devices.get(choice)
                 if not selected_device:
                     _LOG.warning("Can not configure device from configuration: %s", choice)
                     return SetupError(error_type=IntegrationSetupError.OTHER)
@@ -450,7 +457,7 @@ class SetupFlow:
                     _LOG.exception("Invalid configuration: %s", ex)
                     return SetupError(error_type=IntegrationSetupError.OTHER)
             case "reset":
-                config.devices.clear()  # triggers device instance removal
+                devices.clear()  # triggers device instance removal
             case "backup_restore":
                 return await self._handle_backup_restore_step()
             case _:
@@ -460,7 +467,7 @@ class SetupFlow:
         self._setup_step = SetupSteps.DISCOVER
         return self._user_input_manual
 
-    async def handle_discovery(self, _msg: UserDataResponse) -> RequestUserInput | SetupError:
+    async def handle_discovery(self, _msg: Any) -> Any:
         """
         Process user data response from the first setup process screen.
 
@@ -471,6 +478,7 @@ class SetupFlow:
         :return: the setup action on how to continue
         """
 
+        devices = _configured_devices()
         dropdown_items = []
 
         _LOG.debug("Handle driver setup with discovery")
@@ -487,7 +495,7 @@ class SetupFlow:
         # only add new devices or configured devices requiring new pairing
         for discovered_kodi in self._discovered_kodis:
             kodi_data = {"id": discovered_kodi["ip"], "label": {"en": f"Kodi {discovered_kodi['ip']}"}}
-            existing = config.devices.get_by_id_or_address(discovered_kodi["id"], discovered_kodi["ip"])
+            existing = devices.get_by_id_or_address(discovered_kodi["id"], discovered_kodi["ip"])
             if self._cfg_add_device and existing:
                 _LOG.info("Skipping found device '%s': already configured", discovered_kodi["id"])
                 continue
@@ -524,12 +532,16 @@ class SetupFlow:
                     "field": {
                         "label": {
                             "value": {
-                                "en": "Kodi must be running, and control enabled from Settings > "
-                                "Services > Control section. Port numbers shouldn't be modified."
-                                " Leave blank for automatic discovery.",
-                                "fr": "Kodi doit être lancé et le contrôle activé depuis les "
-                                "Paramètres > Services > Contrôle. Laisser les numéros des ports "
-                                "inchangés.Laisser vide pour la découverte automatique.",
+                                "en": (
+                                    "Kodi must be running, and control enabled from Settings > "
+                                    + "Services > Control section. Port numbers shouldn't be modified."
+                                    + " Leave blank for automatic discovery."
+                                ),
+                                "fr": (
+                                    "Kodi doit être lancé et le contrôle activé depuis les "
+                                    + "Paramètres > Services > Contrôle. Laisser les numéros des ports "
+                                    + "inchangés.Laisser vide pour la découverte automatique."
+                                ),
                             }
                         }
                     },
@@ -538,9 +550,9 @@ class SetupFlow:
             ],
         )
 
-    async def _handle_backup_restore_step(self) -> RequestUserInput:
+    async def _handle_backup_restore_step(self) -> Any:
         self._setup_step = SetupSteps.BACKUP_RESTORE
-        current_config = config.devices.export()
+        current_config = _configured_devices().export()
 
         _LOG.debug("Handle backup/restore step")
 
@@ -565,7 +577,7 @@ class SetupFlow:
             ],
         )
 
-    async def _handle_configuration(self, msg: UserDataResponse) -> SetupComplete | SetupError:
+    async def _handle_configuration(self, msg: Any) -> Any:
         """
         Process user data response in a setup process.
 
@@ -676,7 +688,7 @@ class SetupFlow:
                         return SetupError(error_type=IntegrationSetupError.CONNECTION_REFUSED)
                     kodi = Kodi(device)
                     await kodi.ping()
-                    name = await kodi.get_name()
+                    name = await cast(Any, kodi).get_name()
                     if name == KODI_DEFAULT_NAME:
                         name = f"Kodi {address}"
 
@@ -692,7 +704,8 @@ class SetupFlow:
             return SetupError(error_type=IntegrationSetupError.CONNECTION_REFUSED)
 
         # TODO improve device ID (IP actually)
-        config.devices.add(
+        devices = _configured_devices()
+        devices.add(
             KodiConfigDevice(
                 id=address,
                 name=name,
@@ -721,13 +734,13 @@ class SetupFlow:
                 show_channel_groups=show_channel_groups,
             )
         )  # triggers SonyLG TV instance creation
-        config.devices.store()
+        devices.store()
 
         await asyncio.sleep(1)
         _LOG.info("Setup successfully completed for %s", address)
         return SetupComplete()
 
-    async def _handle_device_reconfigure(self, msg: UserDataResponse) -> SetupComplete | SetupError:
+    async def _handle_device_reconfigure(self, msg: Any) -> Any:
         """
         Process reconfiguration of a registered Android TV device.
 
@@ -803,13 +816,13 @@ class SetupFlow:
         self._reconfigured_device.favorites_in_root = favorites_in_root
         self._reconfigured_device.show_channel_groups = show_channel_groups
 
-        config.devices.add_or_update(self._reconfigured_device)  # triggers ATV instance update
+        _configured_devices().add_or_update(self._reconfigured_device)  # triggers ATV instance update
         await asyncio.sleep(1)
         _LOG.info("Setup successfully completed for %s", self._reconfigured_device.name)
 
         return SetupComplete()
 
-    async def _handle_backup_restore(self, msg: UserDataResponse) -> SetupComplete | SetupError:
+    async def _handle_backup_restore(self, msg: Any) -> Any:
         """
         Process import of configuration
 
@@ -819,14 +832,15 @@ class SetupFlow:
         # flake8: noqa:F824
         # pylint: disable=W0602
         _LOG.debug("Handle backup/restore")
+        devices = _configured_devices()
         updated_config = msg.input_values["config"]
         _LOG.info("Replacing configuration with : %s", updated_config)
-        res = config.devices.import_config(updated_config)
+        res = devices.import_config(updated_config)
         if res == ConfigImportResult.ERROR:
             _LOG.error("Setup error, unable to import updated configuration : %s", updated_config)
             return SetupError(error_type=IntegrationSetupError.OTHER)
         if res == ConfigImportResult.WARNINGS:
-            _LOG.error("Setup warning, configuration imported with warnings : %s", config.devices)
+            _LOG.error("Setup warning, configuration imported with warnings : %s", devices)
         _LOG.debug("Configuration imported successfully")
 
         await asyncio.sleep(1)

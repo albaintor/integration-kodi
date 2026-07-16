@@ -7,7 +7,7 @@ Constants used for Kodi integration.
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Type, TypedDict
+from typing import Any, NotRequired, TypedDict
 
 from ucapi.media_player import Commands, Features, MediaContentType
 from ucapi.ui import Buttons, DeviceButtonMapping, UiPage
@@ -77,8 +77,8 @@ class ButtonKeymap(TypedDict):
     """Kodi keymap."""
 
     button: str
-    keymap: str | None
-    holdtime: int | None
+    keymap: NotRequired[str | None]
+    holdtime: NotRequired[int | None]
 
 
 class MethodCall(TypedDict):
@@ -86,6 +86,7 @@ class MethodCall(TypedDict):
 
     method: str
     params: dict[str, Any]
+    holdtime: NotRequired[int | None]
 
 
 class KodiSensors(str, Enum):
@@ -274,33 +275,33 @@ KODI_ACTIONS_KEYMAP = {
 # see https://github.com/xbmc/xbmc/blob/master/system/keymaps/remote.xml for R1 keymap or
 # see https://github.com/xbmc/xbmc/blob/master/system/keymaps/keyboard.xml for KB keymap
 KODI_BUTTONS_KEYMAP: dict[str, ButtonKeymap | MethodCall] = {
-    Commands.CHANNEL_UP: ButtonKeymap(**{"button": "pageplus", "keymap": "R1"}),  # channelup or pageup
-    Commands.CHANNEL_DOWN: ButtonKeymap(**{"button": "pageminus", "keymap": "R1"}),  # channeldown or pagedown
-    Commands.CURSOR_UP: ButtonKeymap(**{"button": "up", "keymap": "R1"}),
-    Commands.CURSOR_DOWN: ButtonKeymap(**{"button": "down", "keymap": "R1"}),
-    Commands.CURSOR_LEFT: ButtonKeymap(**{"button": "left", "keymap": "R1"}),
-    Commands.CURSOR_RIGHT: ButtonKeymap(**{"button": "right", "keymap": "R1"}),
-    Commands.CURSOR_ENTER: ButtonKeymap(**{"button": "enter"}),
-    Commands.BACK: ButtonKeymap(**{"button": "backspace"}),
+    Commands.CHANNEL_UP: {"button": "pageplus", "keymap": "R1"},  # channelup or pageup
+    Commands.CHANNEL_DOWN: {"button": "pageminus", "keymap": "R1"},  # channeldown or pagedown
+    Commands.CURSOR_UP: {"button": "up", "keymap": "R1"},
+    Commands.CURSOR_DOWN: {"button": "down", "keymap": "R1"},
+    Commands.CURSOR_LEFT: {"button": "left", "keymap": "R1"},
+    Commands.CURSOR_RIGHT: {"button": "right", "keymap": "R1"},
+    Commands.CURSOR_ENTER: {"button": "enter"},
+    Commands.BACK: {"button": "backspace"},
     # Send numbers through "R1" keymap so they can be used for character input (like on old phones)
-    Commands.DIGIT_0: ButtonKeymap(**{"button": "zero", "keymap": "R1"}),
-    Commands.DIGIT_1: ButtonKeymap(**{"button": "one", "keymap": "R1"}),
-    Commands.DIGIT_2: ButtonKeymap(**{"button": "two", "keymap": "R1"}),
-    Commands.DIGIT_3: ButtonKeymap(**{"button": "three", "keymap": "R1"}),
-    Commands.DIGIT_4: ButtonKeymap(**{"button": "four", "keymap": "R1"}),
-    Commands.DIGIT_5: ButtonKeymap(**{"button": "five", "keymap": "R1"}),
-    Commands.DIGIT_6: ButtonKeymap(**{"button": "six", "keymap": "R1"}),
-    Commands.DIGIT_7: ButtonKeymap(**{"button": "seven", "keymap": "R1"}),
-    Commands.DIGIT_8: ButtonKeymap(**{"button": "eight", "keymap": "R1"}),
-    Commands.DIGIT_9: ButtonKeymap(**{"button": "nine", "keymap": "R1"}),
-    Commands.RECORD: ButtonKeymap(**{"button": "record", "keymap": "R1"}),
-    Commands.GUIDE: ButtonKeymap(**{"button": "guide", "keymap": "R1"}),
-    Commands.FUNCTION_GREEN: ButtonKeymap(**{"button": "green", "keymap": "R1"}),
-    Commands.FUNCTION_BLUE: ButtonKeymap(**{"button": "blue", "keymap": "R1"}),
-    Commands.FUNCTION_RED: ButtonKeymap(**{"button": "red", "keymap": "R1"}),
-    Commands.FUNCTION_YELLOW: ButtonKeymap(**{"button": "yellow", "keymap": "R1"}),
-    Commands.SETTINGS: MethodCall(method="GUI.ActivateWindow", params={"window": "settings"}),
-    # Commands.STOP: ButtonKeymap(**{"button": "stop", "keymap": "R1"}),
+    Commands.DIGIT_0: {"button": "zero", "keymap": "R1"},
+    Commands.DIGIT_1: {"button": "one", "keymap": "R1"},
+    Commands.DIGIT_2: {"button": "two", "keymap": "R1"},
+    Commands.DIGIT_3: {"button": "three", "keymap": "R1"},
+    Commands.DIGIT_4: {"button": "four", "keymap": "R1"},
+    Commands.DIGIT_5: {"button": "five", "keymap": "R1"},
+    Commands.DIGIT_6: {"button": "six", "keymap": "R1"},
+    Commands.DIGIT_7: {"button": "seven", "keymap": "R1"},
+    Commands.DIGIT_8: {"button": "eight", "keymap": "R1"},
+    Commands.DIGIT_9: {"button": "nine", "keymap": "R1"},
+    Commands.RECORD: {"button": "record", "keymap": "R1"},
+    Commands.GUIDE: {"button": "guide", "keymap": "R1"},
+    Commands.FUNCTION_GREEN: {"button": "green", "keymap": "R1"},
+    Commands.FUNCTION_BLUE: {"button": "blue", "keymap": "R1"},
+    Commands.FUNCTION_RED: {"button": "red", "keymap": "R1"},
+    Commands.FUNCTION_YELLOW: {"button": "yellow", "keymap": "R1"},
+    Commands.SETTINGS: {"method": "GUI.ActivateWindow", "params": {"window": "settings"}},
+    # Commands.STOP: {"button": "stop", "keymap": "R1"},
 }
 
 KODI_ADVANCED_SIMPLE_COMMANDS: dict[str, MethodCall | str] = {
@@ -520,13 +521,15 @@ KODI_REMOTE_UI_PAGES: list[UiPage] = [
 ]
 
 
-def filter_attributes(attributes, attribute_type: Type[Enum]) -> dict[str, Any]:
+def filter_attributes(attributes: dict[str, Any], attribute_type: type[Enum]) -> dict[str, Any]:
     """Filter attributes based on an Enum class."""
     valid_keys = {e.value for e in attribute_type}
     return {k: v for k, v in attributes.items() if k in valid_keys}
 
 
-def key_update_helper(input_attributes, key: str, value: str | None, attributes):
+def key_update_helper(
+    input_attributes: dict[str, Any], key: str, value: str | None, attributes: dict[str, Any]
+) -> dict[str, Any]:
     """Return modified attributes only."""
     if value is None:
         return attributes

@@ -6,7 +6,7 @@ Media-player entity functions.
 """
 
 import logging
-from typing import Any
+from typing import Any, Literal, cast
 
 from ucapi import EntityTypes, MediaPlayer, Pagination, StatusCodes
 from ucapi.media_player import (
@@ -30,7 +30,6 @@ from const import (
     KODI_SIMPLE_COMMANDS,
     KODI_SIMPLE_COMMANDS_DIRECT,
     ButtonKeymap,
-    MethodCall,
     filter_attributes,
 )
 
@@ -117,9 +116,9 @@ class KodiMediaPlayer(KodiEntity, MediaPlayer):
         elif cmd_id == Commands.SETTINGS:
             res = await device.call_command("GUI.ActivateWindow", **{"window": "screensaver"})
         elif cmd_id == Commands.SELECT_SOURCE:
-            res = await device.select_chapter(params.get("source"))
+            res = await device.select_chapter(str(params.get("source", "")))
         elif cmd_id == Commands.SELECT_SOUND_MODE:
-            res = await device.select_audio_track(params.get("mode"))
+            res = await device.select_audio_track(str(params.get("mode", "")))
         elif cmd_id == Commands.PLAY_MEDIA:
             res = await device.play_media(params)
         elif cmd_id == Commands.CLEAR_PLAYLIST:
@@ -129,35 +128,33 @@ class KodiMediaPlayer(KodiEntity, MediaPlayer):
         elif cmd_id == Commands.SHUFFLE:
             res = await device.set_shuffle(params)
         elif not device.device_config.disable_keyboard_map and cmd_id in KODI_BUTTONS_KEYMAP:
-            command: ButtonKeymap | MethodCall = KODI_BUTTONS_KEYMAP[cmd_id]
-            if "button" in command.keys():
-                command: ButtonKeymap = command.copy()
+            mapped_command = KODI_BUTTONS_KEYMAP[cmd_id]
+            if "button" in mapped_command:
+                button_command = mapped_command.copy()
                 hold = params.get("hold", 0)
                 if hold != "" and hold > 0:
-                    command["holdtime"] = hold
-                res = await device.command_button(command)
+                    button_command["holdtime"] = hold
+                res = await device.command_button(button_command)
             else:
-                command: MethodCall = command
-                res = await device.call_command(command["method"], **command["params"])
+                method_command = mapped_command
+                res = await device.call_command(method_command["method"], **method_command["params"])
         elif device.device_config.disable_keyboard_map and cmd_id in KODI_ALTERNATIVE_BUTTONS_KEYMAP:
-            command: MethodCall = KODI_ALTERNATIVE_BUTTONS_KEYMAP[cmd_id]
-            res = await device.call_command(command["method"], **command["params"])
+            method_command = KODI_ALTERNATIVE_BUTTONS_KEYMAP[cmd_id]
+            res = await device.call_command(method_command["method"], **method_command["params"])
         elif cmd_id in KODI_ACTIONS_KEYMAP:
             res = await device.command_action(KODI_ACTIONS_KEYMAP[cmd_id])
         elif cmd_id in KODI_SIMPLE_COMMANDS:
-            command = KODI_SIMPLE_COMMANDS[cmd_id]
-            if command in KODI_SIMPLE_COMMANDS_DIRECT:
-                res = await device.call_command(command)
+            simple_command = KODI_SIMPLE_COMMANDS[cmd_id]
+            if simple_command in KODI_SIMPLE_COMMANDS_DIRECT:
+                res = await device.call_command(simple_command)
             else:
-                res = await device.command_action(command)
+                res = await device.command_action(simple_command)
         elif cmd_id in KODI_ADVANCED_SIMPLE_COMMANDS:
-            command: MethodCall | str = KODI_ADVANCED_SIMPLE_COMMANDS[cmd_id]
-            if isinstance(command, str):
-                command: str = command
-                res = await device.command_action(command)
+            advanced_command = KODI_ADVANCED_SIMPLE_COMMANDS[cmd_id]
+            if isinstance(advanced_command, str):
+                res = await device.command_action(advanced_command)
             else:
-                command: MethodCall = command
-                res = await device.call_command(command["method"], **command["params"])
+                res = await device.call_command(advanced_command["method"], **advanced_command["params"])
         else:
             return await KodiMediaPlayer.custom_command(device, cmd_id)
         return res
@@ -185,7 +182,7 @@ class KodiMediaPlayer(KodiEntity, MediaPlayer):
                     mode = int(mode)
                 except ValueError:
                     pass
-            return await device.zoom(mode)
+            return await device.zoom(cast(int | Literal["in", "out"], mode))
         if command_key == "speed" and len(arguments) == 2:
             value = arguments[1]
             if value not in ["increment", "decrement"]:
@@ -193,7 +190,7 @@ class KodiMediaPlayer(KodiEntity, MediaPlayer):
                     value = int(value)
                 except ValueError:
                     pass
-            return await device.speed(value)
+            return await device.speed(cast(int | Literal["increment", "decrement"], value))
         if command_key == "audiodelay" and len(arguments) == 2:
             value = arguments[1]
             try:
@@ -201,7 +198,7 @@ class KodiMediaPlayer(KodiEntity, MediaPlayer):
             except ValueError:
                 pass
 
-            return await device.audio_delay(value)
+            return await device.audio_delay(float(value))
         if command_key == "key" and len(arguments) == 2:
             value = arguments[1]
             value = value.split(" ")
@@ -217,8 +214,8 @@ class KodiMediaPlayer(KodiEntity, MediaPlayer):
                 "[%s] Keyboard command Input.ButtonEvent %s %s %s",
                 device.device_config.address,
                 button["button"],
-                button["keymap"],
-                button["holdtime"],
+                button.get("keymap"),
+                button.get("holdtime"),
             )
             return await device.command_button(button)
         if command_key == "action" and len(arguments) == 2:
@@ -279,9 +276,12 @@ class KodiMediaPlayer(KodiEntity, MediaPlayer):
         _LOG.debug("[%s] Search media request %s", self._device.device_config.address, options)
         if options.query is None:
             return StatusCodes.BAD_REQUEST
-        media_results, pagination = await self._device.media_browser.search_media(
-            options.query, options.media_id, options.media_type, options.filter, options.paging
+        result = await self._device.media_browser.search_media(
+            options.query, options.media_id, options.media_type, options.filter or [], options.paging
         )
+        if result is None:
+            return StatusCodes.NOT_FOUND
+        media_results, pagination = result
         return SearchResults(
             media=media_results,
             pagination=Pagination(page=pagination.page, limit=pagination.limit, count=pagination.count),

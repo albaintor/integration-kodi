@@ -18,6 +18,7 @@ from ucapi.remote import States as RemoteStates
 import kodi_device
 from config import KodiConfigDevice, KodiEntity, create_entity_id
 from const import (
+    ButtonKeymap,
     KODI_REMOTE_BUTTONS_MAPPING,
     KODI_REMOTE_SIMPLE_COMMANDS,
     KODI_REMOTE_UI_PAGES,
@@ -41,7 +42,7 @@ KODI_REMOTE_STATE_MAPPING = {
 COMMAND_TIMEOUT = 4.5
 
 
-def get_int_param(param: str, params: dict[str, Any], default: int):
+def get_int_param(param: str, params: dict[str, Any], default: int) -> int:
     """Get parameter in integer format."""
     # TODO bug to be fixed on UC Core : some params are sent as (empty) strings by remote (hold == "")
     value = params.get(param, default)
@@ -49,7 +50,7 @@ def get_int_param(param: str, params: dict[str, Any], default: int):
         return default
     if isinstance(value, str) and len(value) > 0:
         return int(float(value))
-    return value
+    return int(value)
 
 
 class KodiRemote(KodiEntity, Remote):
@@ -126,16 +127,18 @@ class KodiRemote(KodiEntity, Remote):
 
     async def send_commands(self, cmd_id: str, params: dict[str, Any] | None = None) -> StatusCodes:
         """Handle custom command or commands sequence."""
+        params = params or {}
         hold = get_int_param("hold", params, 0)
         delay = get_int_param("delay", params, 0)
         repeat = get_int_param("repeat", params, 1)
-        command = params.get("command", "")
+        command = str(params.get("command", ""))
         res = StatusCodes.OK
         for _i in range(0, repeat):
             if cmd_id == Commands.SEND_CMD:
                 result = await KodiMediaPlayer.mediaplayer_command(self.id, self._device, command, params)
                 if result == StatusCodes.NOT_IMPLEMENTED:
-                    result = await self._device.command_button({"button": command, "keymap": "KB", "holdtime": hold})
+                    button: ButtonKeymap = {"button": command, "keymap": "KB", "holdtime": hold}
+                    result = await self._device.command_button(button)
                 if result != StatusCodes.OK:
                     res = result
                 if delay > 0:
@@ -143,11 +146,11 @@ class KodiRemote(KodiEntity, Remote):
             else:
                 commands = params.get("sequence", [])
                 for command in commands:
-                    result = KodiMediaPlayer.mediaplayer_command(self.id, self._device, command, params)
+                    command = str(command)
+                    result = await KodiMediaPlayer.mediaplayer_command(self.id, self._device, command, params)
                     if result == StatusCodes.NOT_IMPLEMENTED:
-                        result = await self._device.command_button(
-                            {"button": command, "keymap": "KB", "holdtime": hold}
-                        )
+                        button = {"button": command, "keymap": "KB", "holdtime": hold}
+                        result = await self._device.command_button(button)
                     if result != StatusCodes.OK:
                         res = result
                     if delay > 0:

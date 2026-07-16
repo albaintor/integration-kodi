@@ -44,7 +44,7 @@ def rewrite_favorite_path(path: str) -> tuple[str, str | None, bool] | None:
     matches against (``channel`` for a single channel, ``channelgroup`` for a
     group listing, ``None`` to keep the caller's default).
     """
-    if not isinstance(path, str) or not path:
+    if not path:
         return None
 
     pvr_match = _PVR_GROUP_RE.match(path)
@@ -89,7 +89,7 @@ def decode_favorite_title(title: Any) -> str:
     return title
 
 
-async def get_kodi_favourites(client: IKodiDevice) -> list[dict]:
+async def get_kodi_favourites(client: IKodiDevice) -> list[dict[str, Any]]:
     """Fetch the current favourites list from Kodi.
 
     Uses the ``get_favourites`` wrapper on the Kodi client which calls
@@ -109,18 +109,12 @@ async def get_kodi_favourites(client: IKodiDevice) -> list[dict]:
         return []
 
 
-def _extract_favourites(client: IKodiDevice, result: dict[str, Any]) -> list[dict]:
+def _extract_favourites(client: IKodiDevice, result: dict[str, Any]) -> list[dict[str, Any]]:
     """Validate and extract the favourites array from a GetFavourites result.
 
     Returns the favourites list, or an empty list when the response is
     malformed so callers can degrade gracefully.
     """
-    if not isinstance(result, dict):
-        _LOG.debug(
-            "[%s] Favourites response: expected dict, got %s", client.device_config.address, type(result).__name__
-        )
-        return []
-
     favs = result.get("favourites")
     if favs is None:
         _LOG.debug("[%s] Favourites response missing 'favourites' key", client.device_config.address)
@@ -133,7 +127,7 @@ def _extract_favourites(client: IKodiDevice, result: dict[str, Any]) -> list[dic
     if limits is not None:
         _validate_limits(client, limits)
 
-    clean: list[dict] = []
+    clean: list[dict[str, Any]] = []
     for idx, fav in enumerate(favs):
         if _validate_favourite(client, fav, idx):
             clean.append(fav)

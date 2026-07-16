@@ -236,8 +236,10 @@ SETUP_FIELDS = [
         "id": "disable_keyboard_map",
         "label": {
             "en": "Disable keyboard map : check only if some commands fail (eg arrow keys)",
-            "fr": "Désactiver les commandes clavier : cocher uniquement si certaines commandes échouent "
-            "(ex : commandes de direction)",
+            "fr": (
+                "Désactiver les commandes clavier : cocher uniquement si certaines commandes échouent "
+                + "(ex : commandes de direction)"
+            ),
         },
     },
     {

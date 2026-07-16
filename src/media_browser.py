@@ -7,12 +7,11 @@ Browsing definitions used for Kodi integration.
 
 import dataclasses
 import logging
-import os
 import re
 import time
 from dataclasses import dataclass, field, fields
 from typing import Any
-from urllib.parse import quote, unquote
+from urllib.parse import quote
 
 from ucapi import StatusCodes
 from ucapi.media_player import (
@@ -2066,11 +2065,11 @@ class MediaBrowser:
     ) -> tuple[list[BrowseMediaItem], PaginationOptions] | None:
         """Search media from given query and optional parameters."""
         # pylint: disable=R0915
+        if paging is None:
+            pagination_options = PaginationOptions(page=1, limit=10, count=0)
+        else:
+            pagination_options = PaginationOptions(page=paging.page, limit=paging.limit, count=0)
         try:
-            if paging is None:
-                pagination_options = PaginationOptions(page=1, limit=10, count=0)
-            else:
-                pagination_options = PaginationOptions(page=paging.page, limit=paging.limit, count=0)
             max_results = pagination_options.limit
             pagination_options.count = 0
             media_classes: list[str] = []
@@ -2097,7 +2096,7 @@ class MediaBrowser:
                 movies, local_paging = await self.search_movies(
                     query, media_id, media_type, pagination_options, max_results
                 )
-                pagination_options.count += local_paging.count
+                pagination_options.count += local_paging.count or 0
                 max_results -= len(movies)
                 results.extend(movies)
             if max_results > 0 and MediaContentType.TV_SHOW.value in search_filters:
@@ -2106,21 +2105,21 @@ class MediaBrowser:
                 tv_shows, local_paging = await self.search_tv_shows(
                     query, media_id, media_type, pagination_options, max_results
                 )
-                pagination_options.count += local_paging.count
+                pagination_options.count += local_paging.count or 0
                 max_results -= len(tv_shows)
                 results.extend(tv_shows)
             if max_results > 0 and MediaContentType.ALBUM.value in search_filters:
                 albums, local_paging = await self.search_albums(
                     query, media_id, media_type, pagination_options, max_results
                 )
-                pagination_options.count += local_paging.count
+                pagination_options.count += local_paging.count or 0
                 max_results -= len(albums)
                 results.extend(albums)
             if max_results > 0 and MediaContentType.ARTIST.value in search_filters:
                 artists, local_paging = await self.search_artists(
                     query, media_id, media_type, pagination_options, max_results
                 )
-                pagination_options.count += local_paging.count
+                pagination_options.count += local_paging.count or 0
                 max_results -= len(artists)
                 results.extend(artists)
             if max_results > 0 and (
@@ -2134,7 +2133,7 @@ class MediaBrowser:
                     media_search_filter,
                     max_results,
                 )
-                pagination_options.count += local_paging.count
+                pagination_options.count += local_paging.count or 0
                 max_results -= len(songs)
                 results.extend(songs)
 
@@ -2170,7 +2169,7 @@ class KodiMediaEntry:
     media_class: MediaClass | None = field(default=None)
     parent_id: str | None = field(default=None)
     command: str | None = field(default=None)
-    arguments: dict[str, Any] = field(default=None)
+    arguments: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         """Apply default values on missing fields."""

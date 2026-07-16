@@ -12,15 +12,13 @@ import logging
 import time
 import urllib.parse
 from asyncio import AbstractEventLoop, Future, Lock, Task, shield
+from collections.abc import Awaitable, Callable, Coroutine
 from dataclasses import dataclass
 from enum import IntEnum, StrEnum
 from functools import wraps
 from typing import (
     Any,
-    Awaitable,
-    Callable,
     Concatenate,
-    Coroutine,
     Literal,
     ParamSpec,
     TypeVar,
@@ -98,11 +96,11 @@ class ArtworkType(IntEnum):
     ICON = 9
 
 
-def _get_language_name(lang: str, app_language="en_US") -> str:
+def _get_language_name(lang: str, app_language: str | None = "en_US") -> str:
     """Retrieve language name from language code."""
     if lang == "":
         return lang
-    app_language_code = LANGUAGES_KEYS.get(app_language, None)
+    app_language_code = LANGUAGES_KEYS.get(app_language or "en_US", None)
     if app_language_code is None:
         app_language_code = "en"
     stream_language = LANGUAGES.get(lang, None)
@@ -1045,7 +1043,7 @@ class KodiDevice(IKodiDevice):
                     self._media_image_data = ""
                     # Not working with smb links.
                     # TODO extend this approach for other media types
-                    if self._item["type"] == "movie" and "@smb" in thumbnail:
+                    if self._item["type"] == "movie" and thumbnail is not None and "@smb" in thumbnail:
                         try:
                             result = await self._kodi.call_method(
                                 "VideoLibrary.GetAvailableArt",
@@ -1183,7 +1181,7 @@ class KodiDevice(IKodiDevice):
                     }
 
                 if self.state == MediaStates.PAUSED and current_chapter:
-                    await self.display_temporary_title(current_chapter)
+                    await self.display_temporary_title(current_chapter or "")
                     updated_data[MediaAttr.MEDIA_TITLE] = self._temporary_title
                     if self._chapter_update_task:
                         try:
@@ -1196,7 +1194,7 @@ class KodiDevice(IKodiDevice):
                 if self._current_chapter != current_chapter:
                     self._current_chapter = current_chapter
                     updated_data[MediaAttr.SOURCE] = current_chapter
-                    await self.display_temporary_title(current_chapter)
+                    await self.display_temporary_title(current_chapter or "")
                     updated_data[MediaAttr.MEDIA_TITLE] = self._temporary_title
                     updated_data[KodiSensors.SENSOR_CHAPTER] = self.current_chapter
                     if updated_data.get(KodiSelects.SELECT_CHAPTER, None) is None:
