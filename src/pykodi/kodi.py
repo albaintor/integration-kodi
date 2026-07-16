@@ -43,7 +43,8 @@ class KodiConnection:
 
         if username is not None:
             self._kwargs["auth"] = aiohttp.BasicAuth(username, password)
-            image_auth_string = f"{username}:{password}@"
+            # pylint: disable=W1405
+            image_auth_string = f"{quote(str(username), safe='')}:{quote(str(password), safe='')}@"
         else:
             image_auth_string = ""
 

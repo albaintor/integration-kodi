@@ -236,7 +236,9 @@ async def retry_call_command(
     return ucapi.StatusCodes.OK
 
 
-def retry(*, timeout: float = 5, bufferize=False) -> Callable[
+def retry(
+    *, timeout: float = 5, bufferize=False
+) -> Callable[
     [Callable[Concatenate[_KodiDeviceT, _P], Awaitable[_R]]],
     Callable[Concatenate[_KodiDeviceT, _P], Awaitable[_R]],
 ]:

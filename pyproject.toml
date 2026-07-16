@@ -1,51 +1,109 @@
-# TODO this is work in progress
-[build-system]
-requires = ["setuptools>=61.2"]
-build-backend = "setuptools.build_meta"
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+src = ["src", "tests"]
+extend-exclude = ["build", "dist"]
 
-[project]
-name = "intg-kodi"
-version = "0.2.4"
-authors = [
-    { name = "Albator", email = "albaintor@github.com" }
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle
+    "F",      # pyflakes
+    "B",      # bugbear
+    "I",      # isort
+    "PL",     # pylint
+    "UP",     # pyupgrade
+    "SIM",    # simplify
+    "ASYNC",  # async rules
+    "S",      # security
+    "C4",     # comprehensions
+    "RUF",    # ruff-specific
+    "TRY",    # tryceratops
+    "PERF",   # perflint
+    "DTZ",    # datetimez
+    "PTH",    # pathlib
+    "RET",    # return rules
+    "G",      # logging-format
+    "LOG",    # logging
+    "PIE",    # flake8-pie
+    "A",      # builtins
+    "ARG",    # unused arguments
+    "BLE",    # blind except
+    "ISC",    # implicit string concat
+    "FLY",    # flynt
+    "FURB",   # refurb
+    "RSE",    # raise rules
+    "T20",    # print
+    "INP",    # namespace packages
+    "TCH",    # type-checking
+    "EM",     # errmsg
+    "SLF",    # self-access
+    "TID",    # tidy imports
+    "FBT",    # boolean trap
 ]
-license = { text = "MPL-2.0" }
-description = "Remote Two integration for Sony AVRs"
-classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)",
-    "Operating System :: OS Independent",
-    "Topic :: Home Automation",
-    "Programming Language :: Python :: 3.11",
-]
-requires-python = ">=3.11"
-dependencies = [
-    "pyee>=12.0.0",
-    "ucapi==0.3.1",
+
+ignore = [
+    "ISC003",  # conflicts with pyright reportImplicitStringConcatenation
+    "PLR0911", # too-many-return-statements
+    "PLR0912", # too-many-branches
+    "PLR2004", # magic-value-comparison (noisy)
+    "PLW0603", # global-statement
+    "TRY300",  # try-consider-else
 ]
 
-[project.readme]
-file = "README.md"
-content-type = "text/markdown; charset=UTF-8"
+[tool.ruff.lint.pydocstyle]
+convention = "pep257"
 
-[project.optional-dependencies]
-testing = [
-    "pylint",
-    "flake8-docstrings",
-    "flake8",
-    "black",
-    "isort",
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+    "S101",    # assert is the pytest idiom
+    "PLC0415", # local imports are intentional in tests (e.g. purity checks)
+    "INP001",  # tests are not a package
 ]
 
-[tool.setuptools]
-platforms = ["any"]
-license-files = ["LICENSE"]
-include-package-data = false
+[tool.ruff.lint.isort]
+force-sort-within-sections = true
+combine-as-imports = true
+split-on-trailing-comma = false
+known-first-party = []
 
-[tool.setuptools.packages.find]
-exclude = ["tests"]
-namespaces = false
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"pytz".msg = "use datetime.timezone instead"
 
-[tool.isort]
-profile = "black"
+[tool.ruff.lint.flake8-pytest-style]
+fixture-parentheses = false
+mark-parentheses = false
+
+[tool.ruff.lint.mccabe]
+max-complexity = 25
+
+[tool.ruff.format]
+line-ending = "auto"
+quote-style = "double"
+
+[tool.pyright]
+include = ["src"]
+exclude = ["**/__pycache__", "build", "dist"]
+extraPaths = ["src"]
+# Standard venv name. Devs with custom venv names must override in their IDE.
+venvPath = "."
+venv = ".venv"
+pythonVersion = "3.11"
+typeCheckingMode = "strict"
+reportMissingTypeStubs = false
+useLibraryCodeForTypes = true
+# Untyped 3rd-party deps (ucapi) trigger Unknown cascades.
+reportUnknownVariableType = false
+reportUnknownMemberType = false
+reportUnknownArgumentType = false
+reportUnknownParameterType = "error"
+reportUnknownLambdaType = "error"
+# Module-level state vars use UPPER_CASE by convention. Mutable globals not constants.
+reportConstantRedefinition = false
+reportPrivateImportUsage = false
+reportImplicitOverride = "error"
+reportUnnecessaryTypeIgnoreComment = "error"
+reportImplicitStringConcatenation = "error"
+deprecateTypingAliases = true
+reportUninitializedInstanceVariable = "error"
+reportPropertyTypeMismatch = "error"
+reportCallInDefaultInitializer = "warning"

@@ -11,6 +11,7 @@ Test connection script for Kodi integration driver.
 import asyncio
 import logging
 import sys
+from datetime import datetime
 from typing import Any
 
 sys.path.insert(1, "src")
@@ -102,6 +103,56 @@ async def main():
     # print("Results")
     # print_json(data=properties)
 
+    # arguments = {
+    #     "directory": "smb://jedi/Videos/",
+    #     "properties": ["mimetype", "thumbnail"],
+    #     "media": "video",
+    #     "limits": {"start": 0, "end": 20},
+    # }
+    # properties = await client.server.Files.GetDirectory(**arguments)
+    # print("Results")
+    # print_json(data=properties)
+
+    # arguments = {
+    #     "properties": ["title", "thumbnail", "art", "fanart"],
+    #     # "filter": {"field": "path", "operator": "contains", "value": "smb://jedi/Videos/"},
+    #     "limits": {"start": 0, "end": 12},
+    # }
+    # properties = await client.server.VideoLibrary.GetMovies(**arguments)
+    # print("Results")
+    # print_json(data=properties)
+
+    arguments = {
+        "directory": "smb://jedi/Videos/Comédie/",
+        "properties": ["mimetype", "thumbnail"],
+        "media": "video",
+        "limits": {"start": 0, "end": 12},
+        # "sort": {"method": "date", "order": "descending"},
+    }
+    start_time = datetime.now()
+    properties = await client.server.Files.GetDirectory(**arguments)
+    end_time = datetime.now()
+    print("Results")
+    print_json(data=properties)
+    elapsed_time = end_time - start_time
+    print(f"Temps écoulé : {elapsed_time}")
+    exit(0)
+    # arguments = {
+    #     "properties": ["file", "art", "thumbnail"],
+    #     "filter": {"field": "path", "operator": "contains", "value": "smb://jedi/Videos/Comédie/"},
+    # }
+    # properties = await client.server.VideoLibrary.GetMovies(**arguments)
+    # print("Results")
+    # print_json(data=properties)
+
+    # arguments = {
+    #     "properties": ["file", "art", "thumbnail"],
+    #     "filter": {"field": "path", "operator": "contains", "value": "smb://jedi/Videos/"},
+    # }
+    # properties = await client.server.VideoLibrary.GetMovies(**arguments)
+    # print("Results")
+    # print_json(data=properties)
+
     # properties = await client.get_favourites()
     # print_json(data=properties)
 
@@ -186,4 +237,4 @@ if __name__ == "__main__":
 
     logging.getLogger(__name__).setLevel(logging.DEBUG)
     _LOOP.run_until_complete(main())
-    _LOOP.run_forever()
+    # _LOOP.run_forever()

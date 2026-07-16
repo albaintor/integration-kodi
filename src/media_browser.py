@@ -80,6 +80,12 @@ SOURCE_MEDIA_TYPES_MAPPING = {
     "kodi://sources/programs": KodiMediaTypes.PROGRAMS,
 }
 
+KODI_WINDOWS_MAPPING = {
+    "videos": "kodi://sources/videos",
+    "music": "kodi://sources/music",
+    "pictures": "kodi://sources/pictures",
+}
+
 
 def get_artwork(artworks: dict[str, str] | None) -> str | None:
     """Return best available artwork."""
@@ -262,19 +268,11 @@ class MediaBrowser:
         sub: list[BrowseMediaItem] = [self.get_back_item("kodi://")]
         for fav in favs:
             title = favorites.decode_favorite_title(fav.get("title", ""))
-            window = fav.get("window")
+            window: str = fav.get("window", "")
             path = fav.get("path") or fav.get("windowparameter") or window or ""
             if not path:
                 continue
-            media_type = MediaContentType.URL.value
-            match window:
-                case "videos":
-                    media_type = "kodi://sources/videos"
-                case "music":
-                    media_type = "kodi://sources/music"
-                case "pictures":
-                    media_type = "kodi://sources/pictures"
-
+            media_type = KODI_WINDOWS_MAPPING.get(window, MediaContentType.URL.value)
             can_play = True
             media_class = MediaClass.DIRECTORY
             rewrite = favorites.rewrite_favorite_path(path)
@@ -379,9 +377,11 @@ class MediaBrowser:
             self._remember_browse_title(media_id, label)
             return item
         if extract_thumbnail:
-            thumbnail: str | None = file.get("file")
-            if thumbnail:
-                thumbnail = self._device.client.get_thumbnail_from_file(thumbnail.rstrip("/"))
+            if thumbnail := file.get("thumbnail", ""):
+                thumbnail = self.get_artwork_url(thumbnail)
+            else:
+                if thumbnail := file.get("file"):
+                    thumbnail = self._device.client.get_thumbnail_from_file(thumbnail.rstrip("/"))
         else:
             thumbnail: str | None = None
         item = BrowseMediaItem(
@@ -1144,9 +1144,15 @@ class MediaBrowser:
                     item.title = media_id
                     limit = pagination_options.limit
                     end = pagination_options.page * limit
+                    # Limitation of Kodi JSON RPC : media=files won't extract thumbnails, whereas other
+                    # values will extract files in sub-folders which is not what we want
+                    # kodi_type = SOURCE_MEDIA_TYPES_MAPPING.get(media_type, "files")
+                    kodi_type = "files"
+
                     arguments: dict[str, Any] = {
                         "directory": media_id,
-                        "properties": ["mimetype"],
+                        "properties": ["mimetype", "thumbnail"],
+                        "media": kodi_type,
                         "limits": {
                             "start": (pagination_options.page - 1) * limit,
                             "end": end,
@@ -1163,7 +1169,7 @@ class MediaBrowser:
                     data = await self._device.server.Files.GetDirectory(**arguments)
                     if data:
                         for file in data.get("files", []):
-                            sub = self.get_item_from_file(file, media_type, False)
+                            sub = self.get_item_from_file(file, media_type, kodi_type != "files")
                             if sub is not None:
                                 item.items.append(sub)
                         pagination_options.count = data.get("limits", {}).get("total", 0)
