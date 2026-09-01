@@ -444,7 +444,7 @@ class MediaBrowser:
             if playcount > 0:
                 subtitles.append(self.get_localized("Watched"))
 
-        subtitle = " ".join(subtitles)
+        subtitle = " ".join(subtitles) or None
 
         if parent_id:
             media_id = parent_id + "/" + media_id
@@ -497,7 +497,7 @@ class MediaBrowser:
             if playcount > 0:
                 subtitles.append(self.get_localized("Watched"))
 
-        subtitle = " ".join(subtitles)
+        subtitle = " ".join(subtitles) or None
 
         return BrowseMediaItem(
             title=strip_kodi_formatting(episode.get("label", "")),
