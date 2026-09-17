@@ -38,6 +38,12 @@ api = ucapi.IntegrationAPI(_LOOP)
 _configured_kodis: dict[str, kodi_device.KodiDevice] = {}
 _remote_in_standby = False  # pylint: disable=C0103
 
+# On EXIT_STANDBY the Remote may deliver the event before its Wi-Fi/LAN route is
+# usable. Retry connection starts quickly for a short window instead of waiting
+# for the normal 10-second websocket watchdog interval.
+WAKE_RECONNECT_RETRIES = 10
+WAKE_RECONNECT_INTERVAL = 0.5
+
 
 @api.listens_to(ucapi.Events.CONNECT)
 async def on_connect_cmd() -> None:
@@ -83,15 +89,51 @@ async def on_enter_standby() -> None:
 
 
 async def connect_device(device: kodi_device.KodiDevice):
-    """Connect device and send state."""
-    try:
-        _LOG.debug("Connecting device %s...", device.id)
-        await device.connect()
-        _LOG.debug("Device %s connected, sending attributes for subscribed entities", device.id)
-        await on_device_update(device.id, None)
+    """Connect device after wake and send state only after a real websocket connection."""
+    # pylint: disable=W0212
+    for attempt in range(1, WAKE_RECONNECT_RETRIES + 1):
+        started = _LOOP.time()
+        try:
+            _LOG.debug(
+                "Connecting device %s after wake (attempt %s/%s)...",
+                device.id,
+                attempt,
+                WAKE_RECONNECT_RETRIES,
+            )
+            await device.connect()
+        except RuntimeError as ex:
+            _LOG.error("Error while reconnecting to Kodi %s", ex)
+            return
 
-    except RuntimeError as ex:
-        _LOG.error("Error while reconnecting to Kodi %s", ex)
+        # connect() historically returned True when another connect held the
+        # lock, and its cleanup path may also mark the device available after a
+        # failed attempt. Check the websocket itself before publishing state.
+        if device._kodi_connection is not None and device._kodi_connection.connected:
+            _LOG.debug("Device %s connected, sending attributes for subscribed entities", device.id)
+            await on_device_update(device.id, None)
+            return
+
+        if attempt >= WAKE_RECONNECT_RETRIES:
+            break
+
+        # KodiDevice already waits ERROR_OS_WAIT for a detected ClientOSError.
+        # Only add enough delay to keep wake retries spaced by ~500 ms when a
+        # different failure returns immediately.
+        elapsed = _LOOP.time() - started
+        retry_delay = max(0.0, WAKE_RECONNECT_INTERVAL - elapsed)
+        _LOG.debug(
+            "Device %s still unavailable after wake, retrying in %.3fs",
+            device.id,
+            retry_delay,
+        )
+        if retry_delay:
+            await asyncio.sleep(retry_delay)
+
+    _LOG.debug(
+        "Device %s still unavailable after %s wake retries; leaving regular reconnect logic active",
+        device.id,
+        WAKE_RECONNECT_RETRIES,
+    )
 
 
 @api.listens_to(ucapi.Events.EXIT_STANDBY)
@@ -107,12 +149,12 @@ async def on_exit_standby() -> None:
     _LOG.debug("Exit standby event: connecting Kodi device(s) %s", _configured_kodis)
 
     for configured in _configured_kodis.values():
-        # start background task
+        # Do not block the EXIT_STANDBY handler while the network stack is
+        # recovering. Command events can then be processed immediately.
         try:
-            await _LOOP.create_task(connect_device(configured))
+            _LOOP.create_task(connect_device(configured))
         except RuntimeError as ex:
             _LOG.error("Error while reconnecting to Kodi %s", ex)
-        # _LOOP.create_task(configured.connect())
 
 
 @api.listens_to(ucapi.Events.SUBSCRIBE_ENTITIES)
@@ -293,7 +335,7 @@ def _get_entities(device_id: str, include_all=False) -> list[KodiEntity]:
 
     :param device_id: the device  identifier
     :param include_all: include both configured and available entities
-    :return: list of entities
+    :return: list[str]: list of entities
     """
     entities = []
     for entity_entry in api.configured_entities.get_all():
