@@ -167,7 +167,11 @@ class KodiWSConnection(KodiConnection):
             self._connect_task = await self._ws_server.ws_connect()
         except (jsonrpc_base.jsonrpc.TransportError, asyncio.exceptions.CancelledError, ServerTimeoutError) as error:
             _LOG.error("Kodi connection error %s", error)
-            raise CannotConnectError(error) from error
+            # Keep the transport error arguments instead of wrapping the whole
+            # exception as a single argument. KodiDevice relies on the nested
+            # aiohttp ClientOSError to identify transient network failures
+            # (for example ENETUNREACH while the remote's network stack wakes).
+            raise CannotConnectError(*error.args) from error
 
     async def close(self):
         """Close the connection."""
@@ -201,7 +205,7 @@ class Kodi:
         except jsonrpc_base.jsonrpc.TransportError as error:
             if "401" in str(error):
                 raise InvalidAuthError from error
-            raise CannotConnectError from error
+            raise CannotConnectError(*error.args) from error
 
     async def get_application_properties(self, properties):
         """Get value of given properties."""
