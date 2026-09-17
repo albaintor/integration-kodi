@@ -332,7 +332,7 @@ class Kodi:
         await self.play_item({"directory": directory})
 
     async def play_file(self, file):
-        """Play given file."""
+        """Play the given file."""
         await self.play_item({"file": file})
 
     async def set_shuffle(self, shuffle):
