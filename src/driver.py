@@ -335,7 +335,7 @@ def _get_entities(device_id: str, include_all=False) -> list[KodiEntity]:
 
     :param device_id: the device  identifier
     :param include_all: include both configured and available entities
-    :return: list[str]: list of entities
+    :return: list of entities
     """
     entities = []
     for entity_entry in api.configured_entities.get_all():
