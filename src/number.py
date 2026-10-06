@@ -313,3 +313,76 @@ class KodiNumberVolume(KodiNumber):
     async def _set_value(self, value: Numeric) -> StatusCodes:
         """Set Kodi volume."""
         return await self._device.set_volume_level(value)
+
+
+class KodiNumberZoom(KodiNumber):
+    """Kodi video zoom factor number entity."""
+
+    ENTITY_NAME = "zoom"
+    UPDATE_ATTRIBUTES = {"zoom"}
+
+    def __init__(self, config_device: KodiConfigDevice, device: kodi_device.KodiDevice):
+        """Initialize the video zoom entity."""
+        entity_id = f"{create_entity_id(config_device.id, EntityTypes.NUMBER)}.{self.ENTITY_NAME}"
+        super().__init__(
+            entity_id,
+            {
+                "en": f"{config_device.get_device_part()}Video zoom",
+                "fr": f"{config_device.get_device_part()}Zoom vidéo",
+            },
+            config_device,
+            device,
+            {
+                Options.MIN: 0.5,
+                Options.MAX: 2.0,
+                Options.STEP: 0.01,
+                Options.DECIMALS: 2,
+                Options.READABLE: True,
+            },
+        )
+
+    @property
+    def number_value(self) -> Numeric:
+        """Return the current video zoom factor."""
+        return self._device.zoom_level
+
+    async def _set_value(self, value: Numeric) -> StatusCodes:
+        """Set the video zoom factor."""
+        return await self._device.set_zoom_level(float(value))
+
+
+class KodiNumberAudioDelay(KodiNumber):
+    """Kodi audio delay number entity."""
+
+    ENTITY_NAME = "audio_delay"
+    UPDATE_ATTRIBUTES = {"audio_delay"}
+
+    def __init__(self, config_device: KodiConfigDevice, device: kodi_device.KodiDevice):
+        """Initialize the audio delay entity."""
+        entity_id = f"{create_entity_id(config_device.id, EntityTypes.NUMBER)}.{self.ENTITY_NAME}"
+        super().__init__(
+            entity_id,
+            {
+                "en": f"{config_device.get_device_part()}Audio delay",
+                "fr": f"{config_device.get_device_part()}Délai audio",
+            },
+            config_device,
+            device,
+            {
+                Options.MIN: -10.0,
+                Options.MAX: 10.0,
+                Options.STEP: 0.025,
+                Options.DECIMALS: 3,
+                Options.UNIT: "s",
+                Options.READABLE: True,
+            },
+        )
+
+    @property
+    def number_value(self) -> Numeric:
+        """Return the current audio delay in seconds."""
+        return self._device.audio_delay_level
+
+    async def _set_value(self, value: Numeric) -> StatusCodes:
+        """Set the absolute audio delay in seconds."""
+        return await self._device.set_audio_delay(float(value))
