@@ -431,6 +431,8 @@ def _register_available_entities(device_config: config.KodiConfigDevice, device:
         sensor.KodiSensorMuted(device_config, device),
         number.KodiNumberSeek(device_config, device),
         number.KodiNumberVolume(device_config, device),
+        number.KodiNumberZoom(device_config, device),
+        number.KodiNumberAudioDelay(device_config, device),
     ]
 
     for entity in entities:
