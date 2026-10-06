@@ -308,6 +308,8 @@ class KodiDevice(IKodiDevice):
         self._session: ClientSession | None = None
         self._kodi_connection: KodiWSConnection | None = None
         self._kodi: Kodi | None = None
+        self._zoom_level: float = 1.0
+        self._audio_delay_level: float = 0.0
         self._supported_features = KODI_FEATURES
         self._players = None
         self._properties = {}
@@ -929,6 +931,20 @@ class KodiDevice(IKodiDevice):
                 current_shuffle = self.shuffle
                 current_repeat = self.repeat
 
+                try:
+                    view_mode = await self._kodi.call_method("Player.GetViewMode")
+                    zoom_level = float(view_mode.get("zoom", 1.0))
+                    if self._zoom_level != zoom_level:
+                        self._zoom_level = zoom_level
+                        updated_data["zoom"] = zoom_level
+                    audio_delay = await self._kodi.call_method("Player.GetAudioDelay")
+                    audio_delay_level = float(audio_delay.get("offset", 0.0))
+                    if self._audio_delay_level != audio_delay_level:
+                        self._audio_delay_level = audio_delay_level
+                        updated_data["audio_delay"] = audio_delay_level
+                except (TypeError, ValueError, ProtocolError):
+                    _LOG.debug("[%s] Unable to refresh zoom/audio delay", self.device_config.address)
+
                 self._properties = await self._kodi.get_player_properties(
                     self._players[0],
                     [
@@ -1482,6 +1498,16 @@ class KodiDevice(IKodiDevice):
         return self.media_position
 
     @property
+    def zoom_level(self) -> float:
+        """Return current video zoom factor."""
+        return self._zoom_level
+
+    @property
+    def audio_delay_level(self) -> float:
+        """Return current audio delay in seconds."""
+        return self._audio_delay_level
+
+    @property
     def media_duration(self):
         """Return current media duration."""
         return self._media_duration
@@ -1946,6 +1972,17 @@ class KodiDevice(IKodiDevice):
         await self._kodi.call_method("Player.Zoom", **arguments)
 
     @retry()
+    async def set_zoom_level(self, value: float):
+        """Set the absolute video zoom factor."""
+        if self._no_active_players:
+            return
+        arguments = {"viewmode": {"zoom": value}}
+        _LOG.debug("[%s] Set zoom Player.SetViewMode %s", self.device_config.address, arguments)
+        await self._kodi.call_method("Player.SetViewMode", **arguments)
+        self._zoom_level = value
+        self.events.emit(Events.UPDATE, self.id, {"zoom": value})
+
+    @retry()
     async def view_mode(self, mode: str):
         """Set view mode.
 
@@ -1983,6 +2020,20 @@ class KodiDevice(IKodiDevice):
         arguments = {"playerid": self.player_id, "offset": offset + current_delay}
         _LOG.debug("[%s] Set audio delay Player.SetAudioDelay %s", self.device_config.address, arguments)
         await self._kodi.call_method("Player.SetAudioDelay", **arguments)
+
+    @retry()
+    async def set_audio_delay(self, offset: float):
+        """Set the absolute audio delay in seconds."""
+        if self._no_active_players:
+            return
+        arguments = {"playerid": self.player_id, "offset": offset}
+        _LOG.debug("[%s] Set audio delay Player.SetAudioDelay %s", self.device_config.address, arguments)
+        result = await self._kodi.call_method("Player.SetAudioDelay", **arguments)
+        try:
+            self._audio_delay_level = float(result.get("offset", offset))
+        except (AttributeError, TypeError, ValueError):
+            self._audio_delay_level = offset
+        self.events.emit(Events.UPDATE, self.id, {"audio_delay": self._audio_delay_level})
 
     @retry()
     async def play_media(self, params: dict[str, Any]):
