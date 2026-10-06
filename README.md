@@ -43,6 +43,10 @@ Note : this release requires remote firmware `>= 1.7.10`
 - Subtitle stream selector
 - Chapter selector (Kodi `>=22`)
 
+**Numbers**
+- Playback position / seeking (0–100%)
+- Volume (0–100%)
+
 **Sensors**
 Several sensors are available with the following attributes exposed :
 - Current audio stream name

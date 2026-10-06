@@ -434,7 +434,7 @@ class KodiDevice(IKodiDevice):
         self._app_properties["volume"] = data["volume"]
         self._app_properties["muted"] = data["muted"]
         updated_data = {}
-        if volume != self._volume:
+        if volume != self._app_properties["volume"]:
             self._volume = int(self._app_properties["volume"])
             updated_data[MediaAttr.VOLUME] = self._volume
             updated_data[KodiSensors.SENSOR_VOLUME] = self._volume

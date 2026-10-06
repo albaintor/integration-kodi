@@ -18,6 +18,7 @@ import ucapi
 import config
 import kodi_device
 import media_player
+import number
 import remote
 import selector
 import sensor
@@ -187,6 +188,8 @@ async def on_subscribe_entities(entity_ids: list[str]) -> None:
                 api.configured_entities.update_attributes(entity_id, entity.update_attributes())
             elif isinstance(entity, selector.KodiSelect):
                 api.configured_entities.update_attributes(entity_id, entity.update_attributes())
+            elif isinstance(entity, number.KodiNumber):
+                api.configured_entities.update_attributes(entity_id, entity.update_attributes())
             continue
 
         device = config.devices.get(device_id)
@@ -256,6 +259,13 @@ async def on_device_disconnected(device_id: str):
             api.configured_entities.update_attributes(
                 configured_entity.id, {ucapi.sensor.Attributes.STATE: ucapi.sensor.States.UNAVAILABLE}
             )
+        elif configured_entity.entity_type == number.EntityTypes.NUMBER:
+            api.configured_entities.update_attributes(
+                configured_entity.id,
+                configured_entity.update_attributes(
+                    {ucapi.media_player.Attributes.STATE: ucapi.media_player.States.UNAVAILABLE}
+                ),
+            )
 
     # TODO #20 when multiple devices are supported, the device state logic isn't that simple anymore!
     await api.set_device_state(ucapi.DeviceStates.DISCONNECTED)
@@ -277,6 +287,13 @@ async def on_device_connection_error(device_id: str, message):
         elif configured_entity.entity_type == ucapi.EntityTypes.SENSOR:
             api.configured_entities.update_attributes(
                 configured_entity.id, {ucapi.sensor.Attributes.STATE: ucapi.sensor.States.UNAVAILABLE}
+            )
+        elif configured_entity.entity_type == number.EntityTypes.NUMBER:
+            api.configured_entities.update_attributes(
+                configured_entity.id,
+                configured_entity.update_attributes(
+                    {ucapi.media_player.Attributes.STATE: ucapi.media_player.States.UNAVAILABLE}
+                ),
             )
 
     # TODO #20 when multiple devices are supported, the device state logic isn't that simple anymore!
@@ -319,6 +336,8 @@ async def on_device_update(device_id: str, update: dict[str, Any] | None) -> lis
         elif isinstance(configured_entity, sensor.KodiSensor):
             attributes = configured_entity.update_attributes(update)
         elif isinstance(configured_entity, selector.KodiSelect):
+            attributes = configured_entity.update_attributes(update)
+        elif isinstance(configured_entity, number.KodiNumber):
             attributes = configured_entity.update_attributes(update)
 
         if attributes:
@@ -410,6 +429,8 @@ def _register_available_entities(device_config: config.KodiConfigDevice, device:
         sensor.KodiAudioInfo(device_config, device),
         sensor.KodiSensorVolume(device_config, device),
         sensor.KodiSensorMuted(device_config, device),
+        number.KodiNumberSeek(device_config, device),
+        number.KodiNumberVolume(device_config, device),
     ]
 
     for entity in entities:
@@ -471,6 +492,7 @@ async def main():
     logging.getLogger("remote").setLevel(level)
     logging.getLogger("sensor").setLevel(level)
     logging.getLogger("selector").setLevel(level)
+    logging.getLogger("number").setLevel(level)
     logging.getLogger("kodi_device").setLevel(level)
     logging.getLogger("setup_flow").setLevel(level)
     logging.getLogger("config").setLevel(level)
