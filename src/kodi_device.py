@@ -2028,16 +2028,19 @@ class KodiDevice(IKodiDevice):
         await self._kodi.call_method("Player.SetAudioDelay", **arguments)
 
         # Kodi does not emit a JSON-RPC notification when the audio delay changes.
-        # Read it back to expose the effective value after Kodi has applied its
-        # configured step/range normalization.
-        audio_delay = await self._kodi.call_method("Player.GetAudioDelay")
+        # Refresh the state asynchronously so the command can return immediately.
+        self.event_loop.create_task(self._refresh_audio_delay_state())
+
+    async def _refresh_audio_delay_state(self) -> None:
+        """Refresh the effective audio delay without blocking the command."""
         try:
-            audio_delay_level = float(audio_delay.get("offset", arguments["offset"]))
-        except (AttributeError, TypeError, ValueError):
-            audio_delay_level = float(arguments["offset"])
-        if self._audio_delay_level != audio_delay_level:
-            self._audio_delay_level = audio_delay_level
-            self.events.emit(Events.UPDATE, self.id, {"audio_delay": audio_delay_level})
+            audio_delay = await self._kodi.call_method("Player.GetAudioDelay")
+            audio_delay_level = float(audio_delay.get("offset", 0.0))
+            if self._audio_delay_level != audio_delay_level:
+                self._audio_delay_level = audio_delay_level
+                self.events.emit(Events.UPDATE, self.id, {"audio_delay": audio_delay_level})
+        except (AttributeError, TypeError, ValueError, ProtocolError) as ex:
+            _LOG.debug("[%s] Unable to refresh audio delay: %s", self.device_config.address, ex)
 
     @retry()
     async def set_audio_delay(self, offset: float):
