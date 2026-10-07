@@ -20,6 +20,7 @@ from ucapi.media_player import States as MediaStates
 
 import kodi_device
 from config import KodiConfigDevice, KodiEntity, create_entity_id
+from const import KodiNumbers
 
 _LOG = logging.getLogger(__name__)
 
@@ -129,6 +130,8 @@ class KodiNumber(KodiEntity, Number):
     """Base class for a writable Kodi number entity."""
 
     UPDATE_ATTRIBUTES: set[MediaAttributes] = set()
+    ENTITY_NAME = "number"
+    NUMBER_NAME: KodiNumbers
 
     def __init__(
         self,
@@ -174,20 +177,17 @@ class KodiNumber(KodiEntity, Number):
 
     def update_attributes(self, update: dict[str, Any] | None = None) -> dict[str, Any]:
         """Return attributes affected by a Kodi device update."""
-        if update is None:
-            self._state = KODI_NUMBER_STATE_MAPPING.get(self._device.state, States.UNKNOWN)
-            return self.all_attributes
-
         attributes: dict[str, Any] = {}
-        if MediaAttributes.STATE in update:
-            state = KODI_NUMBER_STATE_MAPPING.get(update[MediaAttributes.STATE], States.UNKNOWN)
-            if state != self._state:
-                self._state = state
-                attributes[Attributes.STATE] = state
-
-        if self.UPDATE_ATTRIBUTES.intersection(update):
-            attributes[Attributes.VALUE] = self.number_value
-        return attributes
+        if update:
+            if MediaAttributes.STATE in update:
+                new_state = KODI_NUMBER_STATE_MAPPING.get(update[MediaAttributes.STATE])
+                if new_state != self._state:
+                    self._state = new_state
+                    attributes[Attributes.STATE] = self._state
+            if self.NUMBER_NAME in update:
+                attributes[Attributes.VALUE] = update[self.NUMBER_NAME]
+            return attributes
+        return self.attributes
 
     def _validated_value(self, value: Any, *, clamp: bool) -> Numeric | None:
         """Validate, optionally clamp, and round a command value."""
@@ -319,7 +319,7 @@ class KodiNumberZoom(KodiNumber):
     """Kodi video zoom factor number entity."""
 
     ENTITY_NAME = "zoom"
-    UPDATE_ATTRIBUTES = {"zoom"}
+    NUMBER_NAME = KodiNumbers.NUMBER_VIDEO_ZOOM
 
     def __init__(self, config_device: KodiConfigDevice, device: kodi_device.KodiDevice):
         """Initialize the video zoom entity."""
@@ -355,7 +355,7 @@ class KodiNumberAudioDelay(KodiNumber):
     """Kodi audio delay number entity."""
 
     ENTITY_NAME = "audio_delay"
-    UPDATE_ATTRIBUTES = {"audio_delay"}
+    NUMBER_NAME = KodiNumbers.NUMBER_AUDIO_DELAY
 
     def __init__(self, config_device: KodiConfigDevice, device: kodi_device.KodiDevice):
         """Initialize the audio delay entity."""

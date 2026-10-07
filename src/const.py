@@ -108,6 +108,12 @@ class KodiSelects(str, Enum):
     SELECT_SUBTITLE_STREAM = "select_subtitle_stream"
     SELECT_CHAPTER = "select_chapter"
 
+class KodiNumbers(str, Enum):
+    """Kodi number values."""
+
+    NUMBER_AUDIO_DELAY = "number_audio_delay"
+    NUMBER_VIDEO_ZOOM = "number_video_zoom"
+
 
 class KodiStreamConfig(int, Enum):
     """Stream display configuration."""

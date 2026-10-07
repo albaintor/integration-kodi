@@ -49,6 +49,7 @@ from const import (
     KodiSensors,
     KodiStreamConfig,
     PlaylistInfo,
+    KodiNumbers,
 )
 from languages import LANGUAGES, LANGUAGES_KEYS
 from pykodi.kodi import CannotConnectError, InvalidAuthError, Kodi, KodiWSConnection
@@ -688,7 +689,7 @@ class KodiDevice(IKodiDevice):
             await self._register_callbacks()
             await self._ping()
             self._media_browser.reset_feature_cache()
-            await self._update_states()
+            await self._update_states(refresh_zoom=True)
 
             _LOG.debug("[%s] Connection successful", self._device_config.address)
             if self._websocket_task is None:
@@ -793,6 +794,8 @@ class KodiDevice(IKodiDevice):
         self._current_chapter = None
         self._audio_stream = ""
         self._subtitle_stream = ""
+        self._audio_delay_level = 0.0
+        self._zoom_level = 1.0
         try:
             self._update_lock.release()
         except RuntimeError:
@@ -947,7 +950,7 @@ class KodiDevice(IKodiDevice):
                         zoom_level = float(view_mode.get("zoom", 1.0))
                         if self._zoom_level != zoom_level:
                             self._zoom_level = zoom_level
-                            updated_data["zoom"] = zoom_level
+                            updated_data[KodiNumbers.NUMBER_VIDEO_ZOOM] = zoom_level
                     except (AttributeError, TypeError, ValueError, ProtocolError):
                         _LOG.debug("[%s] Unable to refresh zoom", self.device_config.address)
 
@@ -1439,6 +1442,8 @@ class KodiDevice(IKodiDevice):
                 SelectAttributes.OPTIONS: self.chapters,
                 SelectAttributes.STATE: SelectStates.ON,
             },
+            KodiNumbers.NUMBER_VIDEO_ZOOM: self._zoom_level,
+            KodiNumbers.NUMBER_AUDIO_DELAY: self._audio_delay_level,
         }
         return attributes
 
@@ -1986,7 +1991,7 @@ class KodiDevice(IKodiDevice):
         _LOG.debug("[%s] Set zoom Player.SetViewMode %s", self.device_config.address, arguments)
         await self._kodi.call_method("Player.SetViewMode", **arguments)
         self._zoom_level = value
-        self.events.emit(Events.UPDATE, self.id, {"zoom": value})
+        self.events.emit(Events.UPDATE, self.id, {KodiNumbers.NUMBER_VIDEO_ZOOM: value})
 
     @retry()
     async def view_mode(self, mode: str):
@@ -2038,7 +2043,7 @@ class KodiDevice(IKodiDevice):
             audio_delay_level = float(audio_delay.get("offset", 0.0))
             if self._audio_delay_level != audio_delay_level:
                 self._audio_delay_level = audio_delay_level
-                self.events.emit(Events.UPDATE, self.id, {"audio_delay": audio_delay_level})
+                self.events.emit(Events.UPDATE, self.id, {KodiNumbers.NUMBER_AUDIO_DELAY: audio_delay_level})
         except (AttributeError, TypeError, ValueError, ProtocolError) as ex:
             _LOG.debug("[%s] Unable to refresh audio delay: %s", self.device_config.address, ex)
 
@@ -2054,7 +2059,7 @@ class KodiDevice(IKodiDevice):
             self._audio_delay_level = float(result.get("offset", offset))
         except (AttributeError, TypeError, ValueError):
             self._audio_delay_level = offset
-        self.events.emit(Events.UPDATE, self.id, {"audio_delay": self._audio_delay_level})
+        self.events.emit(Events.UPDATE, self.id, {KodiNumbers.NUMBER_AUDIO_DELAY: self._audio_delay_level})
 
     @retry()
     async def play_media(self, params: dict[str, Any]):
