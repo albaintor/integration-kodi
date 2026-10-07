@@ -931,19 +931,19 @@ class KodiDevice(IKodiDevice):
                 current_shuffle = self.shuffle
                 current_repeat = self.repeat
 
-                try:
-                    view_mode = await self._kodi.call_method("Player.GetViewMode")
-                    zoom_level = float(view_mode.get("zoom", 1.0))
-                    if self._zoom_level != zoom_level:
-                        self._zoom_level = zoom_level
-                        updated_data["zoom"] = zoom_level
-                    audio_delay = await self._kodi.call_method("Player.GetAudioDelay")
-                    audio_delay_level = float(audio_delay.get("offset", 0.0))
-                    if self._audio_delay_level != audio_delay_level:
-                        self._audio_delay_level = audio_delay_level
-                        updated_data["audio_delay"] = audio_delay_level
-                except (TypeError, ValueError, ProtocolError):
-                    _LOG.debug("[%s] Unable to refresh zoom/audio delay", self.device_config.address)
+                # try:
+                #     view_mode = await self._kodi.call_method("Player.GetViewMode")
+                #     zoom_level = float(view_mode.get("zoom", 1.0))
+                #     if self._zoom_level != zoom_level:
+                #         self._zoom_level = zoom_level
+                #         updated_data["zoom"] = zoom_level
+                #     audio_delay = await self._kodi.call_method("Player.GetAudioDelay")
+                #     audio_delay_level = float(audio_delay.get("offset", 0.0))
+                #     if self._audio_delay_level != audio_delay_level:
+                #         self._audio_delay_level = audio_delay_level
+                #         updated_data["audio_delay"] = audio_delay_level
+                # except (TypeError, ValueError, ProtocolError):
+                #     _LOG.debug("[%s] Unable to refresh zoom/audio delay", self.device_config.address)
 
                 self._properties = await self._kodi.get_player_properties(
                     self._players[0],

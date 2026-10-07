@@ -231,88 +231,88 @@ class KodiNumber(KodiEntity, Number):
         return await self._set_value(value)
 
 
-class KodiNumberSeek(KodiNumber):
-    """Kodi playback position as a percentage number entity."""
-
-    ENTITY_NAME = "seek"
-    UPDATE_ATTRIBUTES = {
-        MediaAttributes.STATE,
-        MediaAttributes.MEDIA_POSITION,
-        MediaAttributes.MEDIA_DURATION,
-    }
-
-    def __init__(self, config_device: KodiConfigDevice, device: kodi_device.KodiDevice):
-        """Initialize the seek number entity."""
-        entity_id = f"{create_entity_id(config_device.id, EntityTypes.NUMBER)}.{self.ENTITY_NAME}"
-        super().__init__(
-            entity_id,
-            {
-                "en": f"{config_device.get_device_part()}Seek",
-                "fr": f"{config_device.get_device_part()}Position de lecture",
-            },
-            config_device,
-            device,
-            {
-                Options.MIN: 0,
-                Options.MAX: 100,
-                Options.STEP: 1,
-                Options.DECIMALS: 0,
-                Options.UNIT: "%",
-                Options.READABLE: True,
-            },
-        )
-
-    @property
-    def number_value(self) -> Numeric:
-        """Return the current playback position as a percentage."""
-        duration = self._device.media_duration or 0
-        position = self._device.current_media_position or 0
-        if duration <= 0:
-            return 0
-        return round(min(max(position / duration * 100, 0), 100))
-
-    async def _set_value(self, value: Numeric) -> StatusCodes:
-        """Seek to a percentage of the current media duration."""
-        duration = self._device.media_duration or 0
-        media_position = round(duration * value / 100)
-        return await self._device.seek(media_position)
-
-
-class KodiNumberVolume(KodiNumber):
-    """Kodi volume number entity."""
-
-    ENTITY_NAME = "volume"
-    UPDATE_ATTRIBUTES = {MediaAttributes.VOLUME}
-
-    def __init__(self, config_device: KodiConfigDevice, device: kodi_device.KodiDevice):
-        """Initialize the volume number entity."""
-        entity_id = f"{create_entity_id(config_device.id, EntityTypes.NUMBER)}.{self.ENTITY_NAME}"
-        super().__init__(
-            entity_id,
-            {
-                "en": f"{config_device.get_device_part()}Volume",
-                "fr": f"{config_device.get_device_part()}Volume",
-            },
-            config_device,
-            device,
-            {
-                Options.MIN: 0,
-                Options.MAX: 100,
-                Options.STEP: 1,
-                Options.DECIMALS: 0,
-                Options.UNIT: "%",
-                Options.READABLE: True,
-            },
-        )
-
-    @property
-    def number_value(self) -> Numeric:
-        """Return the current Kodi volume."""
-        return self._device.volume_level or 0
-
-    async def _set_value(self, value: Numeric) -> StatusCodes:
-        """Set Kodi volume."""
-        return await self._device.set_volume_level(value)
+# class KodiNumberSeek(KodiNumber):
+#     """Kodi playback position as a percentage number entity."""
+#
+#     ENTITY_NAME = "seek"
+#     UPDATE_ATTRIBUTES = {
+#         MediaAttributes.STATE,
+#         MediaAttributes.MEDIA_POSITION,
+#         MediaAttributes.MEDIA_DURATION,
+#     }
+#
+#     def __init__(self, config_device: KodiConfigDevice, device: kodi_device.KodiDevice):
+#         """Initialize the seek number entity."""
+#         entity_id = f"{create_entity_id(config_device.id, EntityTypes.NUMBER)}.{self.ENTITY_NAME}"
+#         super().__init__(
+#             entity_id,
+#             {
+#                 "en": f"{config_device.get_device_part()}Seek",
+#                 "fr": f"{config_device.get_device_part()}Position de lecture",
+#             },
+#             config_device,
+#             device,
+#             {
+#                 Options.MIN: 0,
+#                 Options.MAX: 100,
+#                 Options.STEP: 1,
+#                 Options.DECIMALS: 0,
+#                 Options.UNIT: "%",
+#                 Options.READABLE: True,
+#             },
+#         )
+#
+#     @property
+#     def number_value(self) -> Numeric:
+#         """Return the current playback position as a percentage."""
+#         duration = self._device.media_duration or 0
+#         position = self._device.current_media_position or 0
+#         if duration <= 0:
+#             return 0
+#         return round(min(max(position / duration * 100, 0), 100))
+#
+#     async def _set_value(self, value: Numeric) -> StatusCodes:
+#         """Seek to a percentage of the current media duration."""
+#         duration = self._device.media_duration or 0
+#         media_position = round(duration * value / 100)
+#         return await self._device.seek(media_position)
+#
+#
+# class KodiNumberVolume(KodiNumber):
+#     """Kodi volume number entity."""
+#
+#     ENTITY_NAME = "volume"
+#     UPDATE_ATTRIBUTES = {MediaAttributes.VOLUME}
+#
+#     def __init__(self, config_device: KodiConfigDevice, device: kodi_device.KodiDevice):
+#         """Initialize the volume number entity."""
+#         entity_id = f"{create_entity_id(config_device.id, EntityTypes.NUMBER)}.{self.ENTITY_NAME}"
+#         super().__init__(
+#             entity_id,
+#             {
+#                 "en": f"{config_device.get_device_part()}Volume",
+#                 "fr": f"{config_device.get_device_part()}Volume",
+#             },
+#             config_device,
+#             device,
+#             {
+#                 Options.MIN: 0,
+#                 Options.MAX: 100,
+#                 Options.STEP: 1,
+#                 Options.DECIMALS: 0,
+#                 Options.UNIT: "%",
+#                 Options.READABLE: True,
+#             },
+#         )
+#
+#     @property
+#     def number_value(self) -> Numeric:
+#         """Return the current Kodi volume."""
+#         return self._device.volume_level or 0
+#
+#     async def _set_value(self, value: Numeric) -> StatusCodes:
+#         """Set Kodi volume."""
+#         return await self._device.set_volume_level(value)
 
 
 class KodiNumberZoom(KodiNumber):
