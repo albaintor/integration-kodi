@@ -415,6 +415,14 @@ class KodiDevice(IKodiDevice):
         self.event_loop.create_task(self._update_states())
 
     # pylint: disable = W0613
+    def on_av_change(self, sender: str, data: dict[str, Any]):
+        """Handle an audio/video change and refresh the current view mode."""
+        _LOG.debug("[%s] Kodi AV changed %s", self.device_config.address, data)
+        if "speed" in data.get("player", {}):
+            self._properties["speed"] = data["player"]["speed"]
+        self.event_loop.create_task(self._update_states(refresh_zoom=True))
+
+    # pylint: disable = W0613
     def on_stop(self, sender: str, data: dict[str, Any]):
         """Handle the stop of the player playback."""
         # Prevent stop notifications which are sent after quit notification
@@ -552,7 +560,7 @@ class KodiDevice(IKodiDevice):
         self._kodi_connection.server.Player.OnPause = self.on_speed_event
         self._kodi_connection.server.Player.OnPlay = self.on_speed_event
         self._kodi_connection.server.Player.OnAVStart = self.on_speed_event
-        self._kodi_connection.server.Player.OnAVChange = self.on_speed_event
+        self._kodi_connection.server.Player.OnAVChange = self.on_av_change
         self._kodi_connection.server.Player.OnResume = self.on_speed_event
         self._kodi_connection.server.Player.OnSpeedChanged = self.on_speed_event
         self._kodi_connection.server.Player.OnSeek = self.on_speed_event
@@ -867,7 +875,9 @@ class KodiDevice(IKodiDevice):
         await asyncio.sleep(0)
 
     # pylint: disable = R0914,R0915
-    async def _update_states(self, deferred=0, received_data: dict[str, Any] | None = None) -> None:
+    async def _update_states(
+        self, deferred=0, received_data: dict[str, Any] | None = None, refresh_zoom: bool = False
+    ) -> None:
         """Update entity state attributes."""
         if deferred > 0:
             await asyncio.sleep(deferred)
@@ -931,19 +941,15 @@ class KodiDevice(IKodiDevice):
                 current_shuffle = self.shuffle
                 current_repeat = self.repeat
 
-                # try:
-                #     view_mode = await self._kodi.call_method("Player.GetViewMode")
-                #     zoom_level = float(view_mode.get("zoom", 1.0))
-                #     if self._zoom_level != zoom_level:
-                #         self._zoom_level = zoom_level
-                #         updated_data["zoom"] = zoom_level
-                #     audio_delay = await self._kodi.call_method("Player.GetAudioDelay")
-                #     audio_delay_level = float(audio_delay.get("offset", 0.0))
-                #     if self._audio_delay_level != audio_delay_level:
-                #         self._audio_delay_level = audio_delay_level
-                #         updated_data["audio_delay"] = audio_delay_level
-                # except (TypeError, ValueError, ProtocolError):
-                #     _LOG.debug("[%s] Unable to refresh zoom/audio delay", self.device_config.address)
+                if refresh_zoom:
+                    try:
+                        view_mode = await self._kodi.call_method("Player.GetViewMode")
+                        zoom_level = float(view_mode.get("zoom", 1.0))
+                        if self._zoom_level != zoom_level:
+                            self._zoom_level = zoom_level
+                            updated_data["zoom"] = zoom_level
+                    except (AttributeError, TypeError, ValueError, ProtocolError):
+                        _LOG.debug("[%s] Unable to refresh zoom", self.device_config.address)
 
                 self._properties = await self._kodi.get_player_properties(
                     self._players[0],
@@ -2020,6 +2026,18 @@ class KodiDevice(IKodiDevice):
         arguments = {"playerid": self.player_id, "offset": offset + current_delay}
         _LOG.debug("[%s] Set audio delay Player.SetAudioDelay %s", self.device_config.address, arguments)
         await self._kodi.call_method("Player.SetAudioDelay", **arguments)
+
+        # Kodi does not emit a JSON-RPC notification when the audio delay changes.
+        # Read it back to expose the effective value after Kodi has applied its
+        # configured step/range normalization.
+        audio_delay = await self._kodi.call_method("Player.GetAudioDelay")
+        try:
+            audio_delay_level = float(audio_delay.get("offset", arguments["offset"]))
+        except (AttributeError, TypeError, ValueError):
+            audio_delay_level = float(arguments["offset"])
+        if self._audio_delay_level != audio_delay_level:
+            self._audio_delay_level = audio_delay_level
+            self.events.emit(Events.UPDATE, self.id, {"audio_delay": audio_delay_level})
 
     @retry()
     async def set_audio_delay(self, offset: float):
