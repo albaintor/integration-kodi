@@ -5,7 +5,6 @@ Implementation of a Kodi interface.
 :license: Mozilla Public License Version 2.0, see LICENSE for more details.
 """
 
-import asyncio
 import logging
 import urllib.parse
 from typing import Any, Literal
