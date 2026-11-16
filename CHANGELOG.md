@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- Fix lost first commands after Remote wake by waiting for the current Kodi connection.
+- Serialize connection attempts, report readiness only after successful initialization, and cancel reconnect tasks on standby.
+- Return service unavailable instead of dispatching commands to a disconnected websocket after the reconnect timeout.
+
 - Rename the predefined simple commands to match [expected UC name patterns](https://github.com/unfoldedcircle/core-api/blob/main/doc/entities/entity_media_player.md#command-name-patterns)
 - Brings support for the different keymaps (e.g by bringing a separator in the command name to set the keymap name)
 - Add PVR browsing: TV and Radio channel groups, channels with logos, Now/Next EPG as subtitle, switch channel via media player

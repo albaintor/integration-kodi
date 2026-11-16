@@ -46,3 +46,7 @@ jobs:
       - name: Type check with pyright
         run: |
           python -m pyright
+      - name: Run regression tests
+        env:
+          PYTHONPATH: src
+        run: python -m pytest -q tests

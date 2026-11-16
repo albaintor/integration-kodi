@@ -37,6 +37,7 @@ api = ucapi.IntegrationAPI(_LOOP)
 # Map of id -> device instance
 _configured_kodis: dict[str, kodi_device.KodiDevice] = {}
 _remote_in_standby = False  # pylint: disable=C0103
+_wake_tasks: dict[str, asyncio.Task[None]] = {}
 
 # On EXIT_STANDBY the Remote may deliver the event before its Wi-Fi/LAN route is
 # usable. Retry connection starts quickly for a short window instead of waiting
@@ -69,7 +70,7 @@ async def on_disconnect_cmd():
         _LOG.debug("Disconnect requested")
         for device in _configured_kodis.values():
             # start background task
-            await _LOOP.create_task(device.disconnect())
+            await disconnect_device(device)
     else:
         _LOG.debug("Disconnect requested but 1 client is connected %s", api._clients)
 
@@ -85,13 +86,24 @@ async def on_enter_standby() -> None:
     _remote_in_standby = True
     _LOG.debug("Enter standby event: disconnecting device(s)")
     for configured in _configured_kodis.values():
-        await configured.disconnect()
+        await disconnect_device(configured)
+
+
+async def disconnect_device(device: kodi_device.KodiDevice) -> None:
+    """Stop wake retry tasks before disconnecting the device."""
+    task = _wake_tasks.pop(device.id, None)
+    if task is not None and not task.done():
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+    await device.disconnect()
 
 
 async def connect_device(device: kodi_device.KodiDevice):
     """Connect device after wake and send state only after a real websocket connection."""
     # pylint: disable=W0212
     for attempt in range(1, WAKE_RECONNECT_RETRIES + 1):
+        if _remote_in_standby or _configured_kodis.get(device.id) is not device:
+            return
         started = _LOOP.time()
         try:
             _LOG.debug(
@@ -105,10 +117,10 @@ async def connect_device(device: kodi_device.KodiDevice):
             _LOG.error("Error while reconnecting to Kodi %s", ex)
             return
 
-        # connect() historically returned True when another connect held the
-        # lock, and its cleanup path may also mark the device available after a
-        # failed attempt. Check the websocket itself before publishing state.
-        if device._kodi_connection is not None and device._kodi_connection.connected:
+        if _remote_in_standby:
+            return
+        # The socket must be connected and initialization must be complete.
+        if device.connection_ready:
             _LOG.debug("Device %s connected, sending attributes for subscribed entities", device.id)
             await on_device_update(device.id, None)
             return
@@ -152,7 +164,9 @@ async def on_exit_standby() -> None:
         # Do not block the EXIT_STANDBY handler while the network stack is
         # recovering. Command events can then be processed immediately.
         try:
-            _LOOP.create_task(connect_device(configured))
+            task = _wake_tasks.get(configured.id)
+            if task is None or task.done():
+                _wake_tasks[configured.id] = _LOOP.create_task(connect_device(configured))
         except RuntimeError as ex:
             _LOG.error("Error while reconnecting to Kodi %s", ex)
 
@@ -223,7 +237,7 @@ async def on_unsubscribe_entities(entity_ids: list[str]) -> None:
 
     for device_id in devices_to_remove:
         if device_id in _configured_kodis:
-            await _configured_kodis[device_id].disconnect()
+            await disconnect_device(_configured_kodis[device_id])
             _configured_kodis[device_id].events.remove_all_listeners()
 
 
@@ -456,7 +470,7 @@ def on_device_removed(device: config.KodiConfigDevice | None) -> None:
 
 async def _async_remove(device: kodi_device.KodiDevice) -> None:
     """Disconnect from receiver and remove all listeners."""
-    await device.disconnect()
+    await disconnect_device(device)
     device.events.remove_all_listeners()
 
 
