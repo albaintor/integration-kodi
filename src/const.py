@@ -108,6 +108,7 @@ class KodiSelects(str, Enum):
     SELECT_SUBTITLE_STREAM = "select_subtitle_stream"
     SELECT_CHAPTER = "select_chapter"
 
+
 class KodiNumbers(str, Enum):
     """Kodi number values."""
 

@@ -42,7 +42,7 @@ jobs:
           python -m ruff check src
       - name: Check code formatting with ruff
         run: |
-          python -m ruff format --check src || { python -m ruff format --diff src/const.py src/number.py; exit 1; }
+          python -m ruff format --check src
       - name: Type check with pyright
         run: |
           python -m pyright

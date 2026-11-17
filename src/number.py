@@ -214,12 +214,7 @@ class KodiNumber(KodiEntity, Number):
             value = self._validated_value(params.get("value"), clamp=False)
         elif cmd_id in (Commands.INCREMENT, Commands.DECREMENT):
             step = params.get("step", self._step)
-            if (
-                isinstance(step, bool)
-                or not isinstance(step, (int, float))
-                or not math.isfinite(step)
-                or step <= 0
-            ):
+            if isinstance(step, bool) or not isinstance(step, (int, float)) or not math.isfinite(step) or step <= 0:
                 return StatusCodes.BAD_REQUEST
             value = self.number_value + (step if cmd_id == Commands.INCREMENT else -step)
             value = self._validated_value(value, clamp=True)
