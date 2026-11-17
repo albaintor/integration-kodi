@@ -206,30 +206,33 @@ async def retry_call_command(
     """Retry call command when failed."""
     # pylint: disable=W0212
     # Launch reconnection task if not active
-    obj._reset_retries()
-    if not obj._connection_status:
-        obj._connection_status = obj.event_loop.create_future()
-    if not obj._connect_lock.locked():
-        obj.event_loop.create_task(obj.connect())
-        await asyncio.sleep(0)
+    if obj._disconnecting:
+        return ucapi.StatusCodes.SERVICE_UNAVAILABLE
+    if obj.connection_ready:
+        await func(obj, *args, **kwargs)
+        return ucapi.StatusCodes.OK
 
-    # If the command should be bufferized (and retried later) add it to the list and returns OK
+    obj._reset_retries()
+    # Reuse a pending future across transient connection failures, but never a
+    # completed future belonging to an earlier connection.
+    status = obj._pending_connection_status()
+    obj._schedule_connect()
+
     if bufferize:
         _LOG.debug("[%s] Bufferize command %s %s", obj.device_config.address, func, args)
         obj._buffered_callbacks[time.time()] = {"object": obj, "function": func, "args": args, "kwargs": kwargs}
         return ucapi.StatusCodes.OK
     try:
-        # Else (no bufferize) wait (not more than "timeout" seconds) for the connection to complete
         async with asyncio.timeout(max(timeout - 1, 1)):
-            await shield(obj._connection_status)
+            connected = await shield(status)
     except asyncio.TimeoutError:
-        # (Re)connection failed at least at given time
-        if obj.state == MediaStates.OFF:
-            log_function = _LOG.debug
-        else:
-            log_function = _LOG.error
-        log_function("[%s] Timeout for reconnect, command will probably fail", obj.device_config.address)
-    # Try to send the command anyway
+        _LOG.debug("[%s] Timeout waiting for Kodi reconnect", obj.device_config.address)
+        return ucapi.StatusCodes.SERVICE_UNAVAILABLE
+
+    # A disconnect invalidates the old future and wakes its waiters with False.
+    if not connected or status is not obj._connection_status or not obj.connection_ready:
+        return ucapi.StatusCodes.SERVICE_UNAVAILABLE
+
     await func(obj, *args, **kwargs)
     return ucapi.StatusCodes.OK
 
@@ -250,7 +253,7 @@ def retry(
             """Wrap all command methods."""
             # pylint: disable = W0212, W0718
             try:
-                if obj._kodi_connection and obj._kodi_connection.connected:
+                if obj.connection_ready:
                     await func(obj, *args, **kwargs)
                     return ucapi.StatusCodes.OK
                 return await retry_call_command(timeout, bufferize, func, obj, *args, **kwargs)
@@ -314,7 +317,7 @@ class KodiDevice(IKodiDevice):
         self._item = {}
         self._app_properties = {}
         self._connect_error = False
-        self._available: bool = True
+        self._available: bool = False
         self._volume = 0
         self._is_volume_muted = False
         self._media_position = 0
@@ -332,11 +335,15 @@ class KodiDevice(IKodiDevice):
         self._websocket_task = None
         self._buffered_callbacks = {}
         self._connect_lock = Lock()
+        self._disconnect_lock = Lock()
+        self._disconnecting = False
+        self._connection_task: Task[Any] | None = None
+        self._scheduled_connect_task: Task[bool] | None = None
         self._reconnect_retry = 0
         self._kodi_ws_task = None
         _LOG.debug("[%s] Kodi instance created", device_config.address)
         # self.event_loop.create_task(self.init_connection())
-        self._connection_status: Future | None = None
+        self._connection_status: Future[bool] | None = None
         self._buffered_callbacks = {}
         self._update_lock = Lock()
         self._update_lock_time: float = 0
@@ -393,6 +400,35 @@ class KodiDevice(IKodiDevice):
     def _reset_retries(self):
         """Reset connection retries."""
         self._reconnect_retry = 0
+
+    @property
+    def connection_ready(self) -> bool:
+        """Return whether Kodi is connected and its initialization is complete."""
+        return (
+            not self._disconnecting
+            and self._available
+            and self._kodi_connection is not None
+            and self._kodi_connection.connected
+        )
+
+    def _pending_connection_status(self) -> Future[bool]:
+        """Get the shared pending future for the next successful connection."""
+        if self._connection_status is None or self._connection_status.done():
+            self._connection_status = self.event_loop.create_future()
+        return self._connection_status
+
+    def _schedule_connect(self) -> None:
+        """Coalesce reconnect requests from commands and power-on actions."""
+        if self._disconnecting or self._connect_lock.locked():
+            return
+        if self._scheduled_connect_task is None or self._scheduled_connect_task.done():
+            self._scheduled_connect_task = self.event_loop.create_task(self.connect())
+
+    def _invalidate_connection_status(self) -> None:
+        """Wake old waiters without allowing them to use a new connection."""
+        if self._connection_status is not None and not self._connection_status.done():
+            self._connection_status.set_result(False)
+        self._connection_status = self.event_loop.create_future()
 
     def get_state(self) -> MediaStates:
         """Get state of device."""
@@ -571,6 +607,8 @@ class KodiDevice(IKodiDevice):
 
     async def _clear_connection(self, close=True):
         """Close connection and reset state."""
+        self._available = False
+        self._pending_connection_status()
         self._reset_state()
         if close:
             try:
@@ -612,10 +650,9 @@ class KodiDevice(IKodiDevice):
                 CONNECTION_RETRIES,
             )
             # Connection status result has to be reset if connection fails and future result is still okay
-            if not self._connection_status or self._connection_status.done():
-                self._connection_status = self.event_loop.create_future()
+            self._pending_connection_status()
             try:
-                await asyncio.wait_for(shield(self.connect()), DEFAULT_TIMEOUT)
+                await asyncio.wait_for(self.connect(), DEFAULT_TIMEOUT)
             except asyncio.TimeoutError:
                 _LOG.debug("[%s] Kodi websocket too slow to reconnect", self._device_config.address)
         else:
@@ -659,115 +696,108 @@ class KodiDevice(IKodiDevice):
 
     async def connect(self) -> bool:
         """Connect to Kodi via websocket protocol."""
-        # pylint: disable = R0915
-        try:
-            if self._connect_lock.locked():
-                _LOG.debug("[%s] Connect already in progress, returns", self.device_config.address)
-                return True
-            _LOG.debug("[%s] Connecting", self.device_config.address)
-            await self._connect_lock.acquire()
-            if self._kodi_connection and self._kodi_connection.connected:
-                _LOG.debug("[%s] Already connected", self.device_config.address)
-                return True
-            self._connect_error = False
+        # The lock must only be released by the task that acquired it.
+        if self._disconnecting or self._connect_lock.locked():
+            _LOG.debug("[%s] Connect unavailable or already in progress", self.device_config.address)
+            return False
 
+        await self._connect_lock.acquire()
+        self._connection_task = asyncio.current_task()
+        cancelled = False
+        try:
+            if self.connection_ready:
+                return True
+
+            self._available = False
+            status = self._pending_connection_status()
+            _LOG.debug("[%s] Connecting", self.device_config.address)
             await self.init_connection()
-            # This method was buggy, this is the reason why pykodi library has been integrated into the driver
-            # TODO report the fix
             await self._kodi_connection.connect()
             await self._register_callbacks()
             await self._ping()
+            if not self._kodi_connection.connected:
+                return False
             self._media_browser.reset_feature_cache()
             await self._update_states()
+            if self._disconnecting or not self._kodi_connection.connected or status is not self._connection_status:
+                return False
 
+            self._available = True
+            self._connect_error = False
+            self._reset_retries()
+            if not status.done():
+                status.set_result(True)
             _LOG.debug("[%s] Connection successful", self._device_config.address)
-            if self._websocket_task is None:
-                self._websocket_task = self.event_loop.create_task(self.start_watchdog())
-            if self._connection_status and not self._connection_status.done():
-                self._connection_status.set_result(True)
+            self.events.emit(Events.CONNECTED, self.id)
             if self._device_config.media_update_task and self._update_position_task is None:
                 self._update_position_task = self.event_loop.create_task(self.start_update_position_task())
             elif not self._device_config.media_update_task and self._update_position_task is not None:
-                try:
-                    self._update_position_task.cancel()
-                # pylint: disable = W0718
-                except Exception as ex:
-                    _LOG.error("[%s] Failed to cancel update task %s", self.device_config.address, ex)
+                self._update_position_task.cancel()
                 self._update_position_task = None
+            return True
+        except asyncio.CancelledError:
+            cancelled = True
+            await self._clear_connection()
+            raise
         except (TransportError, CannotConnectError, ServerTimeoutError) as ex:
             _LOG.debug("[%s] Connection error : %s", self.device_config.address, ex)
-            try:
-                # In case of OSError it means that the connection is not ready, let's wait a little bit
-                if len(ex.args) > 1 and isinstance(ex.args[1], ClientOSError):
-                    _LOG.warning("[%s] OS error, waiting %ss", self.device_config.address, ERROR_OS_WAIT)
-                    await asyncio.sleep(ERROR_OS_WAIT)
-            # pylint: disable = W0718
-            except Exception:
-                pass
-
-            if not self._connection_status or self._connection_status.done():
-                self._connection_status = self.event_loop.create_future()
+            if len(ex.args) > 1 and isinstance(ex.args[1], ClientOSError):
+                _LOG.warning("[%s] OS error, waiting %ss", self.device_config.address, ERROR_OS_WAIT)
+                await asyncio.sleep(ERROR_OS_WAIT)
             if not self._connect_error:
                 self._connect_error = True
                 _LOG.warning("[%s] Unable to connect to Kodi via websocket", self.device_config.address)
-                # , ex, stack_info=True, exc_info=True)
-            await self._clear_connection(False)
+            await self._clear_connection()
             return False
-        # pylint: disable = W0718
         except Exception as ex:
             _LOG.error("[%s] Unknown exception connect : %s", self.device_config.address, ex)
+            await self._clear_connection()
             return False
         finally:
-            # After 10 retries, reconnection delay will go from 10 to 30s and stop logging
-            if self._reconnect_retry >= CONNECTION_RETRIES and self._connect_error:
-                _LOG.debug("[%s] Kodi websocket not connected, abort retries", self.device_config.address)
-                if self._websocket_task:
-                    try:
-                        self._websocket_task.cancel()
-                    except Exception as ex:
-                        _LOG.error("[%s] Failed to cancel websocket task %s", self.device_config.address, ex)
-                    self._websocket_task = None
-            elif self._websocket_task is None:
+            self._connection_task = None
+            self._connect_lock.release()
+            # A cancelled connection must not recreate a watchdog during standby.
+            if not cancelled and not self._disconnecting and self._websocket_task is None:
                 self._websocket_task = self.event_loop.create_task(self.start_watchdog())
-            self._available = True
-            self.events.emit(Events.CONNECTED, self.id)
-            try:
-                if self._connect_lock.locked():
-                    self._connect_lock.release()
-            except RuntimeError:
-                pass
-        return True
 
     async def disconnect(self):
-        """Disconnect from TV."""
-        _LOG.debug("[%s] Disconnect %s", self.device_config.address, self.id)
-        try:
-            if self._websocket_task:
-                self._websocket_task.cancel()
-            if self._kodi_connection:
-                await self._kodi_connection.close()
-                self._kodi_connection = None
-            self._attr_state = MediaStates.OFF
-        except CannotConnectError as er:
-            _LOG.error(
-                "[%s] Logout failed cannot connect: [%s]",
-                self.device_config.address,
-                er,
-            )
-        except InvalidAuthError as error:
-            _LOG.error(
-                "[%s] Logout failed: [%s]",
-                self.device_config.address,
-                error,
-            )
-        finally:
+        """Disconnect from Kodi and stop connection tasks."""
+        async with self._disconnect_lock:
+            _LOG.debug("[%s] Disconnect %s", self.device_config.address, self.id)
+            self._disconnecting = True
             self._available = False
-            self._websocket_task = None
-            self._app_language = None
+            self._invalidate_connection_status()
             try:
-                self._update_lock.release()
-            except RuntimeError:
-                pass
+                current_task = asyncio.current_task()
+                tasks = {
+                    task
+                    for task in (
+                        self._websocket_task,
+                        self._connection_task,
+                        self._scheduled_connect_task,
+                        self._update_position_task,
+                    )
+                    if task is not None and task is not current_task and not task.done()
+                }
+                for task in tasks:
+                    task.cancel()
+                if tasks:
+                    await asyncio.gather(*tasks, return_exceptions=True)
+
+                if self._kodi_connection:
+                    await self._kodi_connection.close()
+                self._attr_state = MediaStates.OFF
+            except (CannotConnectError, InvalidAuthError) as ex:
+                _LOG.error("[%s] Kodi disconnect failed: %s", self.device_config.address, ex)
+            finally:
+                self._kodi_connection = None
+                self._available = False
+                self._websocket_task = None
+                self._scheduled_connect_task = None
+                self._update_position_task = None
+                self._app_language = None
+                self._reset_state()
+                self._disconnecting = False
 
     def _reset_state(self, players=None):
         # pylint: disable = R0915
@@ -873,7 +903,7 @@ class KodiDevice(IKodiDevice):
         if received_data is None:
             received_data = {}
 
-        if not self._kodi_connection.connected:
+        if self._kodi_connection is None or not self._kodi_connection.connected:
             _LOG.debug("[%s] Update states requested but not connected", self.device_config.address)
             self._reset_state()
             return
@@ -1449,7 +1479,7 @@ class KodiDevice(IKodiDevice):
         return self.get_state()
 
     @property
-    def connection_status(self) -> Future | None:
+    def connection_status(self) -> Future[bool] | None:
         """Return the connection status."""
         return self._connection_status
 
@@ -1829,7 +1859,7 @@ class KodiDevice(IKodiDevice):
     async def power_on(self):
         """Handle connection to Kodi device."""
         self._reset_retries()
-        self.event_loop.create_task(self.connect())
+        self._schedule_connect()
         await asyncio.sleep(0)
         return ucapi.StatusCodes.OK
 

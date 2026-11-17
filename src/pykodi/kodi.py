@@ -5,7 +5,6 @@ Implementation of a Kodi interface.
 :license: Mozilla Public License Version 2.0, see LICENSE for more details.
 """
 
-import asyncio
 import logging
 import urllib.parse
 from typing import Any, Literal
@@ -165,7 +164,7 @@ class KodiWSConnection(KodiConnection):
                 self._connect_task = None
 
             self._connect_task = await self._ws_server.ws_connect()
-        except (jsonrpc_base.jsonrpc.TransportError, asyncio.exceptions.CancelledError, ServerTimeoutError) as error:
+        except (jsonrpc_base.jsonrpc.TransportError, ServerTimeoutError) as error:
             _LOG.error("Kodi connection error %s", error)
             # Keep the transport error arguments instead of wrapping the whole
             # exception as a single argument. KodiDevice relies on the nested
