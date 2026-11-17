@@ -354,6 +354,7 @@ class RemoteWebsocket:
                         "climate",
                         "light",
                         "media_player",
+                        "number",
                         "remote",
                         "select",
                         "sensor",
@@ -614,8 +615,31 @@ class RemoteInterface(tk.Tk):
         self.maxsize(1920, 1080)
         self._row = 0
         self._ui_queue: queue.Queue[Callable[[], None]] = queue.Queue()
-        self._left_frame = ttk.Frame(self, width=300, height=600)
-        self._left_frame.pack(side="left", fill="both", padx=10, pady=5, expand=True)
+
+        # The entity list can become taller than the screen. Keep the media
+        # area fixed and make the complete left-hand control panel scrollable.
+        self._left_container = ttk.Frame(self)
+        self._left_container.pack(side="left", fill="both", padx=(10, 0), pady=5, expand=True)
+        self._left_canvas = tk.Canvas(self._left_container, highlightthickness=0, width=620)
+        self._left_scrollbar = ttk.Scrollbar(
+            self._left_container, orient="vertical", command=self._left_canvas.yview
+        )
+        self._left_canvas.configure(yscrollcommand=self._left_scrollbar.set)
+        self._left_scrollbar.pack(side="right", fill="y")
+        self._left_canvas.pack(side="left", fill="both", expand=True)
+
+        self._left_frame = ttk.Frame(self._left_canvas)
+        self._left_window = self._left_canvas.create_window((0, 0), window=self._left_frame, anchor="nw")
+        self._left_frame.bind(
+            "<Configure>",
+            lambda _event: self._left_canvas.configure(scrollregion=self._left_canvas.bbox("all")),
+        )
+        self._left_canvas.bind(
+            "<Configure>",
+            lambda event: self._left_canvas.itemconfigure(self._left_window, width=event.width),
+        )
+        self._left_canvas.bind_all("<MouseWheel>", self._on_mousewheel)
+
         self._left_frame.grid_columnconfigure(0, weight=1)
         self._left_frame.grid_columnconfigure(1, weight=1)
         self._left_frame.grid_columnconfigure(2, weight=1)
@@ -749,6 +773,26 @@ class RemoteInterface(tk.Tk):
         command = ttk.Button(self._left_frame, text="Down", command=lambda: self.media_player_command("cursor_down"))
         command.grid(row=self._row, column=1)
         self._row += 1
+
+        # Keep dynamic entity types in a deterministic order regardless of the
+        # order in which their initial states or updates are received.
+        self._number_frame = ttk.Frame(self._left_frame)
+        self._number_frame.grid(row=self._row, column=0, columnspan=3, sticky="we")
+        self._number_frame.grid_columnconfigure(1, weight=1)
+        self._row += 1
+        self._sensor_frame = ttk.Frame(self._left_frame)
+        self._sensor_frame.grid(row=self._row, column=0, columnspan=3, sticky="we")
+        self._sensor_frame.grid_columnconfigure(0, weight=1)
+        self._row += 1
+        self._selector_frame = ttk.Frame(self._left_frame)
+        self._selector_frame.grid(row=self._row, column=0, columnspan=3, sticky="we")
+        self._selector_frame.grid_columnconfigure(1, weight=1)
+        self._row += 1
+
+        self._number_row = 0
+        self._sensor_row = 0
+        self._selector_row = 0
+        self._numbers: dict[str, dict[str, Any]] = {}
         self._sensors: dict[str, ttk.Label] = {}
         self._selectors: dict[str, ttk.Combobox] = {}
         self._info_label = ttk.Label(self._left_frame, text="")
@@ -775,6 +819,11 @@ class RemoteInterface(tk.Tk):
             if self._media_players.get() == name:
                 return entity
         return None
+
+    def _on_mousewheel(self, event: tk.Event) -> None:
+        """Scroll the left control panel with the mouse wheel."""
+        if event.delta:
+            self._left_canvas.yview_scroll(int(-event.delta / 120), "units")
 
     def set_worker(self, worker: Any) -> None:
         self._worker = worker
@@ -814,6 +863,28 @@ class RemoteInterface(tk.Tk):
             )
         except Exception as ex:
             _LOG.exception("Send command error %s", ex)
+
+    def number_command(self, event: Any, entity_id: str) -> None:
+        """Set a number entity to the slider value."""
+        if self._worker is None:
+            _LOG.error("Number Command undefined worker")
+            return
+        value = event.widget.get()
+        _LOG.debug("Number Command %s = %s", entity_id, value)
+        try:
+            asyncio.run_coroutine_threadsafe(
+                self.send_command(
+                    {
+                        "cmd_id": "set_value",
+                        "entity_id": entity_id,
+                        "entity_type": "number",
+                        "params": {"value": value},
+                    }
+                ),
+                self._worker._loop,
+            )
+        except Exception as ex:
+            _LOG.exception("Send number command error %s", ex)
 
     def selector_command(self, event: Any, entity_id: str, cmd_id: str) -> None:
         _LOG.debug(
@@ -1011,12 +1082,65 @@ class RemoteInterface(tk.Tk):
         self._duration = duration
         self.update_position()
 
+    def set_number(
+        self,
+        entity_id: str,
+        name: str,
+        value: float,
+        state: str,
+        options: dict[str, Any],
+    ) -> None:
+        """Create or update a number entity slider."""
+        minimum = float(options.get("min", 0))
+        maximum = float(options.get("max", 100))
+        step = float(options.get("step", 1))
+        decimals = int(options.get("decimals", 0))
+        unit = options.get("unit", "")
+        try:
+            numeric_value = float(value)
+        except (TypeError, ValueError):
+            numeric_value = minimum
+
+        if entity_id not in self._numbers:
+            label = ttk.Label(self._number_frame, text=f"{name} :", justify="left", anchor="w")
+            label.grid(row=self._number_row, column=0, sticky="w")
+
+            scale = tk.Scale(
+                self._number_frame,
+                from_=minimum,
+                to=maximum,
+                resolution=step,
+                orient="horizontal",
+                showvalue=False,
+            )
+            scale.bind("<ButtonRelease-1>", lambda event, eid=entity_id: self.number_command(event, eid))
+            scale.grid(row=self._number_row, column=1, sticky="we")
+
+            value_label = ttk.Label(self._number_frame, width=12, anchor="e")
+            value_label.grid(row=self._number_row, column=2, sticky="e")
+            self._number_row += 1
+            self._numbers[entity_id] = {
+                "scale": scale,
+                "value_label": value_label,
+                "options": options,
+            }
+
+        entry = self._numbers[entity_id]
+        scale = entry["scale"]
+        scale.configure(from_=minimum, to=maximum, resolution=step)
+        scale.set(numeric_value)
+        scale.configure(state="normal" if state not in ("UNAVAILABLE", "UNKNOWN") else "disabled")
+        formatted_value = f"{numeric_value:.{decimals}f}"
+        entry["value_label"]["text"] = f"{formatted_value} {unit}".rstrip()
+        entry["options"] = options
+        self.update()
+
     def set_sensor(self, entity_id: str, name: str, value: str, state: str) -> None:
         # _LOG.debug("Setting sensor %s %s", entity_id, value)
         if entity_id not in self._sensors:
-            label = self._sensors[entity_id] = ttk.Label(self._left_frame, text="")
-            label.grid(row=self._row, column=0, columnspan=3, sticky="we")
-            self._row += 1
+            label = self._sensors[entity_id] = ttk.Label(self._sensor_frame, text="")
+            label.grid(row=self._sensor_row, column=0, columnspan=3, sticky="we")
+            self._sensor_row += 1
             self._sensors[entity_id] = label
         self._sensors[entity_id]["text"] = f"{name}({state}): {value}"
         self.update()
@@ -1024,16 +1148,17 @@ class RemoteInterface(tk.Tk):
     def set_selector(self, entity_id: str, name: str, selector: Selector) -> None:
         _LOG.debug("Setting selector %s %s", entity_id, selector)
         if entity_id not in self._selectors:
-            label = ttk.Label(self._left_frame, text=f"{name} :", justify="left", anchor="w")
-            label.grid(row=self._row, column=0, sticky="we")
-            # self._row += 1
-            combo = self._selectors[entity_id] = ttk.Combobox(self._left_frame, state="readonly", justify="left")
+            label = ttk.Label(self._selector_frame, text=f"{name} :", justify="left", anchor="w")
+            label.grid(row=self._selector_row, column=0, sticky="we")
+            combo = self._selectors[entity_id] = ttk.Combobox(
+                self._selector_frame, state="readonly", justify="left"
+            )
             combo.bind(
                 "<<ComboboxSelected>>",
                 lambda event, eid=entity_id, cmd_id="select_option": self.selector_command(event, eid, cmd_id),
             )
-            combo.grid(row=self._row, column=1, columnspan=2, sticky="we")
-            self._row += 1
+            combo.grid(row=self._selector_row, column=1, columnspan=2, sticky="we")
+            self._selector_row += 1
             self._selectors[entity_id] = combo
         combo = self._selectors[entity_id]
         combo["values"] = selector.options
@@ -1584,6 +1709,7 @@ class WorkerThread(threading.Thread):
         self._loop_ready = threading.Event()
         self._ws: RemoteWebsocket | None = None
         self._entity_ids: list[str] = []
+        self._numbers: dict[str, dict[str, Any]] = {}
         self._sensors: dict[str, dict[str, Any]] = {}
         self._selectors: dict[str, Selector] = {}
         self._entities: list[dict[str, Any]] = []
@@ -1701,6 +1827,18 @@ class WorkerThread(threading.Thread):
         if self._attributes.get(entity_id) is None:
             self._attributes[entity_id] = {}
         self._attributes[entity_id] = self._attributes[entity_id] | attributes
+        if updated_data.get("entity_type", "") == "number" and entity_id in self._numbers:
+            entry = self._numbers[entity_id]
+            current_attributes = self._attributes[entity_id]
+            value = current_attributes.get("value", 0)
+            state = current_attributes.get("state", "")
+            self._interface._ui_queue.put(
+                lambda eid=entity_id, name=entry["name"], v=value, s=state, opts=entry["options"]: (
+                    self._interface.set_number(eid, name, v, s, opts)
+                )
+            )
+            return
+
         if updated_data.get("entity_type", "") == "sensor" and entity_id in self._sensors:
             current_attributes = self._sensors[entity_id]
             name = attributes.get("name", current_attributes.get("name", ""))
@@ -1833,6 +1971,11 @@ class WorkerThread(threading.Thread):
                 self._entity_ids.append(entity_id)
                 if entity.get("entity_type", "") == "media_player":
                     media_players.append(get_entity_name(entity))
+                if entity.get("entity_type", "") == "number":
+                    self._numbers[entity_id] = {
+                        "name": get_locale(entity["name"]) if get_locale(entity["name"]) else entity_id,
+                        "options": entity.get("options", {}),
+                    }
                 if entity.get("entity_type", "") == "sensor":
                     self._sensors[entity_id] = {
                         "name": get_locale(entity["name"]) if get_locale(entity["name"]) else entity_id,
