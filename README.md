@@ -44,8 +44,8 @@ Note : this release requires remote firmware `>= 1.7.10`
 - Chapter selector (Kodi `>=22`)
 
 **Numbers**
-- Playback position / seeking (0–100%)
-- Volume (0–100%)
+- Video zoom factor (0.5–2.0)
+- Audio delay (-10 to +10 seconds)
 
 **Sensors**
 Several sensors are available with the following attributes exposed :
