@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- Add writable Kodi Number entities for video zoom and audio delay (Core API number entity).
+
 - Fix lost first commands after Remote wake by waiting for the current Kodi connection.
 - Serialize connection attempts, report readiness only after successful initialization, and cancel reconnect tasks on standby.
 - Return service unavailable instead of dispatching commands to a disconnected websocket after the reconnect timeout.
